@@ -259,15 +259,19 @@ tr:hover td{background:#f9fcfa}
 <!-- BETRIEBSMITTEL -->
 <div id="sec-betriebsmittel" class="sec">
   <div class="btn-row">
-    <button class="btn btn-p" onclick="openBmMod()">+ Arbeit anlegen</button>
+    </div>
+  <!-- Schnellerfassung -->
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;padding:8px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--bdr)">
+    <span style="font-size:.82rem;color:var(--txl);white-space:nowrap">Schnell anlegen:</span>
+    <button class="btn btn-s btn-sm" onclick="openBmMod(null,'Dünger')">🌿 + Düngemittel</button>
+    <button class="btn btn-s btn-sm" onclick="openBmMod(null,'Wachstumsregler')">🌱 + Wachstumsregler</button>
+    <button class="btn btn-s btn-sm" onclick="openBmMod(null,'Sonstiges')">📦 + Sonstige Arbeit</button>
   </div>
   <div class="btn-row" style="flex-wrap:wrap;gap:6px;margin-bottom:6px">
-    <button class="btn btn-s btn-sm" id="bfk-all" onclick="setBmKat('')">Alle</button>
+    <button class="btn btn-s btn-sm btn-p" id="bfk-all" onclick="setBmKat('')">Alle</button>
     <button class="btn btn-s btn-sm" id="bfk-dung" onclick="setBmKat('Dünger')">🌿 Düngemittel</button>
     <button class="btn btn-s btn-sm" id="bfk-wac" onclick="setBmKat('Wachstumsregler')">🌱 Wachstumsregler</button>
-    <button class="btn btn-s btn-sm" id="bfk-pfl" onclick="setBmKat('Pflanzenschutz')">🛡 Pflanzenschutz</button>
-    <button class="btn btn-s btn-sm" id="bfk-aus" onclick="setBmKat('Ausdünnmittel')">✂️ Ausdünnung</button>
-    <button class="btn btn-s btn-sm" id="bfk-son" onclick="setBmKat('Sonstiges')">📦 Sonstiges</button>
+    <button class="btn btn-s btn-sm" id="bfk-son" onclick="setBmKat('Sonstiges')">📦 Sonstige Arbeiten</button>
   </div>
   <div id="bm-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px"></div>
 </div>
@@ -382,6 +386,24 @@ tr:hover td{background:#f9fcfa}
           <div class="fg"><label>Bor</label><input type="number" id="mbm-bor" step="0.001" placeholder="–" style="text-align:right"></div>
           <div class="fg"><label>Zink</label><input type="number" id="mbm-zink" step="0.001" placeholder="–" style="text-align:right"></div>
           <div class="fg"><label>Eisen</label><input type="number" id="mbm-eisen" step="0.001" placeholder="–" style="text-align:right"></div>
+        </div>
+      </div>
+      <!-- Aufwandmengen -->
+      <div class="fg fw" style="border-top:1px solid var(--bdr);padding-top:10px;margin-top:2px">
+        <label style="font-size:.74rem;font-weight:700;color:var(--txl);margin-bottom:8px;display:block">Aufwandmengen</label>
+        <div style="display:grid;gap:6px">
+          <div style="display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center">
+            <div class="fg"><label style="font-size:.72rem">lt. Zulassung</label><input id="mbm-aufwand-0" placeholder="z.B. 1,25 kg/ha"></div>
+          </div>
+          ${[1,2,3].map(i=>`<div style="border:1px solid var(--bdr);border-radius:8px;padding:8px">
+            <div style="font-size:.7rem;font-weight:700;color:var(--txl);margin-bottom:5px">Empfehlung ${i}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+              <div class="fg"><label style="font-size:.7rem">Menge</label><input id="mbm-aufwand-${i}" placeholder="z.B. 1,0 kg/ha"></div>
+              <div class="fg"><label style="font-size:.7rem">Von wem</label><input id="mbm-emp-von-${i}" placeholder="z.B. RLB Tirol"></div>
+              <div class="fg"><label style="font-size:.7rem">Datum</label><input type="date" id="mbm-emp-dat-${i}"></div>
+              <div class="fg"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-${i}" placeholder="Begründung…"></div>
+            </div>
+          </div>`).join('')}
         </div>
       </div>
       <div class="fg fw">
@@ -584,7 +606,14 @@ tr:hover td{background:#f9fcfa}
           <input id="mm-mit" placeholder="z.B. Blaukorn Premium, ATS, Delan WG …" style="flex:1;border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);font-family:inherit">
         </div>
       </div>
-      <div class="fg"><label>Menge/ha</label><input id="mm-mha" placeholder="z.B. 300 kg, 24 L"></div>
+      <!-- Aufwand-Schnellwahl (erscheint wenn Produkt mit gespeicherten Aufwandmengen gewählt) -->
+      <div class="fg fw" id="mm-aufwand-wrap" style="display:none">
+        <label style="font-size:.74rem;font-weight:700;color:var(--txl)">Aufwandmenge wählen</label>
+        <select id="mm-aufwand-pick" onchange="mmPickAufwand(this)" style="width:100%;border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);font-family:inherit">
+          <option value="">– manuell eingeben –</option>
+        </select>
+      </div>
+      <div class="fg"><label>Menge/ha</label><input id="mm-mha" placeholder="z.B. 300 kg, 24 L" oninput="calcMsl()"></div>
       <div class="fg"><label>Menge/Schlag</label><input id="mm-msl" placeholder="autom. berechnet"></div>
       <div class="fg fw"><label>Notiz</label><textarea id="mm-notiz" rows="2" placeholder="Witterung, Besonderheiten, Gerät …"></textarea></div>
       <!-- Foto -->
@@ -629,6 +658,22 @@ tr:hover td{background:#f9fcfa}
 </div>
 
 <script>
+// Wachstumsregler Österreich – Stand lt. Wissensstand Mai 2025, bitte gegen BAES-Register prüfen!
+const DEFAULT_WACHSTUMSREGLER=[
+  {name:'Regalis Plus',         wirkstoff:'Prohexadion-Calcium', wirkstoff_pct:10.0,  kat:'Wachstumsregler', einheit:'kg/ha',  kulturen:'Apfel',        aufwand_zulassung:'1,25 kg/ha',    notiz:'Max. 2×/Jahr. BBCH 61–69. Abstand zu Etephon/ATS beachten.'},
+  {name:'Brevis',               wirkstoff:'Metamitron',          wirkstoff_pct:70.0,  kat:'Ausdünnmittel',   einheit:'kg/ha',  kulturen:'Apfel',        aufwand_zulassung:'1,44 kg/ha',    notiz:'Chemische Ausdünnung. BBCH 71–74. Temperaturabhängig.'},
+  {name:'MaxCel',               wirkstoff:'6-Benzyladenin',      wirkstoff_pct:1.9,   kat:'Ausdünnmittel',   einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'1,25–2,5 L/ha', notiz:'Chemische Ausdünnung. BBCH 71–74.'},
+  {name:'Exilis Plus',          wirkstoff:'6-Benzyladenin',      wirkstoff_pct:1.9,   kat:'Ausdünnmittel',   einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'1,25–2,5 L/ha', notiz:'Chemische Ausdünnung. BBCH 71–74. Generic zu MaxCel.'},
+  {name:'Promalin',             wirkstoff:'GA4+7 + 6-BA',        wirkstoff_pct:null,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'1,0 L/ha',      notiz:'Fruchtqualität/Elongation. BBCH 57–65.'},
+  {name:'Sproud',               wirkstoff:'GA4+7 + 6-BA',        wirkstoff_pct:null,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'0,5–1,0 L/ha',  notiz:'Fruchtqualität. BBCH 57–65.'},
+  {name:'Arvest',               wirkstoff:'Etephon',             wirkstoff_pct:48.0,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Apfel, Birne', aufwand_zulassung:'0,375–1,5 L/ha',notiz:'Ausdünnung & Reifebeschleunigung.'},
+  {name:'Ethrel A',             wirkstoff:'Etephon',             wirkstoff_pct:48.0,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Apfel, Birne', aufwand_zulassung:'0,375–1,5 L/ha',notiz:'Generic zu Arvest. Ausdünnung & Reife.'},
+  {name:'ReTain',               wirkstoff:'Aminoethoxyvinylglycin (AVG)', wirkstoff_pct:15.0, kat:'Wachstumsregler', einheit:'kg/ha', kulturen:'Apfel', aufwand_zulassung:'1,0 kg/ha', notiz:'Ernteverzögerung, Fruchtfallreduktion.'},
+  {name:'Falgro',               wirkstoff:'Gibberellin GA3',     wirkstoff_pct:null,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Birne',        aufwand_zulassung:'lt. Etikett',   notiz:'Fruchtgrößenförderung Birne.'},
+  {name:'Novagib',              wirkstoff:'Gibberellin GA3',     wirkstoff_pct:3.3,   kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Birne',        aufwand_zulassung:'lt. Etikett',   notiz:'Fruchtgrößenförderung Birne.'},
+  {name:'ATS (Ammoniumthiosulfat)',wirkstoff:'Ammoniumthiosulfat',wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'15–30 L/ha',    notiz:'Blütenausdünnung. BBCH 60–65. Kein Sonnenschein direkt nach Anwendung.'},
+];
+
 const DEFAULT_ARBEITEN=['Düngung','Wachstumsregulation + Ausdünnung','Pflanzenschutz','Händischer Schnitt','Maschinenschnitt','Entlauben','Bewässerung','Beobachtung','Notiz','Ernte','Sonstiges'];
 function getArbeiten(){return(D.arbeiten&&D.arbeiten.length)?D.arbeiten:[...DEFAULT_ARBEITEN];}
 
@@ -672,22 +717,39 @@ function populateWacPick(preselectedId=''){
 
 function mmPickWac(sel){
   const id=sel.value;
-  if(!id) return;
+  if(!id){document.getElementById('mm-aufwand-wrap').style.display='none';return;}
   const b=D.betriebsmittel&&D.betriebsmittel.find(b=>b.id===id);
   if(!b) return;
   document.getElementById('mm-mit').value=b.name;
   document.getElementById('mm-arb').value='Wachstumsregulation + Ausdünnung';
+  mmShowAufwandPick(b);
   calcMsl();
 }
 
+function mmShowAufwandPick(bm){
+  const wrap=document.getElementById('mm-aufwand-wrap');
+  const sel=document.getElementById('mm-aufwand-pick');
+  const rows=[];
+  if(bm.aufwand_zulassung) rows.push({label:'lt. Zulassung: '+bm.aufwand_zulassung, val:bm.aufwand_zulassung});
+  (bm.empfehlungen||[]).forEach((e,i)=>{
+    if(e.menge) rows.push({label:`Empf. ${i+1}: ${e.menge}${e.von?' ('+e.von+(e.datum?' '+e.datum.slice(0,7):'')+')'  :''}`, val:e.menge});
+  });
+  if(!rows.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  sel.innerHTML='<option value="">– manuell eingeben –</option>'+rows.map(r=>`<option value="${r.val}">${r.label}</option>`).join('');
+}
+function mmPickAufwand(sel){
+  if(sel.value) document.getElementById('mm-mha').value=sel.value;
+  calcMsl();
+}
 function mmPickDunger(sel){
   const id=sel.value;
-  if(!id) return;
+  if(!id){document.getElementById('mm-aufwand-wrap').style.display='none';return;}
   const b=D.betriebsmittel&&D.betriebsmittel.find(b=>b.id===id);
   if(!b) return;
   document.getElementById('mm-mit').value=b.name;
   document.getElementById('mm-arb').value='Düngung';
-  // keep selection visible — no reset
+  mmShowAufwandPick(b);
   calcMsl();
 }
 
@@ -1031,6 +1093,20 @@ function mergeNewBetriebsmittel(){
       });
     }
   }
+  // Wachstumsregler eintragen
+  for(const w of DEFAULT_WACHSTUMSREGLER){
+    if(!existingNames.has(w.name)){
+      D.betriebsmittel.push({
+        id:uid(), name:w.name, kat:w.kat, einheit:w.einheit,
+        max_ha:null, max_anw:null, notiz:w.notiz||'', lager:false, zugelassen:true,
+        wirkstoff:w.wirkstoff, wirkstoff_pct:w.wirkstoff_pct,
+        aufwand_zulassung:w.aufwand_zulassung||'',
+        empfehlungen:[],
+      });
+      existingNames.add(w.name);
+    }
+  }
+
   // Handausdünnung als Wachstumsregler-Eintrag
   if(!existingNames.has('Handausdünnung')){
     D.betriebsmittel.push({
@@ -1370,7 +1446,8 @@ function renderSchlage(){
         </div>
         <div id="smenu-${sid}" style="display:none;position:absolute;right:10px;top:38px;background:#fff;border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:60;min-width:160px;overflow:hidden">
           <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openBbchMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📍 BBCH setzen</div>
-          <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openSchlagMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">✏️ Bearbeiten</div>
+          <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openSchlagMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-top:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">✏️ Bearbeiten</div>
+          <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openFotochronik('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-top:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📷 Fotochronik</div>
         </div>
         <div class="scard-meta">${s.sorte||'–'}${s.ha_netto?' · '+s.ha_netto+' ha netto':''}${s.pflanzjahr?' · PJ '+s.pflanzjahr:''}</div>
         ${s.baumzahl?`<div class="scard-meta">${s.baumzahl} Bäume${s.pabst_reihe?' · '+s.pabst_reihe+'m × '+(s.pabst_baum||'?')+'m':''}</div>`:''}
@@ -1723,6 +1800,7 @@ function openMMod(id=null){
     populateDungerPick('');
     populateWacPick('');
     ['mm-bbch','mm-mit','mm-mha','mm-msl','mm-notiz'].forEach(i=>document.getElementById(i).value='');
+    mmClearFoto();
     del.style.display='none';
   }
   openMod('mod-m');
@@ -1757,14 +1835,15 @@ function saveM(){
   const arb=document.getElementById('mm-arb').value;
   const dat=document.getElementById('mm-dat').value;
   if(!ids.length||!arb||!dat){alert('Bitte mindestens einen Schlag, Arbeit und Datum ausfüllen.');return;}
-  const base={datum:dat,arbeit:arb,bbch:pi('mm-bbch'),mittel:v('mm-mit'),menge_ha:v('mm-mha'),notiz:v('mm-notiz')};
+  const base={datum:dat,arbeit:arb,bbch:pi('mm-bbch'),mittel:v('mm-mit'),menge_ha:v('mm-mha'),notiz:v('mm-notiz'),foto:_mmFotoData||undefined};
   if(editMid){
     // Bearbeitung: nur 1 Schlag möglich
     const sid=ids[0];
     const s=D.schlage.find(s=>s.id===sid);
     const msl=s&&s.ha_netto&&base.menge_ha?
       (parseFloat(base.menge_ha.replace(/[^\d.,]/g,'').replace(',','.'))*s.ha_netto).toFixed(1):'';
-    const m={...base,id:editMid,schlag_id:sid,menge_schlag:msl};
+    const prev=D.massnahmen.find(x=>x.id===editMid);
+    const m={...base,id:editMid,schlag_id:sid,menge_schlag:msl,foto:_mmFotoData!==null?(_mmFotoData||undefined):(prev&&prev.foto)};
     const i=D.massnahmen.findIndex(x=>x.id===editMid);D.massnahmen[i]=m;
     scheduleSave();closeMod('mod-m');renderM();renderRecent();toast('Maßnahme gespeichert');
   }else{
@@ -1930,13 +2009,13 @@ function bmKatChange(){
 let _bmKatFilter='';
 function setBmKat(kat){
   _bmKatFilter=kat;
-  ['all','dung','wac','pfl','aus','son'].forEach(k=>document.getElementById('bfk-'+k)?.classList.remove('btn-p'));
-  const map={'':'all','Dünger':'dung','Wachstumsregler':'wac','Pflanzenschutz':'pfl','Ausdünnmittel':'aus','Sonstiges':'son'};
-  if(map[kat]) document.getElementById('bfk-'+map[kat])?.classList.add('btn-p');
+  ['all','dung','wac','son'].forEach(k=>document.getElementById('bfk-'+k)?.classList.remove('btn-p'));
+  const map={'':'all','Dünger':'dung','Wachstumsregler':'wac','Sonstiges':'son'};
+  document.getElementById('bfk-'+(map[kat]||'all'))?.classList.add('btn-p');
   renderBm();
 }
 
-function openBmMod(id=null){
+function openBmMod(id=null,preKat=null){
   editBmId=id;
   if(!D.betriebsmittel) D.betriebsmittel=[];
   const del=document.getElementById('mbm-del');
@@ -1953,17 +2032,29 @@ function openBmMod(id=null){
     document.getElementById('mbm-zugelassen').checked=b.zugelassen!==false;
     document.getElementById('mbm-wirkstoff').value=b.wirkstoff||'';
     document.getElementById('mbm-wirkstoff-pct').value=b.wirkstoff_pct||'';
+    document.getElementById('mbm-aufwand-0').value=b.aufwand_zulassung||'';
+    [1,2,3].forEach(i=>{
+      const e=(b.empfehlungen&&b.empfehlungen[i-1])||{};
+      document.getElementById('mbm-aufwand-'+i).value=e.menge||'';
+      document.getElementById('mbm-emp-von-'+i).value=e.von||'';
+      document.getElementById('mbm-emp-dat-'+i).value=e.datum||'';
+      document.getElementById('mbm-emp-not-'+i).value=e.notiz||'';
+    });
     BM_N_FIELDS.forEach(f=>{const el=document.getElementById('mbm-'+f);if(el)el.value=b[f]||'';});
     del.style.display='inline-flex';
   }else{
     document.getElementById('mbm-title').textContent='Arbeit anlegen';
     ['mbm-name','mbm-max-ha','mbm-max-anw','mbm-notiz'].forEach(i=>document.getElementById(i).value='');
-    document.getElementById('mbm-kat').value='Dünger';
+    document.getElementById('mbm-kat').value=preKat||'Dünger';
     document.getElementById('mbm-einheit').value='kg/ha';
     document.getElementById('mbm-lager').checked=true;
     document.getElementById('mbm-zugelassen').checked=true;
     document.getElementById('mbm-wirkstoff').value='';
     document.getElementById('mbm-wirkstoff-pct').value='';
+    document.getElementById('mbm-aufwand-0').value='';
+    [1,2,3].forEach(i=>{
+      ['mbm-aufwand-','mbm-emp-von-','mbm-emp-dat-','mbm-emp-not-'].forEach(p=>document.getElementById(p+i).value='');
+    });
     BM_N_FIELDS.forEach(f=>{const el=document.getElementById('mbm-'+f);if(el)el.value='';});
     del.style.display='none';
   }
@@ -1985,7 +2076,14 @@ function saveBm(){
     lager:document.getElementById('mbm-lager').checked,
     zugelassen:document.getElementById('mbm-zugelassen').checked,
     wirkstoff:document.getElementById('mbm-wirkstoff').value.trim()||null,
-    wirkstoff_pct:parseFloat(document.getElementById('mbm-wirkstoff-pct').value)||null
+    wirkstoff_pct:parseFloat(document.getElementById('mbm-wirkstoff-pct').value)||null,
+    aufwand_zulassung:document.getElementById('mbm-aufwand-0').value.trim()||null,
+    empfehlungen:[1,2,3].map(i=>({
+      menge:document.getElementById('mbm-aufwand-'+i).value.trim(),
+      von:document.getElementById('mbm-emp-von-'+i).value.trim(),
+      datum:document.getElementById('mbm-emp-dat-'+i).value,
+      notiz:document.getElementById('mbm-emp-not-'+i).value.trim()
+    })).filter(e=>e.menge||e.von)
   };
   BM_N_FIELDS.forEach(f=>{
     const el=document.getElementById('mbm-'+f);
@@ -2098,6 +2196,41 @@ if(!window._isOauthCallback){
   updateAuthUI();
   renderDash();
   renderRef();
+
+  // Auto-Login & Auto-Load beim Start
+  if(isAllowedHost()){
+    if(isLoggedIn()){
+      // Bereits angemeldet → sofort laden
+      setTimeout(()=>cloudLoad(),500);
+    } else {
+      // Nicht angemeldet → Login-Modal nach kurzer Verzögerung
+      setTimeout(()=>openAuthMod(),1000);
+    }
+  }
+
+  // Auto-Sync alle 60 Sekunden (lädt aktuellen Stand von OneDrive)
+  setInterval(async()=>{
+    if(!isLoggedIn()) return;
+    try{
+      const tok=await ensureAccessToken();
+      const r=await fetch(`https://graph.microsoft.com/v1.0/me/drive/special/approot:/${GRAPH_FILE}:/content`,{
+        headers:{'Authorization':'Bearer '+tok}
+      });
+      if(!r.ok) return;
+      const remote=await r.json();
+      // Nur laden wenn Remote-Daten neuer (mehr Maßnahmen) oder gleich
+      const remoteCount=(remote.massnahmen||[]).length;
+      const localCount=(D.massnahmen||[]).length;
+      if(remoteCount>=localCount){
+        D=remote;
+        mergeNewSchlage();
+        lsSave();
+        renderAll();
+        const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
+        updateSbar('ok','☁️ Auto-Sync · '+t);
+      }
+    }catch(e){}
+  }, 60000);
 }
 </script>
 </body>
