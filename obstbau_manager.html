@@ -260,11 +260,14 @@ tr:hover td{background:#f9fcfa}
 <div id="sec-betriebsmittel" class="sec">
   <div class="btn-row">
     <button class="btn btn-p" onclick="openBmMod()">+ Betriebsmittel anlegen</button>
-    <select id="bm-filter-kat" onchange="renderBm()" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 9px;font-size:.8rem;background:#fff">
-      <option value="">Alle Kategorien</option>
-      <option>Dünger</option><option>Pflanzenschutz</option><option>Wachstumssteuerung</option>
-      <option>Ausdünnmittel</option><option>Blattdünger</option><option>Sonstiges</option>
-    </select>
+  </div>
+  <div class="btn-row" style="flex-wrap:wrap;gap:6px;margin-bottom:6px">
+    <button class="btn btn-s btn-sm" id="bfk-all" onclick="setBmKat('')">Alle</button>
+    <button class="btn btn-s btn-sm" id="bfk-dung" onclick="setBmKat('Dünger')">🌿 Düngemittel</button>
+    <button class="btn btn-s btn-sm" id="bfk-wac" onclick="setBmKat('Wachstumsregler')">🌱 Wachstumsregler</button>
+    <button class="btn btn-s btn-sm" id="bfk-pfl" onclick="setBmKat('Pflanzenschutz')">🛡 Pflanzenschutz</button>
+    <button class="btn btn-s btn-sm" id="bfk-aus" onclick="setBmKat('Ausdünnmittel')">✂️ Ausdünnung</button>
+    <button class="btn btn-s btn-sm" id="bfk-son" onclick="setBmKat('Sonstiges')">📦 Sonstiges</button>
   </div>
   <div id="bm-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px"></div>
 </div>
@@ -320,8 +323,8 @@ tr:hover td{background:#f9fcfa}
       <div class="fg fw"><label>Bezeichnung / Produktname</label><input id="mbm-name" placeholder="z.B. Blaukorn Premium, Regalis, Promalin, GA4/7…"></div>
       <div class="fg"><label>Kategorie</label>
         <select id="mbm-kat" onchange="bmKatChange()">
-          <option>Dünger</option><option>Pflanzenschutz</option><option>Wachstumsregler / Hormon</option>
-          <option>Ausdünnmittel</option><option>Blattdünger</option><option>Öl / Kaolin</option><option>Sonstiges</option>
+          <option>Dünger</option><option>Blattdünger</option><option>Wachstumsregler</option>
+          <option>Pflanzenschutz</option><option>Ausdünnmittel</option><option>Öl / Kaolin</option><option>Sonstiges</option>
         </select>
       </div>
       <div class="fg"><label>Einheit</label>
@@ -330,6 +333,21 @@ tr:hover td{background:#f9fcfa}
       <div class="fg"><label>Maximalmenge/ha/Jahr</label><input type="number" id="mbm-max-ha" step="0.01" placeholder="leer = kein Limit"></div>
       <div class="fg"><label>Max. Anwendungen/Jahr</label><input type="number" id="mbm-max-anw" placeholder="leer = kein Limit"></div>
       <div class="fg fw"><label>Notiz / Hinweise</label><textarea id="mbm-notiz" rows="2" placeholder="z.B. Wartezeit, Mischbarkeit, Zulassung…"></textarea></div>
+      <div class="fg fw">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:.85rem">
+          <input type="checkbox" id="mbm-zugelassen" checked style="accent-color:var(--p);width:16px;height:16px">
+          Aktuell zugelassen
+        </label>
+      </div>
+      <!-- Wirkstoffblock — für PSM-Kategorien -->
+      <div id="bm-wirkstoff-block" class="fg fw" style="display:none;border-top:1px solid var(--bdr);padding-top:10px;margin-top:2px">
+        <label style="font-size:.74rem;font-weight:700;color:var(--txl);margin-bottom:6px;display:block">Wirkstoff</label>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:6px;align-items:end">
+          <div class="fg"><label>Wirkstoff(e)</label><input id="mbm-wirkstoff" placeholder="z.B. Prohexadion-Calcium"></div>
+          <div class="fg"><label>Gehalt (%)</label><input type="number" id="mbm-wirkstoff-pct" step="0.01" placeholder="–" style="width:80px;text-align:right"></div>
+        </div>
+        <div style="font-size:.71rem;color:var(--txl);margin-top:4px">Produkte mit gleichem Wirkstoff + Gehalt werden im Picker gruppiert.</div>
+      </div>
       <!-- Nährstoffblock — nur für Dünger -->
       <div id="bm-naehrstoff-block" class="fg fw" style="display:none;border-top:1px solid var(--bdr);padding-top:10px;margin-top:2px">
         <label style="font-size:.74rem;font-weight:700;color:var(--txl);margin-bottom:6px;display:block">Nährstoffgehalte (%)</label>
@@ -975,7 +993,7 @@ async function startLogin(){
       await exchangeCode(e.data.code);
       showLoginStep('done');
       updateAuthUI();
-      setTimeout(()=>closeMod('mod-login'),1500);
+      setTimeout(async()=>{closeMod('mod-login');await cloudLoad();},800);
     }catch(ex){
       resetLoginBtn();
       document.getElementById('login-err').textContent='⚠ '+ex.message;
@@ -1705,8 +1723,8 @@ let editBmId=null;
 
 function renderBm(){
   if(!D.betriebsmittel) D.betriebsmittel=[];
-  const kat=document.getElementById('bm-filter-kat').value;
-  const list=D.betriebsmittel.filter(b=>!kat||b.kat===kat)
+  const kat=_bmKatFilter||'';
+  const list=D.betriebsmittel.filter(b=>!kat||(kat==='Dünger'?(b.kat==='Dünger'||b.kat==='Blattdünger'):b.kat===kat))
     .sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const el=document.getElementById('bm-grid');
   if(!list.length){
@@ -1718,8 +1736,8 @@ function renderBm(){
     return`<div class="scard" style="opacity:${b.lager?1:.55}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
         <div>
-          <div class="scard-nm">${icon} ${b.name}</div>
-          <div class="scard-meta">${b.kat||''}${b.einheit?' · '+b.einheit:''}</div>
+          <div class="scard-nm">${icon} ${b.name}${b.zugelassen===false?' <span style="font-size:.65rem;background:#fdecea;color:var(--crit);border-radius:4px;padding:1px 5px;font-weight:700">nicht zugelassen</span>':''}</div>
+          <div class="scard-meta">${b.kat||''}${b.einheit?' · '+b.einheit:''}${b.wirkstoff?` · ${b.wirkstoff}${b.wirkstoff_pct?' '+b.wirkstoff_pct+'%':''}`:''}</div>
         </div>
         <label onclick="toggleLager('${b.id}',${!b.lager});renderBm()" style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:6px 10px;border-radius:8px;border:2px solid ${b.lager?'var(--s)':'var(--bdr)'};background:${b.lager?'#edf7f2':'#f8f8f8'};transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0" title="Auf Lager umschalten">
           <span style="width:20px;height:20px;border-radius:5px;border:2px solid ${b.lager?'var(--p)':'#ccc'};background:${b.lager?'var(--p)':'#fff'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.85rem">${b.lager?'✓':''}</span>
@@ -1746,9 +1764,20 @@ function toggleLager(id,val){
 
 const BM_N_FIELDS=['N','nitrat','ammon','p2o5','k2o','mg','cao','so2','bor','zink','eisen'];
 
+const BM_PSM_KATS=['Wachstumsregler','Pflanzenschutz','Ausdünnmittel','Öl / Kaolin'];
 function bmKatChange(){
   const kat=document.getElementById('mbm-kat').value;
   document.getElementById('bm-naehrstoff-block').style.display=(kat==='Dünger'||kat==='Blattdünger')?'block':'none';
+  document.getElementById('bm-wirkstoff-block').style.display=BM_PSM_KATS.includes(kat)?'block':'none';
+}
+
+let _bmKatFilter='';
+function setBmKat(kat){
+  _bmKatFilter=kat;
+  ['all','dung','wac','pfl','aus','son'].forEach(k=>document.getElementById('bfk-'+k)?.classList.remove('btn-p'));
+  const map={'':'all','Dünger':'dung','Wachstumsregler':'wac','Pflanzenschutz':'pfl','Ausdünnmittel':'aus','Sonstiges':'son'};
+  if(map[kat]) document.getElementById('bfk-'+map[kat])?.classList.add('btn-p');
+  renderBm();
 }
 
 function openBmMod(id=null){
@@ -1765,6 +1794,9 @@ function openBmMod(id=null){
     document.getElementById('mbm-max-anw').value=b.max_anw||'';
     document.getElementById('mbm-notiz').value=b.notiz||'';
     document.getElementById('mbm-lager').checked=!!b.lager;
+    document.getElementById('mbm-zugelassen').checked=b.zugelassen!==false;
+    document.getElementById('mbm-wirkstoff').value=b.wirkstoff||'';
+    document.getElementById('mbm-wirkstoff-pct').value=b.wirkstoff_pct||'';
     BM_N_FIELDS.forEach(f=>{const el=document.getElementById('mbm-'+f);if(el)el.value=b[f]||'';});
     del.style.display='inline-flex';
   }else{
@@ -1773,6 +1805,9 @@ function openBmMod(id=null){
     document.getElementById('mbm-kat').value='Dünger';
     document.getElementById('mbm-einheit').value='kg/ha';
     document.getElementById('mbm-lager').checked=true;
+    document.getElementById('mbm-zugelassen').checked=true;
+    document.getElementById('mbm-wirkstoff').value='';
+    document.getElementById('mbm-wirkstoff-pct').value='';
     BM_N_FIELDS.forEach(f=>{const el=document.getElementById('mbm-'+f);if(el)el.value='';});
     del.style.display='none';
   }
@@ -1791,7 +1826,10 @@ function saveBm(){
     max_ha:parseFloat(document.getElementById('mbm-max-ha').value)||null,
     max_anw:parseInt(document.getElementById('mbm-max-anw').value)||null,
     notiz:document.getElementById('mbm-notiz').value.trim(),
-    lager:document.getElementById('mbm-lager').checked
+    lager:document.getElementById('mbm-lager').checked,
+    zugelassen:document.getElementById('mbm-zugelassen').checked,
+    wirkstoff:document.getElementById('mbm-wirkstoff').value.trim()||null,
+    wirkstoff_pct:parseFloat(document.getElementById('mbm-wirkstoff-pct').value)||null
   };
   BM_N_FIELDS.forEach(f=>{
     const el=document.getElementById('mbm-'+f);
