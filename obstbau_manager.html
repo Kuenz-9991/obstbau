@@ -258,20 +258,19 @@ tr:hover td{background:#f9fcfa}
 
 <!-- BETRIEBSMITTEL -->
 <div id="sec-betriebsmittel" class="sec">
-  <div class="btn-row">
-    </div>
-  <!-- Schnellerfassung -->
-  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;padding:8px 10px;background:var(--bg2);border-radius:8px;border:1px solid var(--bdr)">
-    <span style="font-size:.82rem;color:var(--txl);white-space:nowrap">Schnell anlegen:</span>
-    <button class="btn btn-s btn-sm" onclick="openBmMod(null,'Dünger')">🌿 + Düngemittel</button>
-    <button class="btn btn-s btn-sm" onclick="openBmMod(null,'Wachstumsregler')">🌱 + Wachstumsregler</button>
-    <button class="btn btn-s btn-sm" onclick="openBmMod(null,'Sonstiges')">📦 + Sonstige Arbeit</button>
-  </div>
-  <div class="btn-row" style="flex-wrap:wrap;gap:6px;margin-bottom:6px">
+  <div class="btn-row" style="flex-wrap:wrap;gap:6px;margin-bottom:6px;position:relative">
     <button class="btn btn-s btn-sm btn-p" id="bfk-all" onclick="setBmKat('')">Alle</button>
     <button class="btn btn-s btn-sm" id="bfk-dung" onclick="setBmKat('Dünger')">🌿 Düngemittel</button>
     <button class="btn btn-s btn-sm" id="bfk-wac" onclick="setBmKat('Wachstumsregler')">🌱 Wachstumsregler</button>
     <button class="btn btn-s btn-sm" id="bfk-son" onclick="setBmKat('Sonstiges')">📦 Sonstige Arbeiten</button>
+    <div style="position:relative;margin-left:auto">
+      <button class="btn btn-p btn-sm" onclick="toggleBmAdd()" title="Neu anlegen" style="font-size:1.1rem;padding:4px 12px;line-height:1">＋</button>
+      <div id="bm-add-menu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--bdr);border-radius:10px;box-shadow:0 4px 16px #0002;z-index:50;min-width:180px;padding:6px 0">
+        <div onclick="closeBmAddMenu();openBmMod(null,'Dünger')" style="padding:9px 16px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">🌿 Düngemittel</div>
+        <div onclick="closeBmAddMenu();openBmMod(null,'Wachstumsregler')" style="padding:9px 16px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">🌱 Wachstumsregler</div>
+        <div onclick="closeBmAddMenu();openBmMod(null,'Sonstiges')" style="padding:9px 16px;cursor:pointer;font-size:.85rem;display:flex;align-items:center;gap:8px" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">📦 Sonstige Arbeit</div>
+      </div>
+    </div>
   </div>
   <div id="bm-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px"></div>
 </div>
@@ -350,6 +349,14 @@ tr:hover td{background:#f9fcfa}
           <option>Pflanzenschutz</option><option>Ausdünnmittel</option><option>Öl / Kaolin</option><option>Sonstiges</option>
         </select>
       </div>
+      <div class="fg" id="bm-kulturen-block"><label>Kultur</label>
+        <select id="mbm-kulturen">
+          <option value="">– alle / nicht relevant –</option>
+          <option value="Apfel">🍎 Apfel</option>
+          <option value="Birne">🍐 Birne</option>
+          <option value="Apfel, Birne">🍎🍐 Apfel &amp; Birne</option>
+        </select>
+      </div>
       <div class="fg"><label>Einheit</label>
         <select id="mbm-einheit"><option>kg/ha</option><option>L/ha</option><option>g/ha</option><option>ml/ha</option><option>Stk/ha</option></select>
       </div>
@@ -395,15 +402,33 @@ tr:hover td{background:#f9fcfa}
           <div style="display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center">
             <div class="fg"><label style="font-size:.72rem">lt. Zulassung</label><input id="mbm-aufwand-0" placeholder="z.B. 1,25 kg/ha"></div>
           </div>
-          ${[1,2,3].map(i=>`<div style="border:1px solid var(--bdr);border-radius:8px;padding:8px">
-            <div style="font-size:.7rem;font-weight:700;color:var(--txl);margin-bottom:5px">Empfehlung ${i}</div>
+          <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px">
+            <div style="font-size:.7rem;font-weight:700;color:var(--txl);margin-bottom:5px">Empfehlung 1</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
-              <div class="fg"><label style="font-size:.7rem">Menge</label><input id="mbm-aufwand-${i}" placeholder="z.B. 1,0 kg/ha"></div>
-              <div class="fg"><label style="font-size:.7rem">Von wem</label><input id="mbm-emp-von-${i}" placeholder="z.B. RLB Tirol"></div>
-              <div class="fg"><label style="font-size:.7rem">Datum</label><input type="date" id="mbm-emp-dat-${i}"></div>
-              <div class="fg"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-${i}" placeholder="Begründung…"></div>
+              <div class="fg"><label style="font-size:.7rem">Menge</label><input id="mbm-aufwand-1" placeholder="z.B. 1,0 kg/ha"></div>
+              <div class="fg"><label style="font-size:.7rem">Von wem</label><input id="mbm-emp-von-1" placeholder="z.B. RLB Tirol"></div>
+              <div class="fg"><label style="font-size:.7rem">Datum</label><input type="date" id="mbm-emp-dat-1"></div>
+              <div class="fg"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-1" placeholder="Begründung…"></div>
             </div>
-          </div>`).join('')}
+          </div>
+          <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px">
+            <div style="font-size:.7rem;font-weight:700;color:var(--txl);margin-bottom:5px">Empfehlung 2</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+              <div class="fg"><label style="font-size:.7rem">Menge</label><input id="mbm-aufwand-2" placeholder="z.B. 1,0 kg/ha"></div>
+              <div class="fg"><label style="font-size:.7rem">Von wem</label><input id="mbm-emp-von-2" placeholder="z.B. RLB Tirol"></div>
+              <div class="fg"><label style="font-size:.7rem">Datum</label><input type="date" id="mbm-emp-dat-2"></div>
+              <div class="fg"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-2" placeholder="Begründung…"></div>
+            </div>
+          </div>
+          <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px">
+            <div style="font-size:.7rem;font-weight:700;color:var(--txl);margin-bottom:5px">Empfehlung 3</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+              <div class="fg"><label style="font-size:.7rem">Menge</label><input id="mbm-aufwand-3" placeholder="z.B. 1,0 kg/ha"></div>
+              <div class="fg"><label style="font-size:.7rem">Von wem</label><input id="mbm-emp-von-3" placeholder="z.B. RLB Tirol"></div>
+              <div class="fg"><label style="font-size:.7rem">Datum</label><input type="date" id="mbm-emp-dat-3"></div>
+              <div class="fg"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-3" placeholder="Begründung…"></div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="fg fw">
@@ -1100,6 +1125,7 @@ function mergeNewBetriebsmittel(){
         id:uid(), name:w.name, kat:w.kat, einheit:w.einheit,
         max_ha:null, max_anw:null, notiz:w.notiz||'', lager:false, zugelassen:true,
         wirkstoff:w.wirkstoff, wirkstoff_pct:w.wirkstoff_pct,
+        kulturen:w.kulturen||'',
         aufwand_zulassung:w.aufwand_zulassung||'',
         empfehlungen:[],
       });
@@ -1953,43 +1979,70 @@ const KAT_ICON={'Dünger':'🌱','Pflanzenschutz':'🛡','Wachstumsregler / Horm
 
 let editBmId=null;
 
+function bmCard(b){
+  const icon=KAT_ICON[b.kat]||'📦';
+  const hasLimit=b.max_ha||b.max_anw;
+  return`<div class="scard" style="opacity:${b.lager?1:.55}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+      <div>
+        <div class="scard-nm">${icon} ${b.name}${b.zugelassen===false?' <span style="font-size:.65rem;background:#fdecea;color:var(--crit);border-radius:4px;padding:1px 5px;font-weight:700">nicht zugelassen</span>':''}</div>
+        <div class="scard-meta">${b.kat||''}${b.einheit?' · '+b.einheit:''}${b.wirkstoff?` · ${b.wirkstoff}${b.wirkstoff_pct?' '+b.wirkstoff_pct+'%':''}`:''}</div>
+      </div>
+      <label onclick="toggleLager('${b.id}',${!b.lager});renderBm()" style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:6px 10px;border-radius:8px;border:2px solid ${b.lager?'var(--s)':'var(--bdr)'};background:${b.lager?'#edf7f2':'#f8f8f8'};transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0" title="Auf Lager umschalten">
+        <span style="width:20px;height:20px;border-radius:5px;border:2px solid ${b.lager?'var(--p)':'#ccc'};background:${b.lager?'var(--p)':'#fff'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.85rem">${b.lager?'✓':''}</span>
+        <span style="font-size:.78rem;font-weight:600;color:${b.lager?'var(--p)':'var(--txl)'}">Auf Lager</span>
+      </label>
+    </div>
+    ${hasLimit?`<div class="scard-meta" style="margin-top:5px;color:var(--info)">Max: ${b.max_ha?b.max_ha+' '+b.einheit+'/Jahr':''}${b.max_anw?' · max. '+b.max_anw+'× Anwendungen':''}</div>`:''}
+    ${(b.kat==='Dünger'||b.kat==='Blattdünger')&&(b.N||b.p2o5||b.k2o)?`<div style="margin-top:5px;font-size:.71rem;color:var(--txl);display:flex;gap:6px;flex-wrap:wrap">${[
+      b.N?`N ${b.N}%`:'',b.p2o5?`P₂O₅ ${b.p2o5}%`:'',b.k2o?`K₂O ${b.k2o}%`:'',
+      b.mg?`Mg ${b.mg}%`:'',b.cao?`CaO ${b.cao}%`:'',b.so2?`SO₃ ${b.so2}%`:''
+    ].filter(Boolean).map(x=>`<span style="background:var(--bg);border-radius:4px;padding:1px 5px">${x}</span>`).join('')}</div>`:''}
+    ${b.notiz?`<div class="txl" style="margin-top:4px;font-style:italic">${b.notiz}</div>`:''}
+    <div style="margin-top:8px">
+      <button class="btn btn-s btn-sm" onclick="openBmMod('${b.id}')">✏️ Bearbeiten</button>
+    </div>
+  </div>`;
+}
+
 function renderBm(){
   if(!D.betriebsmittel) D.betriebsmittel=[];
   const kat=_bmKatFilter||'';
-  const list=D.betriebsmittel.filter(b=>!kat||(kat==='Dünger'?(b.kat==='Dünger'||b.kat==='Blattdünger'):b.kat===kat))
-    .sort((a,b)=>{
-      if(!!b.lager!==!!a.lager) return a.lager?-1:1;
-      return a.name.localeCompare(b.name,'de');
-    });
+  const WAC_KATS=['Wachstumsregler','Ausdünnmittel'];
+  const list=D.betriebsmittel.filter(b=>{
+    if(!kat) return true;
+    if(kat==='Dünger') return b.kat==='Dünger'||b.kat==='Blattdünger';
+    if(kat==='Wachstumsregler') return WAC_KATS.includes(b.kat);
+    return b.kat===kat;
+  }).sort((a,b)=>{
+    if(!!b.lager!==!!a.lager) return a.lager?-1:1;
+    return a.name.localeCompare(b.name,'de');
+  });
   const el=document.getElementById('bm-grid');
   if(!list.length){
     el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🧪</div>Noch keine Arbeiten erfasst.</div>';return;
   }
-  el.innerHTML=list.map(b=>{
-    const icon=KAT_ICON[b.kat]||'📦';
-    const hasLimit=b.max_ha||b.max_anw;
-    return`<div class="scard" style="opacity:${b.lager?1:.55}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
-        <div>
-          <div class="scard-nm">${icon} ${b.name}${b.zugelassen===false?' <span style="font-size:.65rem;background:#fdecea;color:var(--crit);border-radius:4px;padding:1px 5px;font-weight:700">nicht zugelassen</span>':''}</div>
-          <div class="scard-meta">${b.kat||''}${b.einheit?' · '+b.einheit:''}${b.wirkstoff?` · ${b.wirkstoff}${b.wirkstoff_pct?' '+b.wirkstoff_pct+'%':''}`:''}</div>
-        </div>
-        <label onclick="toggleLager('${b.id}',${!b.lager});renderBm()" style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:6px 10px;border-radius:8px;border:2px solid ${b.lager?'var(--s)':'var(--bdr)'};background:${b.lager?'#edf7f2':'#f8f8f8'};transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0" title="Auf Lager umschalten">
-          <span style="width:20px;height:20px;border-radius:5px;border:2px solid ${b.lager?'var(--p)':'#ccc'};background:${b.lager?'var(--p)':'#fff'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.85rem">${b.lager?'✓':''}</span>
-          <span style="font-size:.78rem;font-weight:600;color:${b.lager?'var(--p)':'var(--txl)'}">Auf Lager</span>
-        </label>
-      </div>
-      ${hasLimit?`<div class="scard-meta" style="margin-top:5px;color:var(--info)">Max: ${b.max_ha?b.max_ha+' '+b.einheit+'/Jahr':''}${b.max_anw?' · max. '+b.max_anw+'× Anwendungen':''}</div>`:''}
-      ${(b.kat==='Dünger'||b.kat==='Blattdünger')&&(b.N||b.p2o5||b.k2o)?`<div style="margin-top:5px;font-size:.71rem;color:var(--txl);display:flex;gap:6px;flex-wrap:wrap">${[
-        b.N?`N ${b.N}%`:'',b.p2o5?`P₂O₅ ${b.p2o5}%`:'',b.k2o?`K₂O ${b.k2o}%`:'',
-        b.mg?`Mg ${b.mg}%`:'',b.cao?`CaO ${b.cao}%`:'',b.so2?`SO₃ ${b.so2}%`:''
-      ].filter(Boolean).map(x=>`<span style="background:var(--bg);border-radius:4px;padding:1px 5px">${x}</span>`).join('')}</div>`:''}
-      ${b.notiz?`<div class="txl" style="margin-top:4px;font-style:italic">${b.notiz}</div>`:''}
-      <div style="margin-top:8px">
-        <button class="btn btn-s btn-sm" onclick="openBmMod('${b.id}')">✏️ Bearbeiten</button>
-      </div>
-    </div>`;
-  }).join('');
+  // Wachstumsregler-Filter: nach Kultur gruppieren
+  if(kat==='Wachstumsregler'){
+    const byKultur={Apfel:[],Birne:[],Beide:[],Andere:[]};
+    list.forEach(b=>{
+      const k=b.kulturen||'';
+      if(k==='Apfel') byKultur.Apfel.push(b);
+      else if(k==='Birne') byKultur.Birne.push(b);
+      else if(k==='Apfel, Birne'||k==='Apfel & Birne'||k==='Beide') byKultur.Beide.push(b);
+      else byKultur.Andere.push(b);
+    });
+    let html='';
+    const groups=[['🍎 Apfel','Apfel'],['🍐 Birne','Birne'],['🍎🍐 Apfel & Birne','Beide'],['Sonstige','Andere']];
+    groups.forEach(([label,key])=>{
+      if(!byKultur[key].length) return;
+      html+=`<div style="grid-column:1/-1;font-size:.78rem;font-weight:700;color:var(--txl);margin-top:6px;padding-bottom:2px;border-bottom:1px solid var(--bdr)">${label}</div>`;
+      html+=byKultur[key].map(b=>bmCard(b)).join('');
+    });
+    el.innerHTML=html;
+  } else {
+    el.innerHTML=list.map(b=>bmCard(b)).join('');
+  }
 }
 
 function toggleLager(id,val){
@@ -2005,6 +2058,18 @@ function bmKatChange(){
   document.getElementById('bm-naehrstoff-block').style.display=(kat==='Dünger'||kat==='Blattdünger')?'block':'none';
   document.getElementById('bm-wirkstoff-block').style.display=BM_PSM_KATS.includes(kat)?'block':'none';
 }
+
+function toggleBmAdd(){
+  const m=document.getElementById('bm-add-menu');
+  m.style.display=m.style.display==='none'?'block':'none';
+}
+function closeBmAddMenu(){
+  document.getElementById('bm-add-menu').style.display='none';
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#bm-add-menu')&&!e.target.closest('[onclick="toggleBmAdd()"]'))
+    closeBmAddMenu();
+});
 
 let _bmKatFilter='';
 function setBmKat(kat){
@@ -2024,6 +2089,7 @@ function openBmMod(id=null,preKat=null){
     document.getElementById('mbm-title').textContent='Arbeit bearbeiten';
     document.getElementById('mbm-name').value=b.name||'';
     document.getElementById('mbm-kat').value=b.kat||'Dünger';
+    document.getElementById('mbm-kulturen').value=b.kulturen||'';
     document.getElementById('mbm-einheit').value=b.einheit||'kg/ha';
     document.getElementById('mbm-max-ha').value=b.max_ha||'';
     document.getElementById('mbm-max-anw').value=b.max_anw||'';
@@ -2046,6 +2112,7 @@ function openBmMod(id=null,preKat=null){
     document.getElementById('mbm-title').textContent='Arbeit anlegen';
     ['mbm-name','mbm-max-ha','mbm-max-anw','mbm-notiz'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('mbm-kat').value=preKat||'Dünger';
+    document.getElementById('mbm-kulturen').value='';
     document.getElementById('mbm-einheit').value='kg/ha';
     document.getElementById('mbm-lager').checked=true;
     document.getElementById('mbm-zugelassen').checked=true;
@@ -2075,6 +2142,7 @@ function saveBm(){
     notiz:document.getElementById('mbm-notiz').value.trim(),
     lager:document.getElementById('mbm-lager').checked,
     zugelassen:document.getElementById('mbm-zugelassen').checked,
+    kulturen:document.getElementById('mbm-kulturen').value||'',
     wirkstoff:document.getElementById('mbm-wirkstoff').value.trim()||null,
     wirkstoff_pct:parseFloat(document.getElementById('mbm-wirkstoff-pct').value)||null,
     aufwand_zulassung:document.getElementById('mbm-aufwand-0').value.trim()||null,
