@@ -364,10 +364,19 @@ tr:hover td{background:#f9fcfa}
       <div class="fg"><label>Max. Anwendungen/Jahr</label><input type="number" id="mbm-max-anw" placeholder="leer = kein Limit"></div>
       <div class="fg fw"><label>Notiz / Hinweise</label><textarea id="mbm-notiz" rows="2" placeholder="z.B. Wartezeit, Mischbarkeit, Zulassung…"></textarea></div>
       <div class="fg fw">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:.85rem">
-          <input type="checkbox" id="mbm-zugelassen" checked style="accent-color:var(--p);width:16px;height:16px">
-          Aktuell zugelassen
-        </label>
+        <div style="font-size:.75rem;font-weight:700;color:var(--txl);margin-bottom:6px">Zugelassen (geprüft am):</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 10px;border:1px solid var(--bdr);border-radius:8px;background:var(--bg)">
+            <input type="checkbox" id="mbm-zul-apfel" style="accent-color:var(--p);width:15px;height:15px">
+            <span style="font-size:.85rem">🍎 Apfel</span>
+            <input type="date" id="mbm-zul-apfel-dat" style="font-size:.75rem;border:1px solid var(--bdr);border-radius:5px;padding:2px 5px;color:var(--txl)">
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 10px;border:1px solid var(--bdr);border-radius:8px;background:var(--bg)">
+            <input type="checkbox" id="mbm-zul-birne" style="accent-color:var(--p);width:15px;height:15px">
+            <span style="font-size:.85rem">🍐 Birne</span>
+            <input type="date" id="mbm-zul-birne-dat" style="font-size:.75rem;border:1px solid var(--bdr);border-radius:5px;padding:2px 5px;color:var(--txl)">
+          </label>
+        </div>
       </div>
       <!-- Wirkstoffblock — für PSM-Kategorien -->
       <div id="bm-wirkstoff-block" class="fg fw" style="display:none;border-top:1px solid var(--bdr);padding-top:10px;margin-top:2px">
@@ -403,30 +412,36 @@ tr:hover td{background:#f9fcfa}
             <div class="fg"><label style="font-size:.72rem">lt. Zulassung</label><input id="mbm-aufwand-0" placeholder="z.B. 1,25 kg/ha"></div>
           </div>
           <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px">
-            <div style="font-size:.7rem;font-weight:700;color:var(--txl);margin-bottom:5px">Empfehlung 1</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:.7rem;font-weight:700;color:var(--txl);white-space:nowrap">Empfehlung 1</span>
+              <input id="mbm-emp-von-1" placeholder="z.B. LK-Stmk." style="flex:1;font-size:.75rem;border:1px solid var(--bdr);border-radius:5px;padding:3px 7px">
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
               <div class="fg"><label style="font-size:.7rem">Menge</label><input id="mbm-aufwand-1" placeholder="z.B. 1,0 kg/ha"></div>
-              <div class="fg"><label style="font-size:.7rem">Von wem</label><input id="mbm-emp-von-1" placeholder="z.B. RLB Tirol"></div>
               <div class="fg"><label style="font-size:.7rem">Datum</label><input type="date" id="mbm-emp-dat-1"></div>
-              <div class="fg"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-1" placeholder="Begründung…"></div>
+              <div class="fg" style="grid-column:1/-1"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-1" placeholder="Begründung…"></div>
             </div>
           </div>
           <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px">
-            <div style="font-size:.7rem;font-weight:700;color:var(--txl);margin-bottom:5px">Empfehlung 2</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:.7rem;font-weight:700;color:var(--txl);white-space:nowrap">Empfehlung 2</span>
+              <input id="mbm-emp-von-2" placeholder="z.B. LK-Stmk." style="flex:1;font-size:.75rem;border:1px solid var(--bdr);border-radius:5px;padding:3px 7px">
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
               <div class="fg"><label style="font-size:.7rem">Menge</label><input id="mbm-aufwand-2" placeholder="z.B. 1,0 kg/ha"></div>
-              <div class="fg"><label style="font-size:.7rem">Von wem</label><input id="mbm-emp-von-2" placeholder="z.B. RLB Tirol"></div>
               <div class="fg"><label style="font-size:.7rem">Datum</label><input type="date" id="mbm-emp-dat-2"></div>
-              <div class="fg"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-2" placeholder="Begründung…"></div>
+              <div class="fg" style="grid-column:1/-1"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-2" placeholder="Begründung…"></div>
             </div>
           </div>
           <div style="border:1px solid var(--bdr);border-radius:8px;padding:8px">
-            <div style="font-size:.7rem;font-weight:700;color:var(--txl);margin-bottom:5px">Empfehlung 3</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:.7rem;font-weight:700;color:var(--txl);white-space:nowrap">Empfehlung 3</span>
+              <input id="mbm-emp-von-3" placeholder="z.B. LK-Stmk." style="flex:1;font-size:.75rem;border:1px solid var(--bdr);border-radius:5px;padding:3px 7px">
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
               <div class="fg"><label style="font-size:.7rem">Menge</label><input id="mbm-aufwand-3" placeholder="z.B. 1,0 kg/ha"></div>
-              <div class="fg"><label style="font-size:.7rem">Von wem</label><input id="mbm-emp-von-3" placeholder="z.B. RLB Tirol"></div>
               <div class="fg"><label style="font-size:.7rem">Datum</label><input type="date" id="mbm-emp-dat-3"></div>
-              <div class="fg"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-3" placeholder="Begründung…"></div>
+              <div class="fg" style="grid-column:1/-1"><label style="font-size:.7rem">Notiz</label><input id="mbm-emp-not-3" placeholder="Begründung…"></div>
             </div>
           </div>
         </div>
@@ -1979,14 +1994,21 @@ const KAT_ICON={'Dünger':'🌱','Pflanzenschutz':'🛡','Wachstumsregler / Horm
 
 let editBmId=null;
 
+function fmtDat(d){if(!d)return'';const p=d.split('-');return p[1]+'/'+p[0].slice(2);}
 function bmCard(b){
   const icon=KAT_ICON[b.kat]||'📦';
   const hasLimit=b.max_ha||b.max_anw;
+  // Zulassungsstatus
+  const zulParts=[];
+  if(b.zul_apfel) zulParts.push('🍎'+(b.zul_apfel_dat?' '+fmtDat(b.zul_apfel_dat):''));
+  if(b.zul_birne) zulParts.push('🍐'+(b.zul_birne_dat?' '+fmtDat(b.zul_birne_dat):''));
+  const zulHtml=zulParts.length?`<span style="font-size:.68rem;background:#edf7f2;color:var(--p);border-radius:4px;padding:1px 5px;font-weight:600">${zulParts.join(' ')}</span>`
+    :b.zugelassen===false?`<span style="font-size:.65rem;background:#fdecea;color:var(--crit);border-radius:4px;padding:1px 5px;font-weight:700">nicht zugelassen</span>`:'';
   return`<div class="scard" style="opacity:${b.lager?1:.55}">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
       <div>
-        <div class="scard-nm">${icon} ${b.name}${b.zugelassen===false?' <span style="font-size:.65rem;background:#fdecea;color:var(--crit);border-radius:4px;padding:1px 5px;font-weight:700">nicht zugelassen</span>':''}</div>
-        <div class="scard-meta">${b.kat||''}${b.einheit?' · '+b.einheit:''}${b.wirkstoff?` · ${b.wirkstoff}${b.wirkstoff_pct?' '+b.wirkstoff_pct+'%':''}`:''}</div>
+        <div class="scard-nm">${icon} ${b.name} ${zulHtml}</div>
+        <div class="scard-meta">${b.kat||''}${b.kulturen?' · '+b.kulturen:''}${b.einheit?' · '+b.einheit:''}${b.wirkstoff?` · ${b.wirkstoff}${b.wirkstoff_pct?' '+b.wirkstoff_pct+'%':''}`:''}</div>
       </div>
       <label onclick="toggleLager('${b.id}',${!b.lager});renderBm()" style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:6px 10px;border-radius:8px;border:2px solid ${b.lager?'var(--s)':'var(--bdr)'};background:${b.lager?'#edf7f2':'#f8f8f8'};transition:all .15s;user-select:none;white-space:nowrap;flex-shrink:0" title="Auf Lager umschalten">
         <span style="width:20px;height:20px;border-radius:5px;border:2px solid ${b.lager?'var(--p)':'#ccc'};background:${b.lager?'var(--p)':'#fff'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.85rem">${b.lager?'✓':''}</span>
@@ -2022,22 +2044,19 @@ function renderBm(){
   if(!list.length){
     el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🧪</div>Noch keine Arbeiten erfasst.</div>';return;
   }
-  // Wachstumsregler-Filter: nach Kultur gruppieren
+  // Wachstumsregler-Filter: nach Wirkstoff gruppieren
   if(kat==='Wachstumsregler'){
-    const byKultur={Apfel:[],Birne:[],Beide:[],Andere:[]};
+    const wsMap=new Map();
     list.forEach(b=>{
-      const k=b.kulturen||'';
-      if(k==='Apfel') byKultur.Apfel.push(b);
-      else if(k==='Birne') byKultur.Birne.push(b);
-      else if(k==='Apfel, Birne'||k==='Apfel & Birne'||k==='Beide') byKultur.Beide.push(b);
-      else byKultur.Andere.push(b);
+      const ws=b.wirkstoff||'(kein Wirkstoff)';
+      if(!wsMap.has(ws)) wsMap.set(ws,[]);
+      wsMap.get(ws).push(b);
     });
+    const sorted=[...wsMap.entries()].sort((a,b)=>a[0].localeCompare(b[0],'de'));
     let html='';
-    const groups=[['🍎 Apfel','Apfel'],['🍐 Birne','Birne'],['🍎🍐 Apfel & Birne','Beide'],['Sonstige','Andere']];
-    groups.forEach(([label,key])=>{
-      if(!byKultur[key].length) return;
-      html+=`<div style="grid-column:1/-1;font-size:.78rem;font-weight:700;color:var(--txl);margin-top:6px;padding-bottom:2px;border-bottom:1px solid var(--bdr)">${label}</div>`;
-      html+=byKultur[key].map(b=>bmCard(b)).join('');
+    sorted.forEach(([ws,items])=>{
+      html+=`<div style="grid-column:1/-1;font-size:.78rem;font-weight:700;color:var(--txl);margin-top:8px;padding-bottom:3px;border-bottom:2px solid var(--bdr)">${ws}</div>`;
+      html+=items.map(b=>bmCard(b)).join('');
     });
     el.innerHTML=html;
   } else {
@@ -2095,9 +2114,13 @@ function openBmMod(id=null,preKat=null){
     document.getElementById('mbm-max-anw').value=b.max_anw||'';
     document.getElementById('mbm-notiz').value=b.notiz||'';
     document.getElementById('mbm-lager').checked=!!b.lager;
-    document.getElementById('mbm-zugelassen').checked=b.zugelassen!==false;
+    document.getElementById('mbm-zul-apfel').checked=!!b.zul_apfel;
+    document.getElementById('mbm-zul-apfel-dat').value=b.zul_apfel_dat||'';
+    document.getElementById('mbm-zul-birne').checked=!!b.zul_birne;
+    document.getElementById('mbm-zul-birne-dat').value=b.zul_birne_dat||'';
     document.getElementById('mbm-wirkstoff').value=b.wirkstoff||'';
     document.getElementById('mbm-wirkstoff-pct').value=b.wirkstoff_pct||'';
+    document.getElementById('mbm-wirkstoff-pct').dataset.orig=b.wirkstoff_pct||'';
     document.getElementById('mbm-aufwand-0').value=b.aufwand_zulassung||'';
     [1,2,3].forEach(i=>{
       const e=(b.empfehlungen&&b.empfehlungen[i-1])||{};
@@ -2115,9 +2138,13 @@ function openBmMod(id=null,preKat=null){
     document.getElementById('mbm-kulturen').value='';
     document.getElementById('mbm-einheit').value='kg/ha';
     document.getElementById('mbm-lager').checked=true;
-    document.getElementById('mbm-zugelassen').checked=true;
+    document.getElementById('mbm-zul-apfel').checked=false;
+    document.getElementById('mbm-zul-apfel-dat').value='';
+    document.getElementById('mbm-zul-birne').checked=false;
+    document.getElementById('mbm-zul-birne-dat').value='';
     document.getElementById('mbm-wirkstoff').value='';
     document.getElementById('mbm-wirkstoff-pct').value='';
+    document.getElementById('mbm-wirkstoff-pct').dataset.orig='';
     document.getElementById('mbm-aufwand-0').value='';
     [1,2,3].forEach(i=>{
       ['mbm-aufwand-','mbm-emp-von-','mbm-emp-dat-','mbm-emp-not-'].forEach(p=>document.getElementById(p+i).value='');
@@ -2133,6 +2160,13 @@ function saveBm(){
   if(!D.betriebsmittel) D.betriebsmittel=[];
   const name=document.getElementById('mbm-name').value.trim();
   if(!name){alert('Bitte Bezeichnung eingeben');return;}
+  // Wirkstoffgehalt-Änderung bestätigen
+  const pctEl=document.getElementById('mbm-wirkstoff-pct');
+  const newPct=pctEl.value.trim();
+  const origPct=pctEl.dataset.orig||'';
+  if(editBmId && origPct && newPct && newPct!==origPct){
+    if(!confirm(`Wirkstoffgehalt wirklich ändern?\n${origPct}% → ${newPct}%`)){pctEl.value=origPct;return;}
+  }
   const b={
     id:editBmId||uid(),name,
     kat:document.getElementById('mbm-kat').value,
@@ -2141,10 +2175,14 @@ function saveBm(){
     max_anw:parseInt(document.getElementById('mbm-max-anw').value)||null,
     notiz:document.getElementById('mbm-notiz').value.trim(),
     lager:document.getElementById('mbm-lager').checked,
-    zugelassen:document.getElementById('mbm-zugelassen').checked,
+    zul_apfel:document.getElementById('mbm-zul-apfel').checked,
+    zul_apfel_dat:document.getElementById('mbm-zul-apfel-dat').value||null,
+    zul_birne:document.getElementById('mbm-zul-birne').checked,
+    zul_birne_dat:document.getElementById('mbm-zul-birne-dat').value||null,
+    zugelassen:document.getElementById('mbm-zul-apfel').checked||document.getElementById('mbm-zul-birne').checked,
     kulturen:document.getElementById('mbm-kulturen').value||'',
     wirkstoff:document.getElementById('mbm-wirkstoff').value.trim()||null,
-    wirkstoff_pct:parseFloat(document.getElementById('mbm-wirkstoff-pct').value)||null,
+    wirkstoff_pct:parseFloat(newPct)||null,
     aufwand_zulassung:document.getElementById('mbm-aufwand-0').value.trim()||null,
     empfehlungen:[1,2,3].map(i=>({
       menge:document.getElementById('mbm-aufwand-'+i).value.trim(),
