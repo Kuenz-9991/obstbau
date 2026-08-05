@@ -646,15 +646,32 @@ tr:hover td{background:#f9fcfa}
           <input id="mm-mit" placeholder="z.B. Blaukorn Premium, ATS, Delan WG …" style="flex:1;border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);font-family:inherit">
         </div>
       </div>
-      <!-- Aufwand-Schnellwahl (erscheint wenn Produkt mit gespeicherten Aufwandmengen gewählt) -->
+      <!-- Dünger Aufwand-Schnellwahl -->
       <div class="fg fw" id="mm-aufwand-wrap" style="display:none">
-        <label style="font-size:.74rem;font-weight:700;color:var(--txl)">Aufwandmenge wählen</label>
+        <label style="font-size:.74rem;font-weight:700;color:var(--txl)">Aufwandmenge Dünger wählen</label>
         <select id="mm-aufwand-pick" onchange="mmPickAufwand(this)" style="width:100%;border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);font-family:inherit">
           <option value="">– manuell eingeben –</option>
         </select>
       </div>
-      <div class="fg"><label>Menge/ha</label><input id="mm-mha" placeholder="z.B. 300 kg, 24 L" oninput="calcMsl()"></div>
-      <div class="fg"><label>Menge/Schlag</label><input id="mm-msl" placeholder="autom. berechnet"></div>
+      <!-- Dünger Menge -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div class="fg"><label>🌿 Dünger Menge/ha</label><input id="mm-mha" placeholder="z.B. 300 kg, 24 L" oninput="calcMsl()"></div>
+        <div class="fg"><label>Menge/Schlag (netto)</label><input id="mm-msl" placeholder="autom. berechnet" readonly style="background:var(--bg2);color:var(--txl)"></div>
+      </div>
+      <!-- WR: Aufwand-Schnellwahl + Menge (erscheint wenn WR gewählt) -->
+      <div id="mm-wac-menge-wrap" style="display:none">
+        <div class="fg fw" id="mm-aufwand-wrap-wac" style="display:none">
+          <label style="font-size:.74rem;font-weight:700;color:var(--txl)">Aufwandmenge Wachstumsregler wählen</label>
+          <select id="mm-aufwand-pick-wac" onchange="mmPickAufwandWac(this)" style="width:100%;border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);font-family:inherit">
+            <option value="">– manuell eingeben –</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div class="fg"><label>🌱 WR Menge/ha</label><input id="mm-mha-wac" placeholder="z.B. 1,25 L/ha" oninput="calcMslWac()"></div>
+          <div class="fg"><label>Menge/Schlag (netto)</label><input id="mm-msl-wac" placeholder="autom. berechnet" readonly style="background:var(--bg2);color:var(--txl)"></div>
+        </div>
+      </div>
+      <input type="hidden" id="mm-mit-wac" value="">
       <div class="fg fw"><label>Notiz</label><textarea id="mm-notiz" rows="2" placeholder="Witterung, Besonderheiten, Gerät …"></textarea></div>
       <!-- Foto -->
       <div class="fg fw">
@@ -698,20 +715,38 @@ tr:hover td{background:#f9fcfa}
 </div>
 
 <script>
-// Wachstumsregler Österreich – Stand lt. Wissensstand Mai 2025, bitte gegen BAES-Register prüfen!
+// Wachstumsregler Österreich – lt. BAES PSM-Register Apfel + Birne (Stand: August 2026)
+// MaxCel/Maxcel: selbes Produkt (3419-0/3419-1) → nur 1× eingetragen
 const DEFAULT_WACHSTUMSREGLER=[
-  {name:'Regalis Plus',         wirkstoff:'Prohexadion-Calcium', wirkstoff_pct:10.0,  kat:'Wachstumsregler', einheit:'kg/ha',  kulturen:'Apfel',        aufwand_zulassung:'1,25 kg/ha',    notiz:'Max. 2×/Jahr. BBCH 61–69. Abstand zu Etephon/ATS beachten.'},
-  {name:'Brevis',               wirkstoff:'Metamitron',          wirkstoff_pct:70.0,  kat:'Ausdünnmittel',   einheit:'kg/ha',  kulturen:'Apfel',        aufwand_zulassung:'1,44 kg/ha',    notiz:'Chemische Ausdünnung. BBCH 71–74. Temperaturabhängig.'},
-  {name:'MaxCel',               wirkstoff:'6-Benzyladenin',      wirkstoff_pct:1.9,   kat:'Ausdünnmittel',   einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'1,25–2,5 L/ha', notiz:'Chemische Ausdünnung. BBCH 71–74.'},
-  {name:'Exilis Plus',          wirkstoff:'6-Benzyladenin',      wirkstoff_pct:1.9,   kat:'Ausdünnmittel',   einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'1,25–2,5 L/ha', notiz:'Chemische Ausdünnung. BBCH 71–74. Generic zu MaxCel.'},
-  {name:'Promalin',             wirkstoff:'GA4+7 + 6-BA',        wirkstoff_pct:null,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'1,0 L/ha',      notiz:'Fruchtqualität/Elongation. BBCH 57–65.'},
-  {name:'Sproud',               wirkstoff:'GA4+7 + 6-BA',        wirkstoff_pct:null,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'0,5–1,0 L/ha',  notiz:'Fruchtqualität. BBCH 57–65.'},
-  {name:'Arvest',               wirkstoff:'Etephon',             wirkstoff_pct:48.0,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Apfel, Birne', aufwand_zulassung:'0,375–1,5 L/ha',notiz:'Ausdünnung & Reifebeschleunigung.'},
-  {name:'Ethrel A',             wirkstoff:'Etephon',             wirkstoff_pct:48.0,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Apfel, Birne', aufwand_zulassung:'0,375–1,5 L/ha',notiz:'Generic zu Arvest. Ausdünnung & Reife.'},
-  {name:'ReTain',               wirkstoff:'Aminoethoxyvinylglycin (AVG)', wirkstoff_pct:15.0, kat:'Wachstumsregler', einheit:'kg/ha', kulturen:'Apfel', aufwand_zulassung:'1,0 kg/ha', notiz:'Ernteverzögerung, Fruchtfallreduktion.'},
-  {name:'Falgro',               wirkstoff:'Gibberellin GA3',     wirkstoff_pct:null,  kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Birne',        aufwand_zulassung:'lt. Etikett',   notiz:'Fruchtgrößenförderung Birne.'},
-  {name:'Novagib',              wirkstoff:'Gibberellin GA3',     wirkstoff_pct:3.3,   kat:'Wachstumsregler', einheit:'L/ha',   kulturen:'Birne',        aufwand_zulassung:'lt. Etikett',   notiz:'Fruchtgrößenförderung Birne.'},
-  {name:'ATS (Ammoniumthiosulfat)',wirkstoff:'Ammoniumthiosulfat',wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',   kulturen:'Apfel',        aufwand_zulassung:'15–30 L/ha',    notiz:'Blütenausdünnung. BBCH 60–65. Kein Sonnenschein direkt nach Anwendung.'},
+  // ── Ausdünnmittel ───────────────────────────────────────────────────────────
+  {name:'Amidir',           wirkstoff:'1-Naphthylacetamid',                        wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel',        aufwand_zulassung:'', notiz:'Fruchtausdünnung. Freiland.'},
+  {name:'Brevis',           wirkstoff:'Metamitron',                                wirkstoff_pct:70.0, kat:'Ausdünnmittel',   einheit:'kg/ha',   kulturen:'Apfel, Birne', aufwand_zulassung:'1,44 kg/ha', notiz:'Fruchtausdünnung. BBCH 71–74. Temperaturabhängig.'},
+  {name:'Dirabel',          wirkstoff:'1-Naphthylessigsäure',                      wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Fruchtausdünnung, Verhinderung vorzeitigen Fruchtfalles.'},
+  {name:'Dirager',          wirkstoff:'1-Naphthylessigsäure',                      wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Fruchtausdünnung, Verhinderung vorzeitigen Fruchtfalles.'},
+  {name:'Diramid',          wirkstoff:'1-Naphthylacetamid',                        wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel',        aufwand_zulassung:'', notiz:'Fruchtausdünnung.'},
+  {name:'Exilis',           wirkstoff:'6-Benzyladenin',                            wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Fruchtausdünnung, Förderung der Fruchtgröße.'},
+  {name:'Exilis 100 SC',    wirkstoff:'6-Benzyladenin',                            wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Fruchtausdünnung, Förderung der Fruchtgröße.'},
+  {name:'Fixor',            wirkstoff:'1-Naphthylessigsäure',                      wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Fruchtausdünnung, Verhinderung vorzeitigen Fruchtfalles.'},
+  {name:'Frooti',           wirkstoff:'1-Naphthylessigsäure',                      wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel',        aufwand_zulassung:'', notiz:'Fruchtausdünnung.'},
+  {name:'Fruit Auxin 30 SL',wirkstoff:'1-Naphthylessigsäure',                      wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Fruchtausdünnung, Verhinderung vorzeitigen Fruchtfalles.'},
+  {name:'Globaryll 100',    wirkstoff:'6-Benzyladenin',                            wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel',        aufwand_zulassung:'', notiz:'Fruchtausdünnung.'},
+  {name:'Grassrooter',      wirkstoff:'Ethephon',                                  wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel',        aufwand_zulassung:'', notiz:'Fruchtausdünnung.'},
+  {name:'MaxCel',           wirkstoff:'6-Benzyladenin',                            wirkstoff_pct:1.9,  kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'1,25–2,5 L/ha', notiz:'Fruchtausdünnung. BBCH 71–74.'},
+  {name:'Monex',            wirkstoff:'1-Naphthylessigsäure',                      wirkstoff_pct:null, kat:'Ausdünnmittel',   einheit:'L/ha',    kulturen:'Apfel',        aufwand_zulassung:'', notiz:'Fruchtausdünnung, Verhinderung vorzeitigen Fruchtfalles.'},
+  // ── Wachstumsregler ─────────────────────────────────────────────────────────
+  {name:'AppleSmart 3,3 VP',wirkstoff:'1-Methylcyclopropen',                       wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'Einh.',   kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Reifeverzögerung. Lageranwendung.'},
+  {name:'Atonik',           wirkstoff:'Natrium-5-nitroguaiacolat + Natrium-p-nitrophenolat + Natrium-o-nitrophenolat', wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'L/ha', kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Verbesserung der Fruchtqualität.'},
+  {name:'Cube',             wirkstoff:'Gibberellinsäure (GA3)',                    wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Förderung Fruchtgröße und Fruchtansatz.'},
+  {name:'Florgib Tablet',   wirkstoff:'Gibberellinsäure (GA3)',                    wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'Einh.',   kulturen:'Birne',        aufwand_zulassung:'', notiz:'Förderung des Fruchtansatzes. Birne.'},
+  {name:'Fysium',           wirkstoff:'1-Methylcyclopropen',                       wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'Einh.',   kulturen:'Apfel',        aufwand_zulassung:'', notiz:'Reifeverzögerung. Lageranwendung.'},
+  {name:'Gibb 3',           wirkstoff:'Gibberellinsäure (GA3)',                    wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'Einh.',   kulturen:'Birne',        aufwand_zulassung:'', notiz:'Förderung des Fruchtansatzes. Birne.'},
+  {name:'Gibb plus',        wirkstoff:'Gibberelline (GA4/GA7)',                    wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Minderung der Fruchtberostung / Förderung Fruchtansatz.'},
+  {name:'Kudos',            wirkstoff:'Prohexadion-Calcium',                       wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'kg/ha',   kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Hemmung des Triebwachstums.'},
+  {name:'Novagib',          wirkstoff:'Gibberelline (GA4/GA7)',                    wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Minderung der Fruchtberostung / Förderung Fruchtansatz.'},
+  {name:'Promalin',         wirkstoff:'6-Benzyladenin + Gibberelline (GA4/GA7)',   wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'L/ha',    kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Förderung Fruchtgröße, Minderung Fruchtberostung.'},
+  {name:'Regulex 10 SG',    wirkstoff:'Gibberelline (GA4/GA7)',                    wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'kg/ha',   kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Minderung der Fruchtberostung / Förderung Fruchtansatz.'},
+  {name:'SmartFresh',       wirkstoff:'1-Methylcyclopropen',                       wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'Einh.',   kulturen:'Apfel',        aufwand_zulassung:'', notiz:'Erhaltung der Fruchtqualität. Lageranwendung.'},
+  {name:'SmartFresh ProTabs',wirkstoff:'1-Methylcyclopropen',                      wirkstoff_pct:null, kat:'Wachstumsregler', einheit:'Einh.',   kulturen:'Apfel, Birne', aufwand_zulassung:'', notiz:'Erhaltung der Fruchtqualität. Lageranwendung.'},
 ];
 
 const DEFAULT_ARBEITEN=['Düngung','Wachstumsregulation + Ausdünnung','Pflanzenschutz','Händischer Schnitt','Maschinenschnitt','Entlauben','Bewässerung','Beobachtung','Notiz','Ernte','Sonstiges'];
@@ -749,21 +784,33 @@ function populateWacPick(preselectedId=''){
   const lager=wac.filter(b=>b.lager).sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const inaktiv=wac.filter(b=>!b.lager).sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const sel_=id=>`<option value="${id}"${id===preselectedId?' selected':''}`;
+  const wacLabel=b=>{
+    const ws=b.wirkstoff||'xxx';
+    const pct=b.wirkstoff_pct!=null?b.wirkstoff_pct+'%':'xxx';
+    return b.name+' – '+ws+' ('+pct+')';
+  };
   let html='<option value=""'+(preselectedId?'':' selected')+'>– Wachstumsregler wählen –</option>';
-  if(lager.length) html+='<optgroup label="✓ Auf Lager">'+lager.map(b=>sel_(b.id)+`>${b.name}</option>`).join('')+'</optgroup>';
-  if(inaktiv.length) html+='<optgroup label="Nicht auf Lager">'+inaktiv.map(b=>sel_(b.id)+`>${b.name}</option>`).join('')+'</optgroup>';
+  if(lager.length) html+='<optgroup label="✓ Auf Lager">'+lager.map(b=>sel_(b.id)+`>${wacLabel(b)}</option>`).join('')+'</optgroup>';
+  if(inaktiv.length) html+='<optgroup label="Nicht auf Lager">'+inaktiv.map(b=>sel_(b.id)+`>${wacLabel(b)}</option>`).join('')+'</optgroup>';
   sel.innerHTML=html;
 }
 
 function mmPickWac(sel){
   const id=sel.value;
-  if(!id){document.getElementById('mm-aufwand-wrap').style.display='none';return;}
+  const wacWrap=document.getElementById('mm-wac-menge-wrap');
+  if(!id){
+    wacWrap.style.display='none';
+    document.getElementById('mm-aufwand-wrap-wac').style.display='none';
+    document.getElementById('mm-mit-wac').value='';
+    return;
+  }
   const b=D.betriebsmittel&&D.betriebsmittel.find(b=>b.id===id);
   if(!b) return;
-  document.getElementById('mm-mit').value=b.name;
+  document.getElementById('mm-mit-wac').value=b.name;
   document.getElementById('mm-arb').value='Wachstumsregulation + Ausdünnung';
-  mmShowAufwandPick(b);
-  calcMsl();
+  wacWrap.style.display='block';
+  mmShowAufwandPickWac(b);
+  calcMslWac();
 }
 
 function mmShowAufwandPick(bm){
@@ -778,13 +825,29 @@ function mmShowAufwandPick(bm){
   wrap.style.display='block';
   sel.innerHTML='<option value="">– manuell eingeben –</option>'+rows.map(r=>`<option value="${r.val}">${r.label}</option>`).join('');
 }
+function mmShowAufwandPickWac(bm){
+  const wrap=document.getElementById('mm-aufwand-wrap-wac');
+  const sel=document.getElementById('mm-aufwand-pick-wac');
+  const rows=[];
+  if(bm.aufwand_zulassung) rows.push({label:'lt. Zulassung: '+bm.aufwand_zulassung, val:bm.aufwand_zulassung});
+  (bm.empfehlungen||[]).forEach((e,i)=>{
+    if(e.menge) rows.push({label:`Empf. ${i+1}: ${e.menge}${e.von?' ('+e.von+(e.datum?' '+e.datum.slice(0,7):'')+')'  :''}`, val:e.menge});
+  });
+  if(!rows.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  sel.innerHTML='<option value="">– manuell eingeben –</option>'+rows.map(r=>`<option value="${r.val}">${r.label}</option>`).join('');
+}
 function mmPickAufwand(sel){
   if(sel.value) document.getElementById('mm-mha').value=sel.value;
   calcMsl();
 }
+function mmPickAufwandWac(sel){
+  if(sel.value) document.getElementById('mm-mha-wac').value=sel.value;
+  calcMslWac();
+}
 function mmPickDunger(sel){
   const id=sel.value;
-  if(!id){document.getElementById('mm-aufwand-wrap').style.display='none';return;}
+  if(!id){document.getElementById('mm-aufwand-wrap').style.display='none';document.getElementById('mm-mit').value='';return;}
   const b=D.betriebsmittel&&D.betriebsmittel.find(b=>b.id===id);
   if(!b) return;
   document.getElementById('mm-mit').value=b.name;
@@ -1121,6 +1184,9 @@ function mergeNewSchlage(){
 
 function mergeNewBetriebsmittel(){
   if(!D.betriebsmittel) D.betriebsmittel=[];
+  // Alte Standard-Wachstumsregler entfernen (durch aktuelle BAES-Daten ersetzt)
+  const OLD_WAC_NAMES=new Set(['Arvest','ATS (Ammoniumthiosulfat)','Ethrel A','Exilis Plus','Falgro','Regalis Plus','ReTain','Sproud']);
+  D.betriebsmittel=D.betriebsmittel.filter(b=>!OLD_WAC_NAMES.has(b.name));
   const existingNames=new Set(D.betriebsmittel.map(b=>b.name));
   for(const d of DEFAULT_DUENGER){
     if(!existingNames.has(d.name)){
@@ -1691,8 +1757,8 @@ function renderM(){
       <td style="white-space:nowrap">${fmtD(m.datum)}</td>
       <td style="font-size:.75rem">${s?s.name:'<i>–</i>'}</td>
       <td><span class="bdg ${arbC(m.arbeit)}">${m.arbeit}</span></td>
-      <td>${m.mittel||'–'}</td>
-      <td style="white-space:nowrap">${m.menge_ha||'–'}</td>
+      <td>${m.mittel||'–'}${m.mittel_wac?`<br><span style="font-size:.72rem;color:var(--txl)">🌱 ${m.mittel_wac}</span>`:''}</td>
+      <td style="white-space:nowrap">${m.menge_ha||'–'}${m.menge_ha_wac?`<br><span style="font-size:.72rem;color:var(--txl)">🌱 ${m.menge_ha_wac}</span>`:''}</td>
       <td style="font-size:.72rem;color:var(--txl)">${naehrTxt}</td>
       <td style="max-width:140px;font-size:.74rem;color:var(--txl)">${m.notiz||'–'}</td>
       <td><button class="btn btn-s btn-sm" onclick="openMMod('${m.id}')">✏️</button></td>
@@ -1822,7 +1888,9 @@ function openMMod(id=null){
     // Passenden Dünger vorauswählen (Namensabgleich)
     const matchBm=m.mittel&&D.betriebsmittel&&D.betriebsmittel.find(b=>b.name===m.mittel&&(b.kat==='Dünger'||b.kat==='Blattdünger'));
     populateDungerPick(matchBm?matchBm.id:'');
-    const matchWac=m.mittel&&D.betriebsmittel&&D.betriebsmittel.find(b=>b.name===m.mittel&&(b.kat==='Wachstumsregler'||b.kat==='Ausdünnmittel'));
+    // WR: bevorzuge mittel_wac; Fallback: mittel wenn WR-Produkt (alte Einträge)
+    const wacName=m.mittel_wac||(D.betriebsmittel&&D.betriebsmittel.find(b=>b.name===m.mittel&&(b.kat==='Wachstumsregler'||b.kat==='Ausdünnmittel'))&&m.mittel)||'';
+    const matchWac=wacName&&D.betriebsmittel&&D.betriebsmittel.find(b=>b.name===wacName&&(b.kat==='Wachstumsregler'||b.kat==='Ausdünnmittel'));
     populateWacPick(matchWac?matchWac.id:'');
     document.getElementById('mm-title').textContent='Maßnahme bearbeiten';
     document.getElementById('mm-dat').value=m.datum;
@@ -1832,6 +1900,14 @@ function openMMod(id=null){
     document.getElementById('mm-mit').value=m.mittel||'';
     document.getElementById('mm-mha').value=m.menge_ha||'';
     document.getElementById('mm-msl').value=m.menge_schlag||'';
+    // WR-Felder
+    const mitWac=m.mittel_wac||wacName||'';
+    document.getElementById('mm-mit-wac').value=mitWac;
+    document.getElementById('mm-mha-wac').value=m.menge_ha_wac||'';
+    document.getElementById('mm-msl-wac').value=m.menge_schlag_wac||'';
+    const wacWrap=document.getElementById('mm-wac-menge-wrap');
+    wacWrap.style.display=(mitWac||m.menge_ha_wac)?'block':'none';
+    if(mitWac&&matchWac) mmShowAufwandPickWac(matchWac);
     document.getElementById('mm-notiz').value=m.notiz||'';
     del.style.display='inline-flex';
   }else{
@@ -1840,7 +1916,10 @@ function openMMod(id=null){
     mmRenderSchlageList([]);
     populateDungerPick('');
     populateWacPick('');
-    ['mm-bbch','mm-mit','mm-mha','mm-msl','mm-notiz'].forEach(i=>document.getElementById(i).value='');
+    ['mm-bbch','mm-mit','mm-mit-wac','mm-mha','mm-msl','mm-mha-wac','mm-msl-wac','mm-notiz'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('mm-wac-menge-wrap').style.display='none';
+    document.getElementById('mm-aufwand-wrap').style.display='none';
+    document.getElementById('mm-aufwand-wrap-wac').style.display='none';
     mmClearFoto();
     del.style.display='none';
   }
@@ -1848,10 +1927,10 @@ function openMMod(id=null){
 }
 
 document.getElementById('mm-mha').addEventListener('input',calcMsl);
-function calcMsl(){
+function _calcMslForEl(mhaId, mslId){
   const ids=mmSelectedIds();
-  const mha=document.getElementById('mm-mha').value;
-  const el=document.getElementById('mm-msl');
+  const mha=document.getElementById(mhaId).value;
+  const el=document.getElementById(mslId);
   if(!ids.length||!mha){el.value='';return;}
   const n=parseFloat(mha.replace(/[^\d.,]/g,'').replace(',','.'));
   if(isNaN(n)){el.value='';return;}
@@ -1870,30 +1949,36 @@ function calcMsl(){
     el.value=lines.join(' | ')+' → '+total.toFixed(1)+' gesamt';
   }
 }
+function calcMsl(){_calcMslForEl('mm-mha','mm-msl');}
+function calcMslWac(){_calcMslForEl('mm-mha-wac','mm-msl-wac');}
 
 function saveM(){
   const ids=mmSelectedIds();
   const arb=document.getElementById('mm-arb').value;
   const dat=document.getElementById('mm-dat').value;
   if(!ids.length||!arb||!dat){alert('Bitte mindestens einen Schlag, Arbeit und Datum ausfüllen.');return;}
-  const base={datum:dat,arbeit:arb,bbch:pi('mm-bbch'),mittel:v('mm-mit'),menge_ha:v('mm-mha'),notiz:v('mm-notiz'),foto:_mmFotoData||undefined};
+  const mhaWac=v('mm-mha-wac');
+  const mitWac=v('mm-mit-wac');
+  const base={datum:dat,arbeit:arb,bbch:pi('mm-bbch'),mittel:v('mm-mit'),menge_ha:v('mm-mha'),mittel_wac:mitWac||undefined,menge_ha_wac:mhaWac||undefined,notiz:v('mm-notiz'),foto:_mmFotoData||undefined};
+  const calcMslVal=(s,mha)=>s&&s.ha_netto&&mha?
+    (parseFloat(mha.replace(/[^\d.,]/g,'').replace(',','.'))*s.ha_netto).toFixed(1):'';
   if(editMid){
     // Bearbeitung: nur 1 Schlag möglich
     const sid=ids[0];
     const s=D.schlage.find(s=>s.id===sid);
-    const msl=s&&s.ha_netto&&base.menge_ha?
-      (parseFloat(base.menge_ha.replace(/[^\d.,]/g,'').replace(',','.'))*s.ha_netto).toFixed(1):'';
+    const msl=calcMslVal(s,base.menge_ha);
+    const mslWac=calcMslVal(s,mhaWac);
     const prev=D.massnahmen.find(x=>x.id===editMid);
-    const m={...base,id:editMid,schlag_id:sid,menge_schlag:msl,foto:_mmFotoData!==null?(_mmFotoData||undefined):(prev&&prev.foto)};
+    const m={...base,id:editMid,schlag_id:sid,menge_schlag:msl,menge_schlag_wac:mslWac||undefined,foto:_mmFotoData!==null?(_mmFotoData||undefined):(prev&&prev.foto)};
     const i=D.massnahmen.findIndex(x=>x.id===editMid);D.massnahmen[i]=m;
     scheduleSave();closeMod('mod-m');renderM();renderRecent();toast('Maßnahme gespeichert');
   }else{
     // Neu: je Schlag eine Maßnahme anlegen
     for(const sid of ids){
       const s=D.schlage.find(s=>s.id===sid);
-      const msl=s&&s.ha_netto&&base.menge_ha?
-        (parseFloat(base.menge_ha.replace(/[^\d.,]/g,'').replace(',','.'))*s.ha_netto).toFixed(1):'';
-      D.massnahmen.push({...base,id:uid(),schlag_id:sid,menge_schlag:msl});
+      const msl=calcMslVal(s,base.menge_ha);
+      const mslWac=calcMslVal(s,mhaWac);
+      D.massnahmen.push({...base,id:uid(),schlag_id:sid,menge_schlag:msl,menge_schlag_wac:mslWac||undefined});
     }
     scheduleSave();closeMod('mod-m');renderM();renderRecent();
     toast(`✓ ${ids.length} Maßnahme${ids.length>1?'n':''} gespeichert`);
