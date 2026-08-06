@@ -676,13 +676,15 @@ tr:hover td{background:#f9fcfa}
       <!-- Foto -->
       <div class="fg fw">
         <label>📷 Foto</label>
-        <div id="mm-foto-preview" style="display:none;margin-bottom:6px;position:relative;display:inline-block">
-          <img id="mm-foto-img" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--bdr)">
-          <button type="button" onclick="mmClearFoto()" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:.8rem;line-height:1">✕</button>
+        <div id="mm-foto-preview" style="display:none;margin-bottom:8px;position:relative">
+          <img id="mm-foto-img" style="max-width:100%;max-height:180px;border-radius:8px;border:1px solid var(--bdr);display:block">
+          <button type="button" onclick="mmClearFoto()" title="Foto entfernen" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:.85rem;line-height:1">✕</button>
         </div>
-        <div>
-          <input type="file" id="mm-foto-input" accept="image/*" capture="environment" style="display:none" onchange="mmLoadFoto(this)">
-          <button type="button" class="btn btn-s btn-sm" onclick="document.getElementById('mm-foto-input').click()">📷 Foto aufnehmen / wählen</button>
+        <div style="display:flex;gap:8px">
+          <input type="file" id="mm-foto-input-cam" accept="image/*" capture="environment" style="display:none" onchange="mmLoadFoto(this)">
+          <input type="file" id="mm-foto-input-file" accept="image/*" style="display:none" onchange="mmLoadFoto(this)">
+          <button type="button" class="btn btn-s btn-sm" onclick="document.getElementById('mm-foto-input-cam').click()">📷 Kamera</button>
+          <button type="button" class="btn btn-s btn-sm" onclick="document.getElementById('mm-foto-input-file').click()">🖼️ Aus Ordner</button>
         </div>
       </div>
     </div>
@@ -877,9 +879,11 @@ function mmLoadFoto(input){
   reader.readAsDataURL(file);
 }
 function mmClearFoto(){
-  _mmFotoData=null;
+  _mmFotoData=''; // '' = explizit gelöscht (≠ null = unverändert)
   document.getElementById('mm-foto-preview').style.display='none';
-  document.getElementById('mm-foto-input').value='';
+  ['mm-foto-input-cam','mm-foto-input-file'].forEach(id=>{
+    const el=document.getElementById(id);if(el) el.value='';
+  });
 }
 let _fotoChronikSchlagId=null;
 function openFotochronik(schlagId){
@@ -1845,7 +1849,7 @@ function mmRenderSchlageList(selectedIds=[]){
     const lastM=(D.massnahmen||[]).filter(m=>m.schlag_id===s.id).sort((a,b)=>b.datum.localeCompare(a.datum))[0];
     html+=`<label style="display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:.8rem;user-select:none" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">
       <input type="checkbox" name="mm-schlag-cb" value="${s.id}" ${selectedIds.includes(s.id)?'checked':''}
-        style="accent-color:var(--p);flex-shrink:0;width:15px;height:15px" onchange="mmUpdateCount();calcMsl()">
+        style="accent-color:var(--p);flex-shrink:0;width:15px;height:15px" onchange="mmUpdateCount();calcMsl();calcMslWac()">
       <span style="flex:1">${s.typ==='birne'?'🍐':'🍎'} ${s.name}</span>
       <span style="display:flex;gap:6px;flex-shrink:0;font-size:.68rem;color:var(--txl)">
         ${bbchVal!==null?`<span style="background:var(--bg);border-radius:4px;padding:1px 5px">BBCH ${bbchVal}${bbchDat?' ('+fmtD(bbchDat)+')':''}</span>`:''}
@@ -1866,17 +1870,17 @@ function mmUpdateCount(){
   document.getElementById('mm-schlag-count').textContent=n?`(${n} ausgewählt)`:'';
 }
 
-function mmSelectAll(){document.querySelectorAll('input[name="mm-schlag-cb"]').forEach(cb=>{cb.checked=true});mmUpdateCount();calcMsl();}
-function mmSelectNone(){document.querySelectorAll('input[name="mm-schlag-cb"]').forEach(cb=>{cb.checked=false});mmUpdateCount();calcMsl();}
-function mmSelectApfel(){document.querySelectorAll('input[name="mm-schlag-cb"]').forEach(cb=>{const s=D.schlage.find(s=>s.id===cb.value);cb.checked=s&&s.typ==='apfel';});mmUpdateCount();calcMsl();}
-function mmSelectBirne(){document.querySelectorAll('input[name="mm-schlag-cb"]').forEach(cb=>{const s=D.schlage.find(s=>s.id===cb.value);cb.checked=s&&s.typ==='birne';});mmUpdateCount();calcMsl();}
+function mmSelectAll(){document.querySelectorAll('input[name="mm-schlag-cb"]').forEach(cb=>{cb.checked=true});mmUpdateCount();calcMsl();calcMslWac();}
+function mmSelectNone(){document.querySelectorAll('input[name="mm-schlag-cb"]').forEach(cb=>{cb.checked=false});mmUpdateCount();calcMsl();calcMslWac();}
+function mmSelectApfel(){document.querySelectorAll('input[name="mm-schlag-cb"]').forEach(cb=>{const s=D.schlage.find(s=>s.id===cb.value);cb.checked=s&&s.typ==='apfel';});mmUpdateCount();calcMsl();calcMslWac();}
+function mmSelectBirne(){document.querySelectorAll('input[name="mm-schlag-cb"]').forEach(cb=>{const s=D.schlage.find(s=>s.id===cb.value);cb.checked=s&&s.typ==='birne';});mmUpdateCount();calcMsl();calcMslWac();}
 function mmToggleFeld(feld){
   const cbs=[...document.querySelectorAll('input[name="mm-schlag-cb"]')].filter(cb=>{
     const s=D.schlage.find(s=>s.id===cb.value);return s&&s.feldstuck===feld;
   });
   const allChecked=cbs.every(cb=>cb.checked);
   cbs.forEach(cb=>cb.checked=!allChecked);
-  mmUpdateCount();calcMsl();
+  mmUpdateCount();calcMsl();calcMslWac();
 }
 
 function openMMod(id=null){
@@ -1909,6 +1913,14 @@ function openMMod(id=null){
     wacWrap.style.display=(mitWac||m.menge_ha_wac)?'block':'none';
     if(mitWac&&matchWac) mmShowAufwandPickWac(matchWac);
     document.getElementById('mm-notiz').value=m.notiz||'';
+    // Foto wiederherstellen
+    _mmFotoData=null; // null = unverändert beim Speichern
+    if(m.foto){
+      document.getElementById('mm-foto-img').src=m.foto;
+      document.getElementById('mm-foto-preview').style.display='block';
+    } else {
+      document.getElementById('mm-foto-preview').style.display='none';
+    }
     del.style.display='inline-flex';
   }else{
     document.getElementById('mm-title').textContent='Maßnahme erfassen';
