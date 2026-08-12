@@ -1239,7 +1239,24 @@ function getFeldDisplay(name){
   return f?f.nummer+'. '+name:name;
 }
 
-function scheduleSave(){lsSave();}
+let _cloudSaveTimer=null;
+let _cloudDirty=false; // true = lokale Änderungen noch nicht in OneDrive
+
+function scheduleSave(){
+  lsSave();
+  _cloudDirty=true;
+  updateSbar('warn','💾 Ungespeicherte Änderungen…');
+  clearTimeout(_cloudSaveTimer);
+  _cloudSaveTimer=setTimeout(async()=>{
+    if(!isLoggedIn()) return;
+    try{
+      await cloudSave();
+      _cloudDirty=false;
+    }catch(e){
+      updateSbar('err','⚠ Auto-Speichern fehlgeschlagen');
+    }
+  }, 3000);
+}
 
 // ═══════════════════════════════════════════════════
 // OneDrive / Microsoft Graph (PKCE)
@@ -1386,6 +1403,8 @@ async function cloudSave(){
     });
     if(!r.ok) throw new Error('HTTP '+r.status);
     lsSave();
+    _cloudDirty=false;
+    clearTimeout(_cloudSaveTimer);
     const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
     updateSbar('ok','☁️ OneDrive gespeichert · '+t);
     toast('✓ In OneDrive gespeichert');
@@ -2411,9 +2430,13 @@ if(!window._isOauthCallback){
     }
   }
 
-  // Auto-Sync alle 60 Sekunden (lädt aktuellen Stand von OneDrive)
+  // Auto-Sync alle 60 Sekunden – überspringen wenn lokale Änderungen ausstehen
   setInterval(async()=>{
     if(!isLoggedIn()) return;
+    // Nicht laden wenn noch ungespeicherte Änderungen vorhanden
+    if(_cloudDirty) return;
+    // Nicht laden wenn gerade ein Modal geöffnet ist
+    if(document.querySelector('.mov.open')) return;
     try{
       const tok=await ensureAccessToken();
       const r=await fetch(`https://graph.microsoft.com/v1.0/me/drive/special/approot:/${GRAPH_FILE}:/content`,{
