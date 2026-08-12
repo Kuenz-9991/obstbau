@@ -549,10 +549,17 @@ tr:hover td{background:#f9fcfa}
       <div class="fg"><label>Obstart</label><select id="ms-typ"><option value="apfel">🍎 Apfel</option><option value="birne">🍐 Birne</option></select></div>
       <div class="fg"><label>ha netto</label><input type="number" id="ms-netto" step="0.001" placeholder="z.B. 0.850"></div>
       <div class="fg"><label>ha brutto</label><input type="number" id="ms-brutto" step="0.001" placeholder="z.B. 0.920"></div>
-      <div class="fg"><label>Baumzahl gesamt</label><input type="number" id="ms-bz"></div>
-      <div class="fg"><label>Reihenanzahl</label><input type="number" id="ms-rn"></div>
+      <div class="fg"><label>Reihenlänge (m)</label><input type="number" id="ms-rl" step="0.5" placeholder="z.B. 120" oninput="calcTheorBaumzahl()"></div>
+      <div class="fg"><label>Baumzahl</label><input type="number" id="ms-bz"></div>
+      <div class="fg"><label>Reihenanzahl</label><input type="number" id="ms-rn" oninput="calcTheorBaumzahl()"></div>
       <div class="fg"><label>Pflanzabstand Reihe (m)</label><input type="number" id="ms-pr" step="0.1" placeholder="z.B. 3.5"></div>
-      <div class="fg"><label>Pflanzabstand Baum (m)</label><input type="number" id="ms-pb" step="0.05" placeholder="z.B. 0.9"></div>
+      <div class="fg"><label>Pflanzabstand Baum (m)</label><input type="number" id="ms-pb" step="0.05" placeholder="z.B. 0.9" oninput="calcTheorBaumzahl()"></div>
+      <div class="fg fw" id="ms-theor-wrap" style="display:none">
+        <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:7px;padding:7px 11px;font-size:.8rem;color:var(--txl)">
+          📐 Theoretische Baumzahl: <strong id="ms-theor-val" style="color:var(--p)"></strong>
+          <span style="font-size:.72rem"> (Reihenlänge ÷ Pflanzabstand Baum × Reihenanzahl)</span>
+        </div>
+      </div>
       <div class="fg"><label>Unterlage / Klon</label><input id="ms-ul" placeholder="z.B. M9, B9, Pajam2"></div>
       <div class="fg"><label>Pflanzjahr</label><input type="number" id="ms-pj" placeholder="z.B. 2022"></div>
       <div class="fg"><label>Düsen</label><input type="number" id="ms-dn"></div>
@@ -1580,7 +1587,7 @@ function renderSchlage(){
           <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openFotochronik('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-top:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📷 Fotochronik</div>
         </div>
         <div class="scard-meta">${s.sorte||'–'}${s.ha_netto?' · '+s.ha_netto+' ha netto':''}${s.pflanzjahr?' · PJ '+s.pflanzjahr:''}</div>
-        ${s.baumzahl?`<div class="scard-meta">${s.baumzahl} Bäume${s.pabst_reihe?' · '+s.pabst_reihe+'m × '+(s.pabst_baum||'?')+'m':''}</div>`:''}
+        ${(s.baumzahl||s.reihenlange)?`<div class="scard-meta">${s.baumzahl?s.baumzahl+' Bäume':''}${s.reihenlange?' · '+s.reihenlange+'m Reihenlänge':''}${s.pabst_baum&&s.reihenlange&&s.reihenanzahl?' · theor. '+Math.round(s.reihenlange/s.pabst_baum)*s.reihenanzahl+' Bäume':''}${s.pabst_reihe?' · '+s.pabst_reihe+'m × '+(s.pabst_baum||'?')+'m':''}</div>`:''}
         ${s.unterlage?`<div class="scard-meta">Unterlage: ${s.unterlage}</div>`:''}
         <div style="margin-top:7px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           ${b!==null?`<span class="bdg bdg-g">BBCH ${b}</span><span class="txl" style="font-size:.7rem">${bbchName(b)}</span>`:'<span class="bdg bdg-n" style="font-size:.7rem">kein BBCH-Status</span>'}
@@ -1643,8 +1650,10 @@ function openSchlagMod(id=null, preFeld=null){
     document.getElementById('ms-typ').value=s.typ||'apfel';
     document.getElementById('ms-netto').value=s.ha_netto||'';
     document.getElementById('ms-brutto').value=s.ha_brutto||'';
+    document.getElementById('ms-rl').value=s.reihenlange||'';
     document.getElementById('ms-bz').value=s.baumzahl||'';
     document.getElementById('ms-rn').value=s.reihenanzahl||'';
+    calcTheorBaumzahl();
     document.getElementById('ms-pr').value=s.pabst_reihe||'';
     document.getElementById('ms-pb').value=s.pabst_baum||'';
     document.getElementById('ms-ul').value=s.unterlage||'';
@@ -1657,7 +1666,8 @@ function openSchlagMod(id=null, preFeld=null){
     del.style.display='inline-flex';
   }else{
     document.getElementById('ms-title').textContent='Schlag anlegen';
-    ['ms-fs','ms-nm','ms-sorte','ms-netto','ms-brutto','ms-bz','ms-rn','ms-pr','ms-pb','ms-ul','ms-pj','ms-dn','ms-wa','ms-notiz'].forEach(i=>document.getElementById(i).value='');
+    ['ms-fs','ms-nm','ms-sorte','ms-netto','ms-brutto','ms-rl','ms-bz','ms-rn','ms-pr','ms-pb','ms-ul','ms-pj','ms-dn','ms-wa','ms-notiz'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('ms-theor-wrap').style.display='none';
     document.getElementById('ms-typ').value='apfel';
     document.getElementById('ms-hn').value='0';
     document.getElementById('ms-bw').value='0';
@@ -1673,12 +1683,26 @@ function tryHa(){
     document.getElementById('ms-netto').value=parseFloat(m[1].replace(',','.')).toFixed(4);
 }
 
+function calcTheorBaumzahl(){
+  const rl=parseFloat(document.getElementById('ms-rl').value);
+  const pb=parseFloat(document.getElementById('ms-pb').value);
+  const rn=parseInt(document.getElementById('ms-rn').value);
+  const wrap=document.getElementById('ms-theor-wrap');
+  if(rl>0&&pb>0&&rn>0){
+    const theor=Math.round(rl/pb)*rn;
+    document.getElementById('ms-theor-val').textContent=theor+' Bäume';
+    wrap.style.display='block';
+  } else {
+    wrap.style.display='none';
+  }
+}
+
 function saveSchlag(){
   const s={
     id:editSid||uid(),feldstuck:document.getElementById('ms-fs').value,name:v('ms-nm'),sorte:v('ms-sorte'),
     typ:document.getElementById('ms-typ').value,
     ha_netto:pf('ms-netto'),ha_brutto:pf('ms-brutto'),
-    baumzahl:pi('ms-bz'),reihenanzahl:pi('ms-rn'),
+    reihenlange:pf('ms-rl'),baumzahl:pi('ms-bz'),reihenanzahl:pi('ms-rn'),
     pabst_reihe:pf('ms-pr'),pabst_baum:pf('ms-pb'),
     unterlage:v('ms-ul'),pflanzjahr:pi('ms-pj'),
     dusen:pi('ms-dn'),wasser_ha:pi('ms-wa'),
