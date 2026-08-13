@@ -537,6 +537,7 @@ tr:hover td{background:#f9fcfa}
       <button class="mod-x" onclick="closeMod('mod-schlag')">✕</button>
     </div>
     <div class="fg2">
+      <!-- Feldstück -->
       <div class="fg fw">
         <label>Feldstück</label>
         <div style="display:flex;gap:6px">
@@ -545,28 +546,31 @@ tr:hover td{background:#f9fcfa}
           <button type="button" class="btn btn-s btn-sm" onclick="openFeldMod()" title="Neues Feld anlegen">+ Feld</button>
         </div>
       </div>
+      <!-- Schlagname | Obstart -->
       <div class="fg"><label>Schlagname</label><input id="ms-nm" placeholder="z.B. HG Topaz 2026-0,85" oninput="tryHa()"></div>
-      <div class="fg"><label>Sorte</label><input id="ms-sorte" placeholder="z.B. Gala, Topaz, Williams"></div>
       <div class="fg"><label>Obstart</label><select id="ms-typ"><option value="apfel">🍎 Apfel</option><option value="birne">🍐 Birne</option></select></div>
+      <!-- Sorte | Klon -->
+      <div class="fg"><label>Sorte</label><input id="ms-sorte" placeholder="z.B. Gala, Topaz, Williams"></div>
+      <div class="fg"><label>Klon</label><input id="ms-klon" placeholder="z.B. RKD, Baigent"></div>
+      <!-- ha netto | ha brutto -->
       <div class="fg"><label>ha netto</label><input type="number" id="ms-netto" step="0.001" placeholder="z.B. 0.850"></div>
       <div class="fg"><label>ha brutto</label><input type="number" id="ms-brutto" step="0.001" placeholder="z.B. 0.920"></div>
-      <div class="fg"><label>Reihenlänge (m)</label><input type="number" id="ms-rl" step="0.5" placeholder="z.B. 120" oninput="calcTheorBaumzahl()"></div>
-      <div class="fg"><label>Baumzahl</label><input type="number" id="ms-bz"></div>
+      <!-- Reihenanzahl | Reihenlänge -->
       <div class="fg"><label>Reihenanzahl</label><input type="number" id="ms-rn" oninput="calcTheorBaumzahl()"></div>
+      <div class="fg"><label>Reihenlänge (m)</label><input type="number" id="ms-rl" step="0.5" placeholder="z.B. 120" oninput="calcTheorBaumzahl()"></div>
+      <!-- Pflanzabstand Reihe | Pflanzabstand Baum -->
       <div class="fg"><label>Pflanzabstand Reihe (m)</label><input type="number" id="ms-pr" step="0.1" placeholder="z.B. 3.5"></div>
       <div class="fg"><label>Pflanzabstand Baum (m)</label><input type="number" id="ms-pb" step="0.05" placeholder="z.B. 0.9" oninput="calcTheorBaumzahl()"></div>
-      <div class="fg fw" id="ms-theor-wrap" style="display:none">
-        <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:7px;padding:7px 11px;font-size:.8rem;color:var(--txl)">
-          📐 Theoretische Baumzahl: <strong id="ms-theor-val" style="color:var(--p)"></strong>
-          <span style="font-size:.72rem"> (Reihenlänge ÷ Pflanzabstand Baum × Reihenanzahl)</span>
-        </div>
-      </div>
-      <div class="fg"><label>Unterlage / Klon</label><input id="ms-ul" placeholder="z.B. M9, B9, Pajam2"></div>
+      <!-- Baumzahl | Baumzahl berechnet -->
+      <div class="fg"><label>Baumzahl</label><input type="number" id="ms-bz"></div>
+      <div class="fg"><label>Baumzahl berechnet</label><input id="ms-bz-calc" readonly placeholder="autom. berechnet" style="background:var(--bg2);color:var(--txl)" title="Reihenlänge ÷ Pflanzabstand Baum × Reihenanzahl"></div>
+      <!-- Unterlage | Pflanzjahr -->
+      <div class="fg"><label>Unterlage</label><input id="ms-ul" placeholder="z.B. M9, B9, Pajam2"></div>
       <div class="fg"><label>Pflanzjahr</label><input type="number" id="ms-pj" placeholder="z.B. 2022"></div>
-      <div class="fg"><label>Düsen</label><input type="number" id="ms-dn"></div>
-      <div class="fg"><label>Standard Wasseraufwand (L/ha)</label><input type="number" id="ms-wa"></div>
+      <!-- Hagelnetz | Bewässerung -->
       <div class="fg"><label>Hagelnetz</label><select id="ms-hn"><option value="0">Nein</option><option value="1">Ja</option></select></div>
       <div class="fg"><label>Bewässerung</label><select id="ms-bw"><option value="0">Nein</option><option value="1">Ja</option></select></div>
+      <!-- Notiz -->
       <div class="fg fw"><label>Notiz</label><textarea id="ms-notiz" rows="2"></textarea></div>
     </div>
     <div class="mod-ft">
@@ -1587,7 +1591,7 @@ function renderSchlage(){
           <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openSchlagMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-top:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">✏️ Bearbeiten</div>
           <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openFotochronik('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-top:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📷 Fotochronik</div>
         </div>
-        <div class="scard-meta">${s.sorte||'–'}${s.ha_netto?' · '+s.ha_netto+' ha netto':''}${s.pflanzjahr?' · PJ '+s.pflanzjahr:''}</div>
+        <div class="scard-meta">${s.sorte||'–'}${s.klon?' · '+s.klon:''}${s.ha_netto?' · '+s.ha_netto+' ha netto':''}${s.pflanzjahr?' · PJ '+s.pflanzjahr:''}</div>
         ${(s.baumzahl||s.reihenlange)?`<div class="scard-meta">${s.baumzahl?s.baumzahl+' Bäume':''}${s.reihenlange?' · '+s.reihenlange+'m Reihenlänge':''}${s.pabst_baum&&s.reihenlange&&s.reihenanzahl?' · theor. '+Math.round(s.reihenlange/s.pabst_baum)*s.reihenanzahl+' Bäume':''}${s.pabst_reihe?' · '+s.pabst_reihe+'m × '+(s.pabst_baum||'?')+'m':''}</div>`:''}
         ${s.unterlage?`<div class="scard-meta">Unterlage: ${s.unterlage}</div>`:''}
         <div style="margin-top:7px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -1653,22 +1657,20 @@ function openSchlagMod(id=null, preFeld=null){
     document.getElementById('ms-brutto').value=s.ha_brutto||'';
     document.getElementById('ms-rl').value=s.reihenlange||'';
     document.getElementById('ms-bz').value=s.baumzahl||'';
+    document.getElementById('ms-klon').value=s.klon||'';
     document.getElementById('ms-rn').value=s.reihenanzahl||'';
-    calcTheorBaumzahl();
     document.getElementById('ms-pr').value=s.pabst_reihe||'';
     document.getElementById('ms-pb').value=s.pabst_baum||'';
+    calcTheorBaumzahl();
     document.getElementById('ms-ul').value=s.unterlage||'';
     document.getElementById('ms-pj').value=s.pflanzjahr||'';
-    document.getElementById('ms-dn').value=s.dusen||'';
-    document.getElementById('ms-wa').value=s.wasser_ha||'';
     document.getElementById('ms-hn').value=s.hagelnetz?'1':'0';
     document.getElementById('ms-bw').value=s.bewasserung?'1':'0';
     document.getElementById('ms-notiz').value=s.notiz||'';
     del.style.display='inline-flex';
   }else{
     document.getElementById('ms-title').textContent='Schlag anlegen';
-    ['ms-fs','ms-nm','ms-sorte','ms-netto','ms-brutto','ms-rl','ms-bz','ms-rn','ms-pr','ms-pb','ms-ul','ms-pj','ms-dn','ms-wa','ms-notiz'].forEach(i=>document.getElementById(i).value='');
-    document.getElementById('ms-theor-wrap').style.display='none';
+    ['ms-fs','ms-nm','ms-sorte','ms-klon','ms-netto','ms-brutto','ms-rl','ms-bz','ms-bz-calc','ms-rn','ms-pr','ms-pb','ms-ul','ms-pj','ms-notiz'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('ms-typ').value='apfel';
     document.getElementById('ms-hn').value='0';
     document.getElementById('ms-bw').value='0';
@@ -1688,25 +1690,23 @@ function calcTheorBaumzahl(){
   const rl=parseFloat(document.getElementById('ms-rl').value);
   const pb=parseFloat(document.getElementById('ms-pb').value);
   const rn=parseInt(document.getElementById('ms-rn').value);
-  const wrap=document.getElementById('ms-theor-wrap');
+  const el=document.getElementById('ms-bz-calc');
   if(rl>0&&pb>0&&rn>0){
-    const theor=Math.round(rl/pb)*rn;
-    document.getElementById('ms-theor-val').textContent=theor+' Bäume';
-    wrap.style.display='block';
+    el.value=Math.round(rl/pb)*rn;
   } else {
-    wrap.style.display='none';
+    el.value='';
   }
 }
 
 function saveSchlag(){
   const s={
     id:editSid||uid(),feldstuck:document.getElementById('ms-fs').value,name:v('ms-nm'),sorte:v('ms-sorte'),
-    typ:document.getElementById('ms-typ').value,
+    klon:v('ms-klon'),typ:document.getElementById('ms-typ').value,
     ha_netto:pf('ms-netto'),ha_brutto:pf('ms-brutto'),
-    reihenlange:pf('ms-rl'),baumzahl:pi('ms-bz'),reihenanzahl:pi('ms-rn'),
+    reihenlange:pf('ms-rl'),reihenanzahl:pi('ms-rn'),
     pabst_reihe:pf('ms-pr'),pabst_baum:pf('ms-pb'),
+    baumzahl:pi('ms-bz'),
     unterlage:v('ms-ul'),pflanzjahr:pi('ms-pj'),
-    dusen:pi('ms-dn'),wasser_ha:pi('ms-wa'),
     hagelnetz:document.getElementById('ms-hn').value==='1',
     bewasserung:document.getElementById('ms-bw').value==='1',
     notiz:v('ms-notiz')
