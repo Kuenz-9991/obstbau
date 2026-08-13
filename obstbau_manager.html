@@ -558,12 +558,15 @@ tr:hover td{background:#f9fcfa}
       <!-- Reihenanzahl | Reihenlänge -->
       <div class="fg"><label>Reihenanzahl</label><input type="number" id="ms-rn" oninput="calcTheorBaumzahl()"></div>
       <div class="fg"><label>Reihenlänge (m)</label><input type="number" id="ms-rl" step="0.5" placeholder="z.B. 120" oninput="calcTheorBaumzahl()"></div>
-      <!-- Pflanzabstand Reihe | Pflanzabstand Baum -->
-      <div class="fg"><label>Pflanzabstand Reihe (m)</label><input type="number" id="ms-pr" step="0.1" placeholder="z.B. 3.5"></div>
-      <div class="fg"><label>Pflanzabstand Baum (m)</label><input type="number" id="ms-pb" step="0.05" placeholder="z.B. 0.9" oninput="calcTheorBaumzahl()"></div>
-      <!-- Baumzahl | Baumzahl berechnet -->
-      <div class="fg"><label>Baumzahl</label><input type="number" id="ms-bz"></div>
-      <div class="fg"><label>Baumzahl berechnet</label><input id="ms-bz-calc" readonly placeholder="autom. berechnet" style="background:var(--bg2);color:var(--txl)" title="Reihenlänge ÷ Pflanzabstand Baum × Reihenanzahl"></div>
+      <!-- Reihenweite | Pflanzabstand Baum -->
+      <div class="fg"><label>Reihenweite (m)</label><input type="number" id="ms-pr" step="0.1" placeholder="z.B. 3.5" oninput="calcTheorBaumzahl()"></div>
+      <div class="fg"><label>Pflanzabstand Baum (m)</label><input type="number" id="ms-pb" step="0.05" placeholder="z.B. 0.9"></div>
+      <!-- Baumzahl Hauptsorte | Baumzahl Befruchter -->
+      <div class="fg"><label>Baumzahl Hauptsorte</label><input type="number" id="ms-bz"></div>
+      <div class="fg"><label>Baumzahl Befruchter</label><input type="number" id="ms-bz-bef"></div>
+      <!-- Baumzahl berechnet -->
+      <div class="fg"><label>Baumzahl berechnet</label><input id="ms-bz-calc" readonly placeholder="autom. berechnet" style="background:var(--bg2);color:var(--txl)" title="Reihenlänge ÷ Reihenweite"></div>
+      <div class="fg"></div>
       <!-- Unterlage | Pflanzjahr -->
       <div class="fg"><label>Unterlage</label><input id="ms-ul" placeholder="z.B. M9, B9, Pajam2"></div>
       <div class="fg"><label>Pflanzjahr</label><input type="number" id="ms-pj" placeholder="z.B. 2022"></div>
@@ -1657,6 +1660,7 @@ function openSchlagMod(id=null, preFeld=null){
     document.getElementById('ms-brutto').value=s.ha_brutto||'';
     document.getElementById('ms-rl').value=s.reihenlange||'';
     document.getElementById('ms-bz').value=s.baumzahl||'';
+    document.getElementById('ms-bz-bef').value=s.baumzahl_befruchter||'';
     document.getElementById('ms-klon').value=s.klon||'';
     document.getElementById('ms-rn').value=s.reihenanzahl||'';
     document.getElementById('ms-pr').value=s.pabst_reihe||'';
@@ -1670,7 +1674,7 @@ function openSchlagMod(id=null, preFeld=null){
     del.style.display='inline-flex';
   }else{
     document.getElementById('ms-title').textContent='Schlag anlegen';
-    ['ms-fs','ms-nm','ms-sorte','ms-klon','ms-netto','ms-brutto','ms-rl','ms-bz','ms-bz-calc','ms-rn','ms-pr','ms-pb','ms-ul','ms-pj','ms-notiz'].forEach(i=>document.getElementById(i).value='');
+    ['ms-fs','ms-nm','ms-sorte','ms-klon','ms-netto','ms-brutto','ms-rl','ms-bz','ms-bz-bef','ms-bz-calc','ms-rn','ms-pr','ms-pb','ms-ul','ms-pj','ms-notiz'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('ms-typ').value='apfel';
     document.getElementById('ms-hn').value='0';
     document.getElementById('ms-bw').value='0';
@@ -1688,11 +1692,10 @@ function tryHa(){
 
 function calcTheorBaumzahl(){
   const rl=parseFloat(document.getElementById('ms-rl').value);
-  const pb=parseFloat(document.getElementById('ms-pb').value);
-  const rn=parseInt(document.getElementById('ms-rn').value);
+  const pr=parseFloat(document.getElementById('ms-pr').value);
   const el=document.getElementById('ms-bz-calc');
-  if(rl>0&&pb>0&&rn>0){
-    el.value=Math.round(rl/pb)*rn;
+  if(rl>0&&pr>0){
+    el.value=Math.round(rl/pr);
   } else {
     el.value='';
   }
@@ -1705,7 +1708,7 @@ function saveSchlag(){
     ha_netto:pf('ms-netto'),ha_brutto:pf('ms-brutto'),
     reihenlange:pf('ms-rl'),reihenanzahl:pi('ms-rn'),
     pabst_reihe:pf('ms-pr'),pabst_baum:pf('ms-pb'),
-    baumzahl:pi('ms-bz'),
+    baumzahl:pi('ms-bz'),baumzahl_befruchter:pi('ms-bz-bef'),
     unterlage:v('ms-ul'),pflanzjahr:pi('ms-pj'),
     hagelnetz:document.getElementById('ms-hn').value==='1',
     bewasserung:document.getElementById('ms-bw').value==='1',
@@ -2426,6 +2429,7 @@ function renderRef(){
 function openMod(id){document.getElementById(id).classList.add('open')}
 function closeMod(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.mov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+document.querySelectorAll('.mod').forEach(m=>m.addEventListener('click',e=>e.stopPropagation()));
 function fmtD(d){if(!d)return'–';return new Date(d+'T00:00:00').toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit',year:'numeric'})}
 function today(){return new Date().toISOString().slice(0,10)}
 function v(id){return(document.getElementById(id).value||'').trim()}
