@@ -1610,16 +1610,111 @@ async function cloudSave(){
   if(!_supaSession||!_meinBetriebId){toast('⚠ Bitte zuerst anmelden');return;}
   updateSbar('warn','⏳ Wird gespeichert…');
   try{
+    const _blobD={...D,schlage:[]};
     const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data',{
       method:'POST',
       headers:{...supaHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},
-      body:JSON.stringify({betrieb_id:_meinBetriebId,data:D,updated_at:new Date().toISOString()})
+      body:JSON.stringify({betrieb_id:_meinBetriebId,data:_blobD,updated_at:new Date().toISOString()})
     });
     if(!r.ok){const t=await r.text();throw new Error('HTTP '+r.status+' '+t);}
     lsSave();_cloudDirty=false;clearTimeout(_cloudSaveTimer);
     const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
     updateSbar('ok','☁️ Gespeichert · '+t);
   }catch(e){updateSbar('err','⚠ '+e.message);toast('⚠ '+e.message);throw e;}
+}
+
+
+// ─── Schläge direkt aus Supabase-Tabelle laden ──────────────────────────────
+async function loadSchlage(){
+  if(!_supaSession) return;
+  let url=SUPA_URL+'/rest/v1/schlage?select=*,betriebe(name,kuerzel)&order=feldstuck,name';
+  if(_gruppenBetriebe.length){
+    const ids=_gruppenBetriebe.map(b=>b.id).join(',');
+    url+='&betrieb_id=in.('+ids+')';
+  } else if(_meineRolle!=='eo_admin'){
+    url+='&betrieb_id=eq.'+_meinBetriebId;
+  }
+  try{
+    const r=await _supaFetch(url,{headers:supaHeaders()});
+    if(!r.ok) return;
+    const rows=await r.json();
+    if(rows.length>0){
+      D.schlage=rows.map(s=>({
+        id:s.id,
+        betrieb_id:s.betrieb_id,
+        betrieb:s.betriebe?.name||'',
+        feldstuck:s.feldstuck||'',
+        name:s.name||'',
+        typ:s.typ||'apfel',
+        sorte:s.sorte||'',
+        klon:s.klon||'',
+        los_nr:s.los_nr||'',
+        pflanzjahr:s.pflanzjahr||null,
+        ha_netto:s.ha_netto||null,
+        ha_brutto:s.ha_brutto||null,
+        reihenanzahl:s.reihenanzahl||null,
+        reihenlange:s.reihenlaenge||null,
+        baumzahl:s.baumzahl||null,
+        unterlage:s.unterlage||'',
+        hagelnetz:s.hagelnetz||false,
+        bewasserung:s.bewasserung||false,
+        grosskisten_kg:s.grosskisten_kg||340,
+        notiz:s.notiz||''
+      }));
+    }
+  }catch(e){console.warn('loadSchlage:',e.message);}
+}
+
+async function saveSchlagSupabase(s){
+  if(!_supaSession) return;
+  const payload={
+    id:s.id,
+    betrieb_id:s.betrieb_id||_meinBetriebId,
+    feldstuck:s.feldstuck,
+    name:s.name,
+    typ:s.typ||'apfel',
+    sorte:s.sorte||null,
+    klon:s.klon||null,
+    los_nr:s.los_nr||null,
+    pflanzjahr:s.pflanzjahr||null,
+    ha_netto:s.ha_netto||null,
+    ha_brutto:s.ha_brutto||null,
+    reihenanzahl:s.reihenanzahl||null,
+    reihenlaenge:s.reihenlange||null,
+    baumzahl:s.baumzahl||null,
+    unterlage:s.unterlage||null,
+    hagelnetz:!!s.hagelnetz,
+    bewasserung:!!s.bewasserung,
+    grosskisten_kg:s.grosskisten_kg||340,
+    notiz:s.notiz||null
+  };
+  const r=await _supaFetch(SUPA_URL+'/rest/v1/schlage',{
+    method:'POST',
+    headers:{...supaHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},
+    body:JSON.stringify(payload)
+  });
+  if(!r.ok){const t=await r.text();throw new Error('Schlag-Sync: HTTP '+r.status+' '+t);}
+}
+
+async function delSchlagSupabase(id){
+  if(!_supaSession) return;
+  const r=await _supaFetch(SUPA_URL+'/rest/v1/schlage?id=eq.'+id,{
+    method:'DELETE',
+    headers:supaHeaders()
+  });
+  if(!r.ok){const t=await r.text();throw new Error('Schlag-Löschen: HTTP '+r.status+' '+t);}
+}
+
+async function migrateSchlagToSupabase(schlage){
+  // Einmalige Migration: alte JSON-Schläge → schlage-Tabelle
+  for(const s of schlage){
+    if(!s.betrieb_id){
+      // Betrieb-ID anhand Name ermitteln
+      const found=_gruppenBetriebe.find(b=>b.name===s.betrieb);
+      s.betrieb_id=found?.id||_meinBetriebId;
+    }
+    try{await saveSchlagSupabase(s);}catch(e){console.warn('Migration:',e.message);}
+  }
 }
 
 async function cloudLoad(){
@@ -1633,15 +1728,25 @@ async function cloudLoad(){
     const rows=await r.json();
     if(!rows.length){
       lsLoad();migrateD();
+      // Migration: alte Schläge aus localStorage → schlage-Tabelle
+      if(D.schlage&&D.schlage.length) await migrateSchlagToSupabase(D.schlage);
       await cloudSave();
       toast('✓ Lokale Daten nach Supabase übertragen');
     }else{
-      D=rows[0].data;migrateD();lsSave();
-      const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
-      updateSbar('ok','☁️ Geladen · '+t);
-      renderAll();
-      toast('✓ Daten geladen');
+      D=rows[0].data||{};migrateD();lsSave();
+      // Migration: falls blob noch alte Schläge enthält
+      if(D.schlage&&D.schlage.length){
+        await migrateSchlagToSupabase(D.schlage);
+        D.schlage=[];
+        await cloudSave();
+      }
     }
+    // Schläge immer direkt aus schlage-Tabelle laden
+    await loadSchlage();
+    const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
+    updateSbar('ok','☁️ Geladen · '+t);
+    renderAll();
+    toast('✓ Daten geladen');
   }catch(e){updateSbar('err','⚠ '+e.message);toast('⚠ '+e.message);}
 }
 
@@ -1819,6 +1924,43 @@ function renderRecent(){
 // SCHLÄGE
 // ═══════════════════════════════════════════════════
 // ── Kompakte Schläge-Startseite (mit Betrieb-Gruppierung) ─────────────────
+
+// ── Betrieb- und Sortenfarben ─────────────────────────────
+function betriebFarbe(betrieb){
+  const map={
+    'Johannes Kuenz':'#2563eb',
+    'Florian Kuenz':'#16a34a',
+    'Johanna Kuenz':'#9333ea',
+  };
+  return map[betrieb]||'#64748b';
+}
+function betriebFarbeBg(betrieb){
+  const map={
+    'Johannes Kuenz':'#eff6ff',
+    'Florian Kuenz':'#f0fdf4',
+    'Johanna Kuenz':'#faf5ff',
+  };
+  return map[betrieb]||'#f8fafc';
+}
+function sorteFarbe(sorte){
+  if(!sorte) return '#f9fafb';
+  const s=sorte.toLowerCase();
+  if(s.includes('gala'))     return '#fff0f0';
+  if(s.includes('topaz'))    return '#fffbeb';
+  if(s.includes('golden'))   return '#fefce8';
+  if(s.includes('jazz'))     return '#fff7ed';
+  if(s.includes('pinova'))   return '#f0fdf4';
+  if(s.includes('idared'))   return '#fdf2f8';
+  if(s.includes('rubinette'))return '#fff1f2';
+  if(s.includes('williams')) return '#e0f2fe';
+  if(s.includes('kaiser'))   return '#f0fdfa';
+  if(s.includes('wahl'))     return '#eff6ff';
+  if(s.includes('wurwinning'))return '#f7fee7';
+  if(s.includes('ha. gold') || s.includes('ha.gold'))return '#fefce8';
+  if(s.includes('birne'))    return '#e0f2fe';
+  return '#f9fafb';
+}
+
 function renderSchlage(){
   const el=document.getElementById('sg-grid');
   if(!D.schlage.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🌳</div>Keine Schläge vorhanden.</div>';return;}
@@ -1839,7 +1981,8 @@ function renderSchlage(){
     if(!schlage.length) continue;
     // Betrieb header
     const betriebLabel=betrieb||'Kein Betrieb';
-    html+=`<div style="grid-column:1/-1;margin-top:10px;padding:8px 12px;background:var(--pd);color:#fff;border-radius:8px;font-size:.85rem;font-weight:700">👤 ${betriebLabel}</div>`;
+    const bclr=betriebFarbe(betrieb);
+    html+=`<div style="grid-column:1/-1;margin-top:10px;padding:8px 12px;background:${bclr};color:#fff;border-radius:8px;font-size:.85rem;font-weight:700;border-left:5px solid rgba(0,0,0,.2)">👤 ${betriebLabel}</div>`;
     // Group by Feldstück within Betrieb
     const grp={};
     for(const s of schlage){if(!grp[s.feldstuck])grp[s.feldstuck]=[];grp[s.feldstuck].push(s);}
@@ -1856,7 +1999,8 @@ function renderSchlage(){
         const sid=s.id.replace(/[^a-z0-9]/gi,'_');
         const sorteInfo=[s.sorte,s.pflanzjahr?'PJ '+s.pflanzjahr:''].filter(Boolean).join(' · ');
         const losInfo=s.los_nr?` · Los ${s.los_nr}`:'';
-        html+=`<div class="scard" style="position:relative">
+        const bc=betriebFarbe(betrieb);const sc=sorteFarbe(s.sorte);
+        html+=`<div class="scard" style="position:relative;border-left:5px solid ${bc};background:${sc}">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px">
             <div>
               <span style="font-size:.88rem;font-weight:700;color:var(--pd)">${s.typ==='birne'?'🍐':'🍎'} ${s.name}</span>
@@ -2015,16 +2159,20 @@ function calcTheorBaumzahl(){
   }
 }
 
-function saveSchlag(){
+async function saveSchlag(){
+  const betriebName=v('ms-betrieb');
+  let betriebId=_meinBetriebId;
+  if(_gruppenBetriebe.length){const found=_gruppenBetriebe.find(b=>b.name===betriebName);if(found)betriebId=found.id;}
   const s={
-    id:editSid||uid(),feldstuck:document.getElementById('ms-fs').value,name:v('ms-nm'),sorte:v('ms-sorte'),
+    id:editSid||uid(),betrieb_id:betriebId,
+    feldstuck:document.getElementById('ms-fs').value,name:v('ms-nm'),sorte:v('ms-sorte'),
     klon:v('ms-klon'),typ:document.getElementById('ms-typ').value,
     ha_netto:pf('ms-netto'),ha_brutto:pf('ms-brutto'),
     reihenlange:pf('ms-rl'),reihenanzahl:pi('ms-rn'),
     pabst_reihe:pf('ms-pr'),pabst_baum:pf('ms-pb'),
     baumzahl:pi('ms-bz'),baumzahl_befruchter:pi('ms-bz-bef'),
     grosskisten_kg:pf('ms-gkk'),
-    betrieb:v('ms-betrieb'),los_nr:v('ms-losnr'),
+    betrieb:betriebName,los_nr:v('ms-losnr'),
     unterlage:v('ms-ul'),pflanzjahr:pi('ms-pj'),
     hagelnetz:document.getElementById('ms-hn').value==='1',
     bewasserung:document.getElementById('ms-bw').value==='1',
@@ -2033,11 +2181,14 @@ function saveSchlag(){
   if(!s.name){alert('Bitte Schlagname eingeben');return;}
   if(editSid){const i=D.schlage.findIndex(x=>x.id===editSid);D.schlage[i]=s;}
   else D.schlage.push(s);
-  scheduleSave();closeMod('mod-schlag');renderSchlage();renderBbchOv();toast('Schlag gespeichert');
+  try{await saveSchlagSupabase(s);toast('✓ Schlag gespeichert');}
+  catch(e){toast('⚠ '+e.message);}
+  scheduleSave();closeMod('mod-schlag');renderSchlage();renderBbchOv();
 }
 
-function delSchlag(){
+async function delSchlag(){
   if(!confirm('Schlag löschen?')) return;
+  try{await delSchlagSupabase(editSid);}catch(e){toast('⚠ '+e.message);}
   D.schlage=D.schlage.filter(s=>s.id!==editSid);
   delete D.bbch[editSid];
   scheduleSave();closeMod('mod-schlag');renderSchlage();renderDash();toast('Schlag gelöscht');
