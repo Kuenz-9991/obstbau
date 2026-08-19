@@ -181,7 +181,7 @@ tr:hover td{background:#f9fcfa}
 <div class="sbar" id="sbar">
   <div class="sbar-dot warn" id="sbar-dot"></div>
   <span id="sbar-txt">Nicht angemeldet</span>
-  <span style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap">v 2026-08-19 · 10:28</span>
+  <span style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap">v 2026-08-19 · 10:58</span>
 </div>
 
 <nav class="nav">
@@ -312,13 +312,15 @@ tr:hover td{background:#f9fcfa}
     <div id="buch-lager-rows" style="margin-bottom:12px"></div>
     <!-- HACCP -->
     <div id="buch-haccp-wrap" style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:12px;border:1px solid var(--bdr)">
-      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">HACCP Kontrolle</div>
+      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-bottom:8px">
+        <input type="checkbox" id="haccp-rd" style="width:15px;height:15px">
+        <span style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em">HACCP Kontrolle &mdash; Reinigung durchgeführt</span>
+      </label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
         <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-gk" style="width:15px;height:15px"> Großkisten gereinigt</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-eg" style="width:15px;height:15px"> Erntegerät gereinigt</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-tl" style="width:15px;height:15px"> Tieflader gereinigt</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-kl" style="width:15px;height:15px"> Kühlung gereinigt</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer;grid-column:1/-1"><input type="checkbox" id="haccp-rd" style="width:15px;height:15px"> Reinigung durchgeführt</label>
       </div>
     </div>
     <!-- Zusatz -->
@@ -330,7 +332,7 @@ tr:hover td{background:#f9fcfa}
     </div>
     <!-- Leergut -->
     <div style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:14px;border:1px solid var(--bdr)">
-      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Leergut <span style="font-weight:400;font-size:.7rem">(+ nach Haiming · − von Haiming zurück)</span></div>
+      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Leergut <span style="font-weight:400;font-size:.7rem" id="lg-hint">+ von Haiming zurück</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
         <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Großkisten</label>
           <input type="number" id="lg-gk" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
@@ -668,7 +670,7 @@ tr:hover td{background:#f9fcfa}
           <option value="Johanna Kuenz">Johanna Kuenz</option>
         </select>
       </div>
-      <div class="fg"><label>Los-Nr.</label><input id="ms-losnr" placeholder="z.B. 1" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+      <div class="fg"><label>Los-Nr.</label><select id="ms-losnr" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);width:100%"><option value="">– keine –</option></select></div>
       <!-- ha netto | ha brutto -->
       <div class="fg"><label>ha netto</label><input type="number" id="ms-netto" step="0.001" placeholder="z.B. 0.850"></div>
       <div class="fg"><label>ha brutto</label><input type="number" id="ms-brutto" step="0.001" placeholder="z.B. 0.920"></div>
@@ -1724,7 +1726,7 @@ function renderSchlage(){
   if(!D.schlage.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🌳</div>Keine Schläge vorhanden.</div>';return;}
 
   // Group by Betrieb first, then by Feldstück
-  const betriebeOrder=['Florian Kuenz','Johannes Kuenz','Johanna Kuenz',''];
+  const betriebeOrder=['Johannes Kuenz','Florian Kuenz','Johanna Kuenz',''];
   const byBetrieb={};
   for(const b of betriebeOrder) byBetrieb[b]=[];
   for(const s of D.schlage){
@@ -1832,6 +1834,28 @@ function populateFeldSelect(selectId, selectedName){
 }
 
 let editSid=null;
+function fillLosNrDropdown(currentLosNr, editingSchlagId){
+  // Alle bereits verwendeten Los-Nummern über alle Betriebe sammeln
+  const used=new Set();
+  D.schlage.forEach(s=>{
+    if(s.los_nr&&s.id!==editingSchlagId) used.add(s.los_nr);
+  });
+  const sel=document.getElementById('ms-losnr');
+  let opts='<option value="">– keine –</option>';
+  for(let i=1;i<=99;i++){
+    const nr=String(i).padStart(2,'0');
+    const isUsed=used.has(nr);
+    const isCurrent=nr===currentLosNr;
+    if(!isUsed||isCurrent){
+      opts+=`<option value="${nr}"${isCurrent?' selected':''}>${nr}</option>`;
+    } else {
+      opts+=`<option value="${nr}" disabled style="color:#aaa">${nr} (vergeben)</option>`;
+    }
+  }
+  sel.innerHTML=opts;
+  if(currentLosNr) sel.value=currentLosNr;
+}
+
 function openSchlagMod(id=null, preFeld=null){
   editSid=id;
   populateFeldSelect('ms-fs', preFeld||null);
@@ -1860,11 +1884,12 @@ function openSchlagMod(id=null, preFeld=null){
     document.getElementById('ms-bw').value=s.bewasserung?'1':'0';
     document.getElementById('ms-notiz').value=s.notiz||'';
     document.getElementById('ms-betrieb').value=s.betrieb||'';
-    document.getElementById('ms-losnr').value=s.los_nr||'';
+    fillLosNrDropdown(s.los_nr||'',s.id);
     del.style.display='inline-flex';
   }else{
     document.getElementById('ms-title').textContent='Schlag anlegen';
-    ['ms-fs','ms-nm','ms-sorte','ms-klon','ms-netto','ms-brutto','ms-rl','ms-bz','ms-bz-bef','ms-bz-calc','ms-rn','ms-pr','ms-pb','ms-gkk','ms-ul','ms-pj','ms-notiz','ms-losnr'].forEach(i=>document.getElementById(i).value='');
+    ['ms-fs','ms-nm','ms-sorte','ms-klon','ms-netto','ms-brutto','ms-rl','ms-bz','ms-bz-bef','ms-bz-calc','ms-rn','ms-pr','ms-pb','ms-gkk','ms-ul','ms-pj','ms-notiz'].forEach(i=>document.getElementById(i).value='');
+    fillLosNrDropdown('',null);
     document.getElementById('ms-typ').value='apfel';
     document.getElementById('ms-hn').value='0';
     document.getElementById('ms-bw').value='0';
@@ -3042,13 +3067,31 @@ function renderBuchLagerRows(buchMap){
             style="flex:1;border:1px solid ${bdr};border-radius:6px;padding:4px 6px;font-size:.85rem;text-align:right;background:${bg}">
         </div>
         <div style="flex:1;display:flex;align-items:center;gap:4px">
-          <span style="font-size:.68rem;color:var(--txl);min-width:60px">🏭 Verarb.</span>
+          <span style="font-size:.68rem;color:var(--txl);min-width:60px">🐛 Verarb.</span>
           <input type="number" id="bl-ver-${l.id}" value="${bm.verarbeitung}" placeholder="GK"
             style="flex:1;border:1px solid ${bdr};border-radius:6px;padding:4px 6px;font-size:.85rem;text-align:right;background:${bg}">
         </div>
       </div>
     </div>`;
   }).join('');
+  // Live-update Großkisten wenn Haiming-Inputs sich ändern
+  D.lagerorte.forEach(l=>{
+    if(!l.name.toLowerCase().includes('haiming')) return;
+    const ti=document.getElementById('bl-tafel-'+l.id);
+    const vi=document.getElementById('bl-ver-'+l.id);
+    const lgEl=document.getElementById('lg-gk');
+    const hintEl=document.getElementById('lg-hint');
+    const upd=()=>{
+      const t=parseFloat(ti?.value||'0')||0;
+      const v=parseFloat(vi?.value||'0')||0;
+      const total=t+v;
+      if(lgEl&&total>0){lgEl.value=-total;lgEl.style.background='#fff3cd';lgEl.readOnly=true;}
+      else if(lgEl){lgEl.value='';lgEl.style.background='';lgEl.readOnly=false;}
+      if(hintEl) hintEl.textContent=total>0?'Auto: −'+total+' GK (nach Haiming)':'+ von Haiming zurück';
+    };
+    if(ti) ti.addEventListener('input',upd);
+    if(vi) vi.addEventListener('input',upd);
+  });
 }
 
 function saveErnteBuchung(){
@@ -3066,6 +3109,20 @@ function saveErnteBuchung(){
   const isLeergut=_buchTyp==='leergut';
   const isErnte=_buchTyp==='ernte';
   if(!isLeergut&&!schlagId){alert('Bitte Schlag auswählen');return;}
+  // Auto-Großkisten: alle GK nach Haiming → negativ verbuchen (abgeliefert)
+  let autoGK=0;
+  if(!isLeergut){
+    buchungen.forEach(b=>{
+      const lx=D.lagerorte.find(x=>x.id===b.lager_id);
+      if(lx&&lx.name.toLowerCase().includes('haiming')){
+        const tot=(b.tafel_gk||0)+(b.verarbeitung_gk||0);
+        if(tot>0) autoGK-=tot;
+      }
+    });
+  }
+  const manualGK=parseFloat(document.getElementById('lg-gk').value)||0;
+  const gkBuchung=(!isLeergut&&autoGK!==0)?autoGK:manualGK;
+
   const entry={
     id:document.getElementById('buch-edit-id').value||uid(),
     datum,schlag_id:schlagId,buchungen,
@@ -3080,7 +3137,7 @@ function saveErnteBuchung(){
     los_nr:document.getElementById('buch-los').value.trim(),
     notiz:document.getElementById('buch-notiz').value.trim(),
     leergut:{
-      grosskisten:parseFloat(document.getElementById('lg-gk').value)||0,
+      grosskisten:gkBuchung,
       europaletten:parseFloat(document.getElementById('lg-epal').value)||0,
       saftkisten:parseFloat(document.getElementById('lg-saft').value)||0
     }
@@ -3165,11 +3222,8 @@ function renderErnteIst(){
       return`<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:12px;flex:1;min-width:150px">
         <div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">📦 ${l.name}</div>
         <div style="font-size:1.5rem;font-weight:800;color:${bestand>0?'var(--pd)':'var(--txl)'};line-height:1.1">${bestand} GK</div>
-        <div style="font-size:.72rem;color:var(--txl);margin-bottom:8px">${bestand>0?'≈ '+fmtKg(kg)+'':''} ${tafelBest&&verBest?'<br><span style="font-size:.65rem">🍎'+tafelBest+'T · 🏭'+verBest+'V</span>':''}</div>
-        <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:${fillColor};border-radius:4px;transition:width .3s"></div>
-        </div>
-        <div style="font-size:.68rem;color:var(--txl);margin-top:3px">${fehlend>0?fehlend+' GK bis LKW voll':'✅ LKW VOLL ('+LKW_GK+' GK)'}</div>
+        <div style="font-size:.72rem;color:var(--txl);margin-bottom:8px">${bestand>0?'≈ '+fmtKg(kg)+'':''} ${tafelBest&&verBest?'<br><span style="font-size:.65rem">🍎'+tafelBest+'T · 🐛'+verBest+'V</span>':''}</div>
+
       </div>`;
     }).join('');
     zwlHtml=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${cards}</div>`;
@@ -3186,6 +3240,62 @@ function renderErnteIst(){
       ${lgEP?`<span style="font-size:.85rem"><b>${lgEP>0?'+'+lgEP:lgEP}</b> Europaletten</span>`:''}
       ${lgSK?`<span style="font-size:.85rem"><b>${lgSK>0?'+'+lgSK:lgSK}</b> Saftkisten</span>`:''}
     </div>`:''
+
+  // Sortenübersicht (pro Sorte eine Zeile, nur ernteJahr)
+  const sortenMap={};
+  D.ernte_ist.forEach(e=>{
+    if(!e.datum||!e.datum.startsWith(String(ernteJahr))) return;
+    const sc=D.schlage.find(x=>x.id===e.schlag_id);
+    if(!sc) return;
+    const sorte=sc.sorte||sc.name||'Unbekannt';
+    if(!sortenMap[sorte]) sortenMap[sorte]={tafel:0,verarbeitung:0,lager:{}};
+    (e.buchungen||[]).forEach(b=>{
+      const t=b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0);
+      const v=b.verarbeitung_gk||0;
+      if(t>0) sortenMap[sorte].tafel+=t;
+      if(v>0) sortenMap[sorte].verarbeitung+=v;
+      if(!sortenMap[sorte].lager[b.lager_id]) sortenMap[sorte].lager[b.lager_id]={tafel:0,verarbeitung:0};
+      if(t>0) sortenMap[sorte].lager[b.lager_id].tafel+=t;
+      if(v>0) sortenMap[sorte].lager[b.lager_id].verarbeitung+=v;
+    });
+  });
+  let sortenHtml='';
+  const sortenKeys=Object.keys(sortenMap).sort();
+  if(sortenKeys.length){
+    const lCols=D.lagerorte.map(l=>`<th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700;white-space:nowrap">${l.name}</th>`).join('');
+    const sRows=sortenKeys.map(sorte=>{
+      const sd=sortenMap[sorte];
+      const gesamt=sd.tafel+sd.verarbeitung;
+      const lCells=D.lagerorte.map(l=>{
+        const ld=sd.lager[l.id]||{tafel:0,verarbeitung:0};
+        const lt=ld.tafel,lv=ld.verarbeitung,lg=lt+lv;
+        if(!lg) return`<td style="padding:4px 8px"></td>`;
+        let cell=`<b>${lg}</b>`;
+        if(lt&&lv) cell+=`<br><span style="font-size:.62rem;color:var(--txl)">${lt}T · ${lv}V</span>`;
+        return`<td style="padding:4px 8px;text-align:right;font-size:.8rem;color:var(--pd);line-height:1.3">${cell}</td>`;
+      }).join('');
+      return`<tr style="border-bottom:1px solid var(--bdr)">
+        <td style="padding:5px 8px;font-size:.82rem;font-weight:700;color:var(--pd)">${sorte}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--pl)"><b>${sd.tafel}</b><br><span style="font-size:.62rem;color:var(--txl)">Tafel</span></td>
+        <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--info)"><b>${sd.verarbeitung}</b><br><span style="font-size:.62rem;color:var(--txl)">Verarb.</span></td>
+        <td style="padding:5px 8px;text-align:right;font-size:.82rem;font-weight:700">${gesamt}</td>
+        ${lCells}
+      </tr>`;
+    }).join('');
+    sortenHtml=`<div style="margin-bottom:14px">
+      <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">🍎 Sortenübersicht ${ernteJahr}</div>
+      <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem">
+        <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
+          <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Sorte</th>
+          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Tafel GK</th>
+          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">🐛 Verarb. GK</th>
+          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Gesamt</th>
+          ${lCols}
+        </thead>
+        <tbody>${sRows}</tbody>
+      </table></div>
+    </div>`;
+  }
 
   // Journal mit Spalten pro Lager
   const entries=[...D.ernte_ist].reverse();
@@ -3254,7 +3364,7 @@ function renderErnteIst(){
         <button class="btn btn-p btn-sm" onclick="openErnteBuchungMod()">+ Buchung</button>
       </div>
     </div>
-    ${zwlHtml}${leergutHtml}${journalHtml}
+    ${zwlHtml}${leergutHtml}${sortenHtml}${journalHtml}
   </div>`;
 }
 
