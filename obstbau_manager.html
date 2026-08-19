@@ -425,24 +425,48 @@ tr:hover td{background:#f9fcfa}
 
 <!-- MODAL: Betrieb anlegen/bearbeiten (EO-Admin) -->
 <div class="mov" id="mod-betrieb">
-  <div class="mod" style="max-width:440px">
+  <div class="mod" style="max-width:500px">
     <div class="mod-hdr">
       <div class="mod-title" id="mb-title">Betrieb anlegen</div>
       <button class="mod-x" onclick="closeMod('mod-betrieb')">✕</button>
     </div>
-    <div class="fg2">
-      <div class="fg"><label>Name</label><input id="mb-name" placeholder="z.B. Mustermann Franz"></div>
-      <div class="fg"><label>Kürzel (2-3 Buchst.)</label><input id="mb-kuerzel" placeholder="z.B. MF" maxlength="4" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-      <div class="fg fw"><label>E-Mail</label><input id="mb-email" type="email" placeholder="franz@betrieb.at"></div>
-      <div class="fg fw"><label>Ort / Adresse</label><input id="mb-ort" placeholder="z.B. Haiming, Tirol"></div>
-      <div class="fg fw">
-        <label>Supabase Auth E-Mail (für Login)</label>
-        <input id="mb-auth-email" type="email" placeholder="Gleich wie E-Mail oder abweichend">
+    <div style="overflow-y:auto;max-height:calc(90vh - 140px);padding-right:4px">
+      <!-- Basisdaten -->
+      <div style="font-size:.7rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">👤 Basisdaten</div>
+      <div class="fg2" style="margin-bottom:12px">
+        <div class="fg"><label>Name *</label><input id="mb-name" placeholder="z.B. Mustermann Franz"></div>
+        <div class="fg"><label>Kürzel (2–4 Buchst.) *</label><input id="mb-kuerzel" placeholder="z.B. MF" maxlength="4" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="fg"><label>Telefon</label><input id="mb-tel" type="tel" placeholder="+43 ..."></div>
+        <div class="fg"><label>E-Mail</label><input id="mb-email" type="email" placeholder="franz@betrieb.at"></div>
+        <div class="fg fw"><label>Adresse</label><input id="mb-ort" placeholder="z.B. Dorfstraße 1, 6425 Haiming"></div>
       </div>
-      <div class="fg fw">
-        <label>Startpasswort</label>
-        <input id="mb-auth-pw" type="text" placeholder="Muss Betrieb nach 1. Login ändern">
-        <div style="font-size:.7rem;color:var(--txl);margin-top:2px">Mindestens 8 Zeichen. Betrieb erhält per Mail Zugangsdaten.</div>
+      <!-- Agrarnummern -->
+      <div style="font-size:.7rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">📋 Agrarnummern</div>
+      <div class="fg2" style="margin-bottom:12px">
+        <div class="fg"><label>LFBIS-Nummer (AMA)</label><input id="mb-lfbis" placeholder="z.B. 123456789"></div>
+        <div class="fg"><label>GGU-Nummer (GlobalG.A.P.)</label><input id="mb-ggu" placeholder="z.B. 4049928..."></div>
+      </div>
+      <!-- Zertifizierungsstatus -->
+      <div style="font-size:.7rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">✅ Zertifizierungsstatus</div>
+      <div id="mb-zert-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <input id="mb-zert-new" placeholder="Neuen Status hinzufügen…" style="flex:1;border:1px solid var(--bdr);border-radius:6px;padding:6px 9px;font-size:.82rem">
+        <button class="btn btn-s btn-sm" onclick="_mbAddZert()">+ Hinzufügen</button>
+      </div>
+      <!-- Notiz -->
+      <div style="font-size:.7rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">📝 Notiz</div>
+      <div class="fg" style="margin-bottom:14px"><textarea id="mb-notiz" rows="2" placeholder="Interne Anmerkungen…" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%;font-family:inherit"></textarea></div>
+      <!-- Login -->
+      <div style="border-top:1px solid var(--bdr);padding-top:12px;margin-top:4px">
+        <div style="font-size:.7rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">🔐 App-Login anlegen <span style="font-weight:400;opacity:.6">(nur bei neuem Betrieb)</span></div>
+        <div class="fg2">
+          <div class="fg fw"><label>Login E-Mail</label><input id="mb-auth-email" type="email" placeholder="Gleich wie E-Mail oder abweichend"></div>
+          <div class="fg fw">
+            <label>Startpasswort</label>
+            <input id="mb-auth-pw" type="text" placeholder="Mindestens 8 Zeichen">
+            <div style="font-size:.7rem;color:var(--txl);margin-top:2px">Betrieb muss nach erstem Login das Passwort ändern.</div>
+          </div>
+        </div>
       </div>
     </div>
     <div id="mb-err" style="color:var(--crit);font-size:.78rem;margin-top:6px;min-height:16px"></div>
@@ -650,19 +674,33 @@ tr:hover td{background:#f9fcfa}
 
 <!-- MODAL: Neue Sorte -->
 <div class="mov" id="mod-sorte">
-  <div class="mod" style="max-width:360px">
+  <div class="mod" style="max-width:380px">
     <div class="mod-hdr">
       <div class="mod-title">Sorte anlegen</div>
       <button class="mod-x" onclick="closeMod('mod-sorte')">✕</button>
     </div>
-    <div class="fg"><label>Sortenname</label><input id="ns-name" placeholder="z.B. Braeburn"></div>
-    <div class="fg"><label>Obstart</label>
-      <select id="ns-typ" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);width:100%">
-        <option value="apfel">🍎 Apfel</option>
-        <option value="birne">🍐 Birne</option>
-      </select>
+    <div class="fg2">
+      <div class="fg fw"><label>Sortenname</label><input id="ns-name" placeholder="z.B. Braeburn"></div>
+      <div class="fg fw"><label>Obstart</label>
+        <select id="ns-typ" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);width:100%">
+          <option value="apfel">🍎 Apfel</option>
+          <option value="birne">🍐 Birne</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Netto kg / Großkiste</label>
+        <input type="number" id="ns-nkg" step="1" min="100" max="600" placeholder="330" value="330">
+        <div style="font-size:.69rem;color:var(--txl);margin-top:2px">Tara (leere GK) = 34 kg</div>
+      </div>
+      <div class="fg" style="align-self:flex-end">
+        <label>Aktiv</label>
+        <select id="ns-aktiv" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);width:100%">
+          <option value="1">✅ aktiv</option>
+          <option value="0">❌ inaktiv</option>
+        </select>
+      </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:12px">
+    <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn btn-p" style="flex:1" onclick="saveNeueSorte()">✓ Speichern</button>
       <button class="btn btn-s" onclick="closeMod('mod-sorte')">Abbrechen</button>
     </div>
@@ -763,9 +801,8 @@ tr:hover td{background:#f9fcfa}
       <!-- Baumzahl berechnet -->
       <div class="fg"><label>Baumzahl berechnet</label><input id="ms-bz-calc" readonly placeholder="autom. berechnet" style="background:var(--bg2);color:var(--txl)" title="Reihenlänge ÷ Pflanzabstand Baum"></div>
       <div class="fg"></div>
-      <!-- kg/Großkiste -->
-      <div class="fg"><label>kg pro Großkiste</label><input type="number" id="ms-gkk" step="1" placeholder="z.B. 330"></div>
-      <div class="fg"></div>
+      <!-- kg/GK kommt aus Sorten-Stammdaten (netto_kg) -->
+      <input type="hidden" id="ms-gkk">
       <!-- Unterlage | Pflanzjahr -->
       <div class="fg"><label>Unterlage</label><input id="ms-ul" placeholder="z.B. M9, B9, Pajam2"></div>
       <div class="fg"><label>Pflanzjahr</label><input type="number" id="ms-pj" placeholder="z.B. 2022"></div>
@@ -1482,7 +1519,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.15.1";
+const APP_VERSION="v2.16.0";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2220,22 +2257,42 @@ function fillLosNrDropdown(currentLosNr, editingSchlagId, currentSorte){
   if(currentLosNr) sel.value=currentLosNr;
 }
 
+// Netto-Gewicht pro Großkiste (ohne Tara)
+// Tara = 34 kg pro leere Großkiste
+const TARA_GK=34;
+
 const DEFAULT_SORTEN=[
-  // IP / Konventionell Äpfel
-  {name:'Arlet',typ:'apfel'},{name:'Boskoop',typ:'apfel'},{name:'Elstar',typ:'apfel'},
-  {name:'Envy',typ:'apfel'},{name:'Gala',typ:'apfel'},{name:'Gala (Brookfield)',typ:'apfel'},
-  {name:'Gala (RKD)',typ:'apfel'},{name:'Gala (Schnico)',typ:'apfel'},
-  {name:'Golden Delicious',typ:'apfel'},{name:'Idared',typ:'apfel'},
-  {name:'Jazz',typ:'apfel'},{name:'Jonagold',typ:'apfel'},{name:'Mairac',typ:'apfel'},
-  {name:'Pinova',typ:'apfel'},{name:'Red Topaz',typ:'apfel'},{name:'Rubinette',typ:'apfel'},
-  {name:'Topaz',typ:'apfel'},{name:'Wurwinning',typ:'apfel'},
+  // IP / Konventionell Äpfel  — netto_kg = Nettofüllgewicht pro GK
+  {name:'Arlet',typ:'apfel',netto_kg:330},
+  {name:'Boskoop',typ:'apfel',netto_kg:330},
+  {name:'Elstar',typ:'apfel',netto_kg:330},
+  {name:'Envy',typ:'apfel',netto_kg:330},
+  {name:'Gala',typ:'apfel',netto_kg:340},
+  {name:'Gala (Brookfield)',typ:'apfel',netto_kg:340},
+  {name:'Gala (RKD)',typ:'apfel',netto_kg:340},
+  {name:'Gala (Schnico)',typ:'apfel',netto_kg:340},
+  {name:'Golden Delicious',typ:'apfel',netto_kg:330},
+  {name:'Idared',typ:'apfel',netto_kg:330},
+  {name:'Jazz',typ:'apfel',netto_kg:380},
+  {name:'Jonagold',typ:'apfel',netto_kg:330},
+  {name:'Mairac',typ:'apfel',netto_kg:330},
+  {name:'Pinova',typ:'apfel',netto_kg:330},
+  {name:'Red Topaz',typ:'apfel',netto_kg:340},
+  {name:'Rubinette',typ:'apfel',netto_kg:330},
+  {name:'Topaz',typ:'apfel',netto_kg:340},
+  {name:'Wurwinning',typ:'apfel',netto_kg:330},
   // BIO Äpfel
-  {name:'BIO Arlet',typ:'apfel'},{name:'BIO Boskoop',typ:'apfel'},
-  {name:'BIO Braeburn',typ:'apfel'},{name:'BIO Gala',typ:'apfel'},
-  {name:'BIO Pinova',typ:'apfel'},{name:'BIO Topaz',typ:'apfel'},
+  {name:'BIO Arlet',typ:'apfel',netto_kg:330},
+  {name:'BIO Boskoop',typ:'apfel',netto_kg:330},
+  {name:'BIO Braeburn',typ:'apfel',netto_kg:340},
+  {name:'BIO Gala',typ:'apfel',netto_kg:340},
+  {name:'BIO Pinova',typ:'apfel',netto_kg:330},
+  {name:'BIO Topaz',typ:'apfel',netto_kg:340},
   // Birnen
-  {name:'Ha. Gold (Birne)',typ:'birne'},{name:'Kaiser Wilhelm',typ:'birne'},
-  {name:'Wahl',typ:'birne'},{name:'Williams',typ:'birne'},
+  {name:'Ha. Gold (Birne)',typ:'birne',netto_kg:330},
+  {name:'Kaiser Wilhelm',typ:'birne',netto_kg:330},
+  {name:'Wahl',typ:'birne',netto_kg:330},
+  {name:'Williams',typ:'birne',netto_kg:330},
 ];
 
 function getSortenList(){
@@ -2243,6 +2300,16 @@ function getSortenList(){
   if(_sortenCache&&_sortenCache.length) return _sortenCache;
   if(D.sorten&&D.sorten.length) return D.sorten;
   return DEFAULT_SORTEN;
+}
+
+// Netto-kg/GK für eine Sorte aus Stammdaten (Fallback auf DEFAULT_SORTEN)
+function getSorteNkg(sorteName){
+  if(!sorteName) return 330;
+  const cache=_sortenCache&&_sortenCache.length?_sortenCache:null;
+  if(cache){const s=cache.find(x=>x.name===sorteName);if(s&&s.netto_kg) return s.netto_kg;}
+  const def=DEFAULT_SORTEN.find(x=>x.name===sorteName);
+  if(def&&def.netto_kg) return def.netto_kg;
+  return 330;
 }
 
 function populateSorteDropdown(currentSorte, typFilter){
@@ -2352,7 +2419,7 @@ async function saveSchlag(){
     reihenlange:pf('ms-rl'),reihenanzahl:pi('ms-rn'),
     pabst_reihe:pf('ms-pr'),pabst_baum:pf('ms-pb'),
     baumzahl:pi('ms-bz'),baumzahl_befruchter:pi('ms-bz-bef'),
-    grosskisten_kg:pf('ms-gkk'),
+    grosskisten_kg:getSorteNkg(document.getElementById('ms-sorte')?.value||'')||330,
     betrieb:betriebName,los_nr:v('ms-losnr'),
     unterlage:v('ms-ul'),pflanzjahr:pi('ms-pj'),
     hagelnetz:document.getElementById('ms-hn').value==='1',
@@ -3114,7 +3181,7 @@ function calcProg(s,p){
   const gesamt=Math.round(bz*(p.kg_pro_baum||0));
   const verarbeitung=Math.round(gesamt*(p.verarbeitung_prozent||0)/100);
   const tafel=gesamt-verarbeitung;
-  const gkk=s.grosskisten_kg||0;
+  const gkk=getSorteNkg(s.sorte)||(s.grosskisten_kg)||330;
   return{gesamt,tafel,verarbeitung,baumzahl,
     tafel_kisten:gkk>0?Math.ceil(tafel/gkk):null,
     verarbeitung_kisten:gkk>0?Math.ceil(verarbeitung/gkk):null,
@@ -3232,7 +3299,7 @@ function renderPrognoseCard(wrapId){
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
           <div>
             <div style="font-weight:700;color:var(--pd);font-size:.9rem">${s.name}</div>
-            <div style="font-size:.72rem;color:var(--txl)">${s.feldstuck||''} · ${s.sorte||''} · ${(s.baumzahl||(s.reihenlange&&s.pabst_baum?Math.round(s.reihenlange/s.pabst_baum):null))||'?'} Bäume${s.grosskisten_kg?' · '+s.grosskisten_kg+' kg/GK':' · <span style="color:var(--warn)">kg/GK fehlt</span>'}</div>
+            <div style="font-size:.72rem;color:var(--txl)">${s.feldstuck||''} · ${s.sorte||''} · ${(s.baumzahl||(s.reihenlange&&s.pabst_baum?Math.round(s.reihenlange/s.pabst_baum):null))||'?'} Bäume · ${getSorteNkg(s.sorte)} kg/GK</div>
           </div>
         </div>
         <!-- Eingaben -->
@@ -3672,7 +3739,7 @@ function renderErnteIst(){
       const bestand=tafelBest+verBest;
       const pct=Math.min(100,Math.round(bestand/LKW_GK*100));
       const fillColor=pct>=100?'var(--crit)':pct>=80?'var(--warn)':pct>=50?'#f4d35e':'var(--s)';
-      const kgPerGK=(D.schlage.find(s=>s.grosskisten_kg)||{grosskisten_kg:340}).grosskisten_kg||340;
+      const kgPerGK=340; // Richtwert; sortengenau via getSorteNkg(sorte)
       const kg=bestand*kgPerGK;
       const fehlend=LKW_GK-bestand;
       return`<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:12px;flex:1;min-width:150px">
@@ -3957,33 +4024,46 @@ function renderEOSorten(){
   const apfel=list.filter(s=>s.typ==='apfel').sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const birne=list.filter(s=>s.typ==='birne').sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const renderGrp=(arr,label)=>!arr.length?'':
-    `<tr><td colspan="4" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
-    arr.map(s=>`<tr>
-      <td style="padding:6px 10px;font-size:.83rem;font-weight:600">${s.name}</td>
-      <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.typ==='birne'?'🍐 Birne':'🍎 Apfel'}</td>
-      <td style="padding:6px 10px;font-size:.78rem">${s.aktiv===false?'<span style="color:var(--crit)">❌ inaktiv</span>':'<span style="color:var(--p)">✅ aktiv</span>'}</td>
-      <td style="padding:4px 6px;text-align:right">
-        ${fromDB&&s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false})">✏️</button>`:''}
-      </td>
-    </tr>`).join('');
-  const hint=!fromDB?`<div style="font-size:.75rem;color:var(--warn);padding:6px 10px 2px">⚠ Sorten noch nicht in Supabase — Standardliste wird angezeigt. Bearbeiten nach SQL-Import möglich.</div>`:'';
+    `<tr><td colspan="5" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
+    arr.map(s=>{
+      const nkg=s.netto_kg||getSorteNkg(s.name);
+      const brutto=nkg+TARA_GK;
+      return`<tr>
+        <td style="padding:6px 10px;font-size:.83rem;font-weight:600">${s.name}</td>
+        <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.typ==='birne'?'🍐 Birne':'🍎 Apfel'}</td>
+        <td style="padding:6px 10px;font-size:.78rem;white-space:nowrap">
+          <b>${nkg}</b> kg netto
+          <span style="color:var(--txl);font-size:.72rem"> / ${brutto} kg brutto</span>
+        </td>
+        <td style="padding:6px 10px;font-size:.78rem">${s.aktiv===false?'<span style="color:var(--crit)">❌ inaktiv</span>':'<span style="color:var(--p)">✅ aktiv</span>'}</td>
+        <td style="padding:4px 6px;text-align:right">
+          ${fromDB&&s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false},${nkg})">✏️</button>`:''}
+        </td>
+      </tr>`;
+    }).join('');
+  const hint=!fromDB?`<div style="font-size:.75rem;color:var(--warn);padding:6px 10px 6px">⚠ Sorten noch nicht in Supabase — Standardliste wird angezeigt. Bitte SQL-Import ausführen (siehe unten).</div>`:'';
+  const taraInfo=`<div style="font-size:.71rem;color:var(--txl);padding:5px 10px 2px">Tara (leere Großkiste): <b>${TARA_GK} kg</b> — Brutto = Netto + ${TARA_GK} kg</div>`;
   el.innerHTML=hint+`<div class="twrap"><table style="width:100%">
-    <thead><tr><th>Name</th><th>Typ</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Typ</th><th>Netto kg / GK</th><th>Status</th><th></th></tr></thead>
     <tbody>${renderGrp(apfel,'🍎 Äpfel')}${renderGrp(birne,'🍐 Birnen')}</tbody>
-  </table></div>`;
+  </table></div>`+taraInfo;
 }
 
 function openEONeueSorte(){
   document.getElementById('ns-name').value='';
   document.getElementById('ns-typ').value='apfel';
+  document.getElementById('ns-nkg').value='330';
+  document.getElementById('ns-aktiv').value='1';
   window._editSorteId=null;
   document.querySelector('#mod-sorte .mod-title').textContent='Sorte anlegen';
   openMod('mod-sorte');
 }
 
-function openEOEditSorte(id,name,typ,aktiv){
+function openEOEditSorte(id,name,typ,aktiv,nkg){
   document.getElementById('ns-name').value=name;
   document.getElementById('ns-typ').value=typ;
+  document.getElementById('ns-nkg').value=nkg||getSorteNkg(name)||330;
+  document.getElementById('ns-aktiv').value=aktiv!==false?'1':'0';
   window._editSorteId=id;
   document.querySelector('#mod-sorte .mod-title').textContent='Sorte bearbeiten';
   openMod('mod-sorte');
@@ -3992,13 +4072,15 @@ function openEOEditSorte(id,name,typ,aktiv){
 async function saveNeueSorte(){
   const name=document.getElementById('ns-name').value.trim();
   const typ=document.getElementById('ns-typ').value;
+  const netto_kg=parseInt(document.getElementById('ns-nkg').value)||330;
+  const aktiv=document.getElementById('ns-aktiv').value!=='0';
   if(!name){alert('Bitte Sortenname eingeben');return;}
   try{
     if(window._editSorteId){
       // Update
       const r=await _supaFetch(SUPA_URL+'/rest/v1/sorten?id=eq.'+window._editSorteId,{
         method:'PATCH',headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=minimal'},
-        body:JSON.stringify({name,typ})
+        body:JSON.stringify({name,typ,netto_kg,aktiv})
       });
       if(!r.ok) throw new Error('HTTP '+r.status);
       toast('✓ Sorte aktualisiert');
@@ -4006,7 +4088,7 @@ async function saveNeueSorte(){
       // Insert
       const r=await _supaFetch(SUPA_URL+'/rest/v1/sorten',{
         method:'POST',headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=minimal'},
-        body:JSON.stringify({name,typ,aktiv:true})
+        body:JSON.stringify({name,typ,netto_kg,aktiv:true})
       });
       if(!r.ok) throw new Error('HTTP '+r.status);
       toast('✓ Sorte "'+name+'" angelegt');
@@ -4115,29 +4197,70 @@ async function renderEOProg(){
 }
 
 // ── Betrieb Modal ────────────────────────────────────
+// Zertifizierungsstatus: bekannte Standardwerte
+const _ZERT_KNOWN=['AMA-GAP','GRASP','BIO Austria','AMA-Biosiegel','HACCP'];
+let _mbZertList=[];
+
+function _mbRenderZertChips(){
+  const wrap=document.getElementById('mb-zert-chips');
+  if(!wrap)return;
+  // Bekannte Chips + aktive aus Liste
+  const allChips=[..._ZERT_KNOWN,..._mbZertList.filter(z=>!_ZERT_KNOWN.includes(z))];
+  wrap.innerHTML=allChips.map(z=>{
+    const on=_mbZertList.includes(z);
+    return`<span onclick="_mbToggleZert('${z}')" style="cursor:pointer;padding:4px 10px;border-radius:20px;font-size:.76rem;font-weight:600;border:1.5px solid ${on?'var(--p)':'var(--bdr)'};background:${on?'var(--p)':'#fff'};color:${on?'#fff':'var(--txl)'};user-select:none">${on?'✓ ':''}${z}</span>`;
+  }).join('');
+}
+function _mbToggleZert(z){
+  if(_mbZertList.includes(z)) _mbZertList=_mbZertList.filter(x=>x!==z);
+  else _mbZertList.push(z);
+  _mbRenderZertChips();
+}
+function _mbAddZert(){
+  const inp=document.getElementById('mb-zert-new');
+  const val=(inp.value||'').trim();
+  if(!val)return;
+  if(!_mbZertList.includes(val)) _mbZertList.push(val);
+  inp.value='';
+  _mbRenderZertChips();
+}
+
 function openBetriebMod(id=null){
   _eoEditId=id;
   const b=id?(_eoBetriebe.find(x=>x.id===id)||{}):null;
   document.getElementById('mb-title').textContent=b?'Betrieb bearbeiten':'Betrieb anlegen';
   document.getElementById('mb-name').value=b?b.name:'';
   document.getElementById('mb-kuerzel').value=b?b.kuerzel:'';
-  document.getElementById('mb-email').value=b?b.email:'';
-  document.getElementById('mb-ort').value=b?b.ort:'';
+  document.getElementById('mb-email').value=b?(b.email||''):'';
+  document.getElementById('mb-tel').value=b?(b.telefon||''):'';
+  document.getElementById('mb-ort').value=b?(b.ort||''):'';
+  document.getElementById('mb-lfbis').value=b?(b.lfbis_nr||''):'';
+  document.getElementById('mb-ggu').value=b?(b.ggu_nr||''):'';
+  document.getElementById('mb-notiz').value=b?(b.notiz||''):'';
   document.getElementById('mb-auth-email').value='';
   document.getElementById('mb-auth-pw').value='';
   document.getElementById('mb-err').textContent='';
   document.getElementById('mb-del').style.display=b?'':'none';
+  _mbZertList=b&&Array.isArray(b.zertifizierung)?[...b.zertifizierung]:[];
+  _mbRenderZertChips();
   openMod('mod-betrieb');
 }
 
 async function saveBetrieb(){
   const name=v('mb-name');const kuerzel=v('mb-kuerzel');
   const email=v('mb-email');const ort=v('mb-ort');
+  const telefon=v('mb-tel');const lfbis_nr=v('mb-lfbis');
+  const ggu_nr=v('mb-ggu');const notiz=v('mb-notiz');
   const authEmail=v('mb-auth-email');const authPw=v('mb-auth-pw');
   if(!name){document.getElementById('mb-err').textContent='Name ist Pflicht.';return;}
   const btn=document.querySelector('#mod-betrieb .btn-p');
   btn.disabled=true;btn.textContent='⏳';
   document.getElementById('mb-err').textContent='';
+  const payload={
+    name,kuerzel:kuerzel||null,email:email||null,ort:ort||null,
+    telefon:telefon||null,lfbis_nr:lfbis_nr||null,ggu_nr:ggu_nr||null,
+    notiz:notiz||null,zertifizierung:_mbZertList.length?_mbZertList:null
+  };
   try{
     let betriebId=_eoEditId;
     if(!betriebId){
@@ -4145,7 +4268,7 @@ async function saveBetrieb(){
       const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebe',{
         method:'POST',
         headers:{...supaHeaders(),'Prefer':'return=representation'},
-        body:JSON.stringify({name,kuerzel:kuerzel||null,email:email||null,ort:ort||null,aktiv:true})
+        body:JSON.stringify({...payload,aktiv:true})
       });
       if(!r.ok){const t=await r.text();throw new Error(t);}
       const rows=await r.json();
@@ -4156,7 +4279,7 @@ async function saveBetrieb(){
       const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebe?id=eq.'+betriebId,{
         method:'PATCH',
         headers:supaHeaders(),
-        body:JSON.stringify({name,kuerzel:kuerzel||null,email:email||null,ort:ort||null})
+        body:JSON.stringify(payload)
       });
       if(!r.ok){const t=await r.text();throw new Error(t);}
       toast('✓ Betrieb aktualisiert');
