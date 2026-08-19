@@ -272,55 +272,55 @@ tr:hover td{background:#f9fcfa}
 
 <!-- MODAL: Ernte-Buchung -->
 <div class="mov" id="mod-ernte-buchung">
-  <div class="mod" style="max-width:540px">
+  <div class="mod" style="max-width:500px">
     <div class="mod-hdr">
-      <div class="mod-title" id="ernte-buch-title">🌿 Buchung erfassen</div>
+      <div class="mod-title" id="ernte-buch-title">Buchung erfassen</div>
       <button class="mod-x" onclick="closeMod('mod-ernte-buchung')">✕</button>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
       <button id="buch-typ-ernte" class="btn btn-p btn-sm" onclick="setBuchTyp('ernte')">🌿 Ernte</button>
       <button id="buch-typ-transport" class="btn btn-s btn-sm" onclick="setBuchTyp('transport')">🚛 Transport</button>
-      <button id="buch-typ-leergut" class="btn btn-s btn-sm" onclick="setBuchTyp('leergut')">📦 Leergut</button>
+      <button id="buch-typ-leergut" class="btn btn-s btn-sm" onclick="setBuchTyp('leergut')">📦 Leergut zurück</button>
     </div>
+    <!-- Datum + Schlag -->
     <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Datum</label>
         <input type="date" id="buch-datum" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
       <div class="fg" id="buch-schlag-wrap"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Schlag</label>
         <select id="buch-schlag" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;width:100%"></select></div>
     </div>
-    <!-- Lager-Buchungen -->
-    <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Großkisten pro Lager <span style="font-weight:400;font-size:.7rem">(+ einlagern · − auslagern/liefern)</span></div>
-    <div id="buch-lager-rows" style="margin-bottom:12px"></div>
-    <!-- HACCP -->
-    <div id="buch-haccp-wrap" style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:12px;border:1px solid var(--bdr)">
-      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">HACCP Kontrolle &mdash; Reinigung durchgeführt</div>
-      <input type="checkbox" id="haccp-rd" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-gk" style="width:15px;height:15px"> Großkisten gereinigt</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-eg" style="width:15px;height:15px"> Erntegerät gereinigt</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-tl" style="width:15px;height:15px"> Tieflader gereinigt</label>
-        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-kl" style="width:15px;height:15px"> Kühlung gereinigt</label>
+    <!-- ERNTE: GK + Standort -->
+    <div id="buch-ernte-sect">
+      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">GK 1. Klasse</label>
+          <input type="number" id="buch-gk-1kl" min="0" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">GK Verarbeitung</label>
+          <input type="number" id="buch-gk-ver" min="0" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+      </div>
+      <div class="fg" style="margin-bottom:12px">
+        <label style="font-size:.75rem;font-weight:700;color:var(--txl)">Standort nach Ernte</label>
+        <div id="buch-standort-sel" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>
       </div>
     </div>
-    <!-- Zusatz -->
-    <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Los-Nr.</label>
-        <input type="text" id="buch-los" placeholder="z.B. 1" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
-      <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Notiz</label>
-        <input type="text" id="buch-notiz" placeholder="Bemerkung" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
-    </div>
-    <!-- Leergut -->
-    <div style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:14px;border:1px solid var(--bdr)">
-      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Leergut <span style="font-weight:400;font-size:.7rem" id="lg-hint">+ von Haiming zurück</span></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Großkisten</label>
-          <input type="number" id="lg-gk" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Europaletten</label>
-          <input type="number" id="lg-epal" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Saftkisten</label>
-          <input type="number" id="lg-saft" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+    <!-- TRANSPORT: Von + Verwendung + GK -->
+    <div id="buch-transport-sect" style="display:none">
+      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Von Standort</label>
+          <select id="buch-von-standort" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;width:100%"></select></div>
+        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Verwendung / Ziel</label>
+          <select id="buch-verwendung" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;width:100%"></select></div>
       </div>
+      <div class="fg" style="margin-bottom:12px"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Anzahl GK</label>
+        <input type="number" id="buch-transport-gk" min="0" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
     </div>
+    <!-- LEERGUT: GK zurück -->
+    <div id="buch-leergut-sect" style="display:none">
+      <div class="fg" style="margin-bottom:12px"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">GK zurück (von Haiming)</label>
+        <input type="number" id="buch-leergut-gk" min="0" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+    </div>
+    <!-- Notiz -->
+    <div class="fg" style="margin-bottom:14px"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Notiz</label>
+      <input type="text" id="buch-notiz" placeholder="Bemerkung" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
     <input type="hidden" id="buch-edit-id">
     <div class="mod-ft" style="display:flex;justify-content:space-between;align-items:center">
       <button class="btn btn-d btn-sm" id="buch-del-btn" onclick="deleteErnteBuchung()" style="display:none">Löschen</button>
@@ -1545,7 +1545,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.16.4";
+const APP_VERSION="v2.16.5";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -3800,170 +3800,139 @@ function deleteLager(id){
 
 // ── Ernte Ist ──────────────────────────────────────
 let _buchTyp='ernte';
+let _buchStandortId=null;
+
+/// Eintrags-Typ ermitteln (neu: e.typ; alt: e.ernte/e._buchTyp)
+function getEntryTyp(e){
+  if(e.typ) return e.typ;
+  if(e.ernte===true) return 'ernte';
+  if(e._buchTyp==='leergut') return 'leergut';
+  return 'transport';
+}
 
 function setBuchTyp(typ){
   _buchTyp=typ;
-  document.getElementById('buch-typ-ernte').className='btn btn-sm '+(typ==='ernte'?'btn-p':'btn-s');
-  document.getElementById('buch-typ-transport').className='btn btn-sm '+(typ==='transport'?'btn-p':'btn-s');
-  document.getElementById('buch-typ-leergut').className='btn btn-sm '+(typ==='leergut'?'btn-p':'btn-s');
-  document.getElementById('buch-haccp-wrap').style.display=typ==='ernte'?'':'none';
+  ['ernte','transport','leergut'].forEach(t=>{
+    const btn=document.getElementById('buch-typ-'+t);
+    if(btn) btn.className='btn btn-sm '+(typ===t?'btn-p':'btn-s');
+  });
   const sw=document.getElementById('buch-schlag-wrap');
   if(sw) sw.style.display=typ==='leergut'?'none':'';
-  const lr=document.getElementById('buch-lager-rows').parentElement;
-  if(lr) lr.style.display=typ==='leergut'?'none':'';
+  const es=document.getElementById('buch-ernte-sect');
+  if(es) es.style.display=typ==='ernte'?'':'none';
+  const ts=document.getElementById('buch-transport-sect');
+  if(ts) ts.style.display=typ==='transport'?'':'none';
+  const ls=document.getElementById('buch-leergut-sect');
+  if(ls) ls.style.display=typ==='leergut'?'':'none';
+}
+
+function renderBuchStandortSel(selectedId){
+  const el=document.getElementById('buch-standort-sel');if(!el)return;
+  if(!D.lagerorte.length){
+    el.innerHTML='<div style="font-size:.82rem;color:var(--txl)">💡 <a href="#" onclick="event.preventDefault();closeMod(\'mod-ernte-buchung\');openLagerMod()" style="color:var(--p)">Zuerst Standorte anlegen</a></div>';
+    _buchStandortId=null;return;
+  }
+  _buchStandortId=selectedId||D.lagerorte[0]?.id||null;
+  el.innerHTML=D.lagerorte.map(l=>{
+    const sel=_buchStandortId===l.id;
+    return`<button type="button" onclick="selectBuchStandort('${l.id}')"
+      style="padding:6px 14px;border-radius:20px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--p)':'#fff'};color:${sel?'#fff':'var(--txt)'};font-size:.8rem;font-weight:${sel?'700':'400'};cursor:pointer;transition:all .12s">${l.name}</button>`;
+  }).join('');
+}
+
+function selectBuchStandort(id){
+  _buchStandortId=id;
+  renderBuchStandortSel(id);
 }
 
 function openErnteBuchungMod(editId){
   const today=new Date().toISOString().slice(0,10);
   document.getElementById('buch-datum').value=today;
-  document.getElementById('buch-los').value='';
   document.getElementById('buch-notiz').value='';
-  document.getElementById('lg-gk').value='';
-  document.getElementById('lg-epal').value='';
-  document.getElementById('lg-saft').value='';
   document.getElementById('buch-edit-id').value='';
   document.getElementById('buch-del-btn').style.display='none';
-  document.getElementById('ernte-buch-title').textContent='🌿 Buchung erfassen';
-  ['haccp-gk','haccp-eg','haccp-tl','haccp-kl','haccp-rd'].forEach(id=>{
-    document.getElementById(id).checked=true;
-  });
-  setBuchTyp('ernte');
+  document.getElementById('ernte-buch-title').textContent='Buchung erfassen';
+  // Schlag-Dropdown
   const sel=document.getElementById('buch-schlag');
-  sel.innerHTML=D.schlage.map(s=>`<option value="${s.id}">${s.betrieb?'['+s.betrieb.split(' ')[0]+'] ':''} ${s.name}${s.sorte?' · '+s.sorte:''}</option>`).join('');
-  sel.onchange=function(){const sc=D.schlage.find(x=>x.id===this.value);if(sc&&sc.los_nr)document.getElementById('buch-los').value=sc.los_nr;};
-  renderBuchLagerRows({});
-  if(typeof _preopenSchlagId!=='undefined'&&_preopenSchlagId){sel.value=_preopenSchlagId;const psc=D.schlage.find(x=>x.id===_preopenSchlagId);if(psc&&psc.los_nr)document.getElementById('buch-los').value=psc.los_nr;_preopenSchlagId=null;}
+  sel.innerHTML='<option value="">– Schlag wählen –</option>'+
+    D.schlage.map(s=>`<option value="${s.id}">${s.betrieb?'['+s.betrieb.split(' ').pop()+'] ':''} ${s.name}${s.sorte?' · '+s.sorte:''}</option>`).join('');
+  // Standort-Auswahl initialisieren
+  renderBuchStandortSel(null);
+  // Von-Standort & Verwendung für Transport
+  const vonSel=document.getElementById('buch-von-standort');
+  vonSel.innerHTML=D.lagerorte.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  const vwSel=document.getElementById('buch-verwendung');
+  vwSel.innerHTML=getVerwendungen().map(v=>`<option value="${v.id}">${v.typ==='tafel'?'🍎':'🏭'} ${v.name}</option>`).join('');
+  // GK-Inputs leeren
+  ['buch-gk-1kl','buch-gk-ver','buch-transport-gk','buch-leergut-gk'].forEach(id=>{
+    const el=document.getElementById(id);if(el) el.value='';
+  });
+  setBuchTyp(_buchTyp||'ernte');
+  if(typeof _preopenSchlagId!=='undefined'&&_preopenSchlagId){
+    sel.value=_preopenSchlagId;_preopenSchlagId=null;
+  }
   if(editId){
     const entry=D.ernte_ist.find(e=>e.id===editId);
     if(entry){
       document.getElementById('buch-datum').value=entry.datum;
-      document.getElementById('buch-schlag').value=entry.schlag_id;
-      document.getElementById('buch-los').value=entry.los_nr||'';
       document.getElementById('buch-notiz').value=entry.notiz||'';
-      document.getElementById('lg-gk').value=entry.leergut?.grosskisten||'';
-      document.getElementById('lg-epal').value=entry.leergut?.europaletten||'';
-      document.getElementById('lg-saft').value=entry.leergut?.saftkisten||'';
       document.getElementById('buch-edit-id').value=editId;
       document.getElementById('buch-del-btn').style.display='';
       document.getElementById('ernte-buch-title').textContent='✏️ Buchung bearbeiten';
-      setBuchTyp(entry.ernte?'ernte':'transport');
-      if(entry.haccp){
-        document.getElementById('haccp-gk').checked=!!entry.haccp.grosskisten;
-        document.getElementById('haccp-eg').checked=!!entry.haccp.erntegeraet;
-        document.getElementById('haccp-tl').checked=!!entry.haccp.tieflader;
-        document.getElementById('haccp-kl').checked=!!entry.haccp.kuehlung;
-        document.getElementById('haccp-rd').checked=entry.haccp.reinigung!==false;
+      const typ=getEntryTyp(entry);
+      setBuchTyp(typ);
+      if(typ==='ernte'){
+        document.getElementById('buch-schlag').value=entry.schlag_id||'';
+        document.getElementById('buch-gk-1kl').value=entry.gk_1kl||'';
+        document.getElementById('buch-gk-ver').value=entry.gk_verarbeitung||'';
+        renderBuchStandortSel(entry.standort_id||null);
+      } else if(typ==='transport'){
+        document.getElementById('buch-schlag').value=entry.schlag_id||'';
+        document.getElementById('buch-von-standort').value=entry.von_standort_id||'';
+        document.getElementById('buch-verwendung').value=entry.verwendung_id||'';
+        document.getElementById('buch-transport-gk').value=entry.gk_anzahl||'';
+      } else {
+        document.getElementById('buch-leergut-gk').value=entry.gk_anzahl||(entry.leergut?.grosskisten)||'';
       }
-      const buchMap={};
-      (entry.buchungen||[]).forEach(b=>{
-        // support old format (b.gk) and new (b.tafel_gk/b.verarbeitung_gk)
-        buchMap[b.lager_id]={
-          tafel: b.tafel_gk!==undefined ? b.tafel_gk : (b.gk||0),
-          verarbeitung: b.verarbeitung_gk||0
-        };
-      });
-      renderBuchLagerRows(buchMap);
     }
   }
   openMod('mod-ernte-buchung');
 }
 
 function renderBuchLagerRows(buchMap){
-  const el=document.getElementById('buch-lager-rows');
-  if(!D.lagerorte.length){
-    el.innerHTML='<div style="font-size:.82rem;color:var(--txl);padding:4px 0">💡 <a href="#" onclick="event.preventDefault();closeMod(\'mod-ernte-buchung\');openLagerMod()" style="color:var(--p)">Zuerst Lagerorte anlegen</a></div>';
-    return;
-  }
-  el.innerHTML=D.lagerorte.map(l=>{
-    const isZwl=l.typ==='zwischen';
-    const bm=buchMap[l.id]||{tafel:'',verarbeitung:''};
-    const bdr=isZwl?'var(--s)':'var(--bdr)';
-    const bg=isZwl?'#f0faf5':'#fff';
-    return`<div style="padding:6px 0;border-bottom:1px solid var(--bdr)">
-      <div style="font-size:.78rem;font-weight:700;color:var(--pd);margin-bottom:4px">${l.name}<span style="font-size:.65rem;color:var(--txl);margin-left:4px;font-weight:400">${isZwl?'ZWL':''}</span></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <div style="flex:1;display:flex;align-items:center;gap:4px">
-          <span style="font-size:.68rem;color:var(--txl);min-width:50px">🍎 Tafel</span>
-          <input type="number" id="bl-tafel-${l.id}" value="${bm.tafel}" placeholder="GK"
-            style="flex:1;border:1px solid ${bdr};border-radius:6px;padding:4px 6px;font-size:.85rem;text-align:right;background:${bg}">
-        </div>
-        <div style="flex:1;display:flex;align-items:center;gap:4px">
-          <span style="font-size:.68rem;color:var(--txl);min-width:60px">🐛 Verarb.</span>
-          <input type="number" id="bl-ver-${l.id}" value="${bm.verarbeitung}" placeholder="GK"
-            style="flex:1;border:1px solid ${bdr};border-radius:6px;padding:4px 6px;font-size:.85rem;text-align:right;background:${bg}">
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-  // Live-update Großkisten wenn Haiming-Inputs sich ändern
-  D.lagerorte.forEach(l=>{
-    if(!l.name.toLowerCase().includes('haiming')) return;
-    const ti=document.getElementById('bl-tafel-'+l.id);
-    const vi=document.getElementById('bl-ver-'+l.id);
-    const lgEl=document.getElementById('lg-gk');
-    const hintEl=document.getElementById('lg-hint');
-    const upd=()=>{
-      const t=parseFloat(ti?.value||'0')||0;
-      const v=parseFloat(vi?.value||'0')||0;
-      const total=t+v;
-      if(lgEl&&total>0){lgEl.value=-total;lgEl.style.background='#fff3cd';lgEl.readOnly=true;}
-      else if(lgEl){lgEl.value='';lgEl.style.background='';lgEl.readOnly=false;}
-      if(hintEl) hintEl.textContent=total>0?'Auto: −'+total+' GK (nach Haiming)':'+ von Haiming zurück';
-    };
-    if(ti) ti.addEventListener('input',upd);
-    if(vi) vi.addEventListener('input',upd);
-  });
+  // no-op: replaced by renderBuchStandortSel / new booking system
 }
 
 function saveErnteBuchung(){
   const datum=document.getElementById('buch-datum').value;
-  const schlagId=document.getElementById('buch-schlag').value;
   if(!datum){alert('Bitte Datum eingeben');return;}
-  const buchungen=[];
-  D.lagerorte.forEach(l=>{
-    const t=parseFloat(document.getElementById('bl-tafel-'+l.id)?.value||'');
-    const v=parseFloat(document.getElementById('bl-ver-'+l.id)?.value||'');
-    const tafel_gk=isNaN(t)?0:t;
-    const verarbeitung_gk=isNaN(v)?0:v;
-    if(tafel_gk!==0||verarbeitung_gk!==0) buchungen.push({lager_id:l.id,tafel_gk,verarbeitung_gk});
-  });
-  const isLeergut=_buchTyp==='leergut';
-  const isErnte=_buchTyp==='ernte';
-  if(!isLeergut&&!schlagId){alert('Bitte Schlag auswählen');return;}
-  // Auto-Großkisten: alle GK nach Haiming → negativ verbuchen (abgeliefert)
-  let autoGK=0;
-  if(!isLeergut){
-    buchungen.forEach(b=>{
-      const lx=D.lagerorte.find(x=>x.id===b.lager_id);
-      if(lx&&lx.name.toLowerCase().includes('haiming')){
-        const tot=(b.tafel_gk||0)+(b.verarbeitung_gk||0);
-        if(tot>0) autoGK-=tot;
-      }
-    });
-  }
-  const manualGK=parseFloat(document.getElementById('lg-gk').value)||0;
-  const gkBuchung=(!isLeergut&&autoGK!==0)?autoGK:manualGK;
-
-  const entry={
-    id:document.getElementById('buch-edit-id').value||uid(),
-    datum,schlag_id:schlagId,buchungen,
-    ernte:isErnte,
-    haccp:isErnte?{
-      grosskisten:document.getElementById('haccp-gk').checked,
-      erntegeraet:document.getElementById('haccp-eg').checked,
-      tieflader:document.getElementById('haccp-tl').checked,
-      kuehlung:document.getElementById('haccp-kl').checked,
-      reinigung:document.getElementById('haccp-rd').checked
-    }:null,
-    los_nr:document.getElementById('buch-los').value.trim(),
-    notiz:document.getElementById('buch-notiz').value.trim(),
-    leergut:{
-      grosskisten:gkBuchung,
-      europaletten:parseFloat(document.getElementById('lg-epal').value)||0,
-      saftkisten:parseFloat(document.getElementById('lg-saft').value)||0
-    }
-  };
   const editId=document.getElementById('buch-edit-id').value;
+  const notiz=document.getElementById('buch-notiz')?.value.trim()||'';
+  let entry;
+  if(_buchTyp==='ernte'){
+    const schlagId=document.getElementById('buch-schlag').value;
+    if(!schlagId){alert('Bitte Schlag auswählen');return;}
+    const gk1kl=parseFloat(document.getElementById('buch-gk-1kl')?.value||'')||0;
+    const gkVer=parseFloat(document.getElementById('buch-gk-ver')?.value||'')||0;
+    if(!gk1kl&&!gkVer){alert('Bitte mindestens einen GK-Wert eingeben');return;}
+    if(!_buchStandortId){alert('Bitte Standort auswählen');return;}
+    entry={id:editId||uid(),typ:'ernte',datum,schlag_id:schlagId,gk_1kl:gk1kl,gk_verarbeitung:gkVer,standort_id:_buchStandortId,notiz};
+  } else if(_buchTyp==='transport'){
+    const schlagId=document.getElementById('buch-schlag').value;
+    if(!schlagId){alert('Bitte Schlag auswählen');return;}
+    const vonStandortId=document.getElementById('buch-von-standort')?.value||'';
+    if(!vonStandortId){alert('Bitte Von-Standort auswählen');return;}
+    const verwendungId=document.getElementById('buch-verwendung')?.value||'';
+    if(!verwendungId){alert('Bitte Verwendung auswählen');return;}
+    const gkAnzahl=parseFloat(document.getElementById('buch-transport-gk')?.value||'')||0;
+    if(!gkAnzahl){alert('Bitte Anzahl GK eingeben');return;}
+    entry={id:editId||uid(),typ:'transport',datum,schlag_id:schlagId,gk_anzahl:gkAnzahl,verwendung_id:verwendungId,von_standort_id:vonStandortId,notiz};
+  } else {
+    // leergut
+    const gkAnzahl=parseFloat(document.getElementById('buch-leergut-gk')?.value||'')||0;
+    if(!gkAnzahl){alert('Bitte Anzahl GK eingeben');return;}
+    entry={id:editId||uid(),typ:'leergut',datum,gk_anzahl:gkAnzahl,notiz};
+  }
   if(editId){
     const idx=D.ernte_ist.findIndex(e=>e.id===editId);
     if(idx>=0) D.ernte_ist[idx]=entry; else D.ernte_ist.push(entry);
@@ -3985,122 +3954,122 @@ function deleteErnteBuchung(){
   renderErnteIst();
 }
 
-function calcZwlBestand(lagerId){
-  let sum=0;
+// Neues Berechnungsmodell: Ernte/Transport/Leergut
+function calcStandortBestand(lagerId){
+  // Bestand an einem Standort = Summe Ernte dort - Summe Transport von dort
+  let gk1kl=0,gkVer=0;
   D.ernte_ist.forEach(e=>{
-    (e.buchungen||[]).forEach(b=>{
-      if(b.lager_id===lagerId){
-        // support old format (b.gk) and new (b.tafel_gk/b.verarbeitung_gk)
-        if(b.tafel_gk!==undefined||b.verarbeitung_gk!==undefined){
-          sum+=(b.tafel_gk||0)+(b.verarbeitung_gk||0);
-        } else {
-          sum+=(b.gk||0);
+    const typ=getEntryTyp(e);
+    if(typ==='ernte'){
+      // neues Format
+      if(e.standort_id===lagerId){gk1kl+=(e.gk_1kl||0);gkVer+=(e.gk_verarbeitung||0);}
+      // altes Format (buchungen-Array) → als 1.Kl behandeln
+      (e.buchungen||[]).forEach(b=>{
+        if(b.lager_id===lagerId){
+          gk1kl+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));
+          gkVer+=(b.verarbeitung_gk||0);
         }
-      }
-    });
+      });
+    } else if(typ==='transport'){
+      // neues Format
+      if(e.von_standort_id===lagerId){const a=(e.gk_anzahl||0);gk1kl-=a;}
+      // altes Format
+      (e.buchungen||[]).forEach(b=>{
+        if(b.lager_id===lagerId){
+          const t=b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0);
+          const v=b.verarbeitung_gk||0;
+          gk1kl-=t;gkVer-=v;
+        }
+      });
+    }
   });
-  return sum;
+  return {gk1kl,gkVer,total:gk1kl+gkVer};
 }
 
-function calcZwlBestandTyp(lagerId, typ){
-  // typ: 'tafel' or 'verarbeitung'
+function calcLeergutGK(){
   let sum=0;
   D.ernte_ist.forEach(e=>{
-    (e.buchungen||[]).forEach(b=>{
-      if(b.lager_id===lagerId){
-        if(typ==='tafel') sum+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));
-        else sum+=(b.verarbeitung_gk||0);
-      }
-    });
+    const typ=getEntryTyp(e);
+    if(typ==='leergut') sum+=(e.gk_anzahl||0);
+    // altes Format
+    else if(e.leergut) sum+=(e.leergut.grosskisten||0);
   });
   return sum;
 }
 
-function calcLeergutBestand(typ){
-  let sum=0;
-  D.ernte_ist.forEach(e=>{sum+=(e.leergut?.[typ]||0);});
-  return sum;
-}
+// Compat-Stubs für ältere Aufrufe
+function calcZwlBestand(lagerId){return calcStandortBestand(lagerId).total;}
+function calcZwlBestandTyp(lagerId,typ){const r=calcStandortBestand(lagerId);return typ==='tafel'?r.gk1kl:r.gkVer;}
+function calcLeergutBestand(typ){if(typ==='grosskisten')return calcLeergutGK();return 0;}
 
 function renderErnteIst(){
   const el=document.getElementById('ernte-ist-wrap');
   if(!el)return;
-  const zwlLager=D.lagerorte.filter(l=>l.typ==='zwischen');
-  const LKW_GK=60;
+  const verwendungen=getVerwendungen();
 
-  // ZWL Bestand cards
-  let zwlHtml='';
-  if(zwlLager.length){
-    const cards=zwlLager.map(l=>{
-      const tafelBest=calcZwlBestandTyp(l.id,'tafel');
-      const verBest=calcZwlBestandTyp(l.id,'verarbeitung');
-      const bestand=tafelBest+verBest;
-      const pct=Math.min(100,Math.round(bestand/LKW_GK*100));
-      const fillColor=pct>=100?'var(--crit)':pct>=80?'var(--warn)':pct>=50?'#f4d35e':'var(--s)';
-      const kgPerGK=340; // Richtwert; sortengenau via getSorteNkg(sorte)
-      const kg=bestand*kgPerGK;
-      const fehlend=LKW_GK-bestand;
-      return`<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:12px;flex:1;min-width:150px">
-        <div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">📦 ${l.name}</div>
-        <div style="font-size:1.5rem;font-weight:800;color:${bestand>0?'var(--pd)':'var(--txl)'};line-height:1.1">${bestand} GK</div>
-        <div style="font-size:.72rem;color:var(--txl);margin-bottom:8px">${bestand>0?'≈ '+fmtKg(kg)+'':''} ${tafelBest&&verBest?'<br><span style="font-size:.65rem">🍎'+tafelBest+'T · 🐛'+verBest+'V</span>':''}</div>
-
+  // ── Bestand-Karten pro Lagerort ──────────────────────────────
+  const lagerorte=D.lagerorte||[];
+  let bestandHtml='';
+  if(lagerorte.length){
+    const cards=lagerorte.map(l=>{
+      const b=calcStandortBestand(l.id);
+      const total=b.total;
+      const lkwPct=Math.min(100,Math.round(total/60*100));
+      const fillColor=lkwPct>=100?'var(--crit)':lkwPct>=80?'var(--warn)':lkwPct>=50?'#f4d35e':'var(--s)';
+      const barHtml=total>0?`<div style="background:#e9ecef;border-radius:4px;height:5px;margin-top:6px">
+        <div style="width:${lkwPct}%;height:5px;border-radius:4px;background:${fillColor}"></div></div>`:'';
+      const detail=b.gk1kl&&b.gkVer?`<div style="font-size:.65rem;color:var(--txl);margin-top:2px">🍎 ${b.gk1kl} 1.Kl · 🐛 ${b.gkVer} Verarb.</div>`
+                  :b.gk1kl?`<div style="font-size:.65rem;color:var(--txl);margin-top:2px">🍎 ${b.gk1kl} 1.Kl</div>`
+                  :b.gkVer?`<div style="font-size:.65rem;color:var(--txl);margin-top:2px">🐛 ${b.gkVer} Verarb.</div>`:'';
+      return`<div style="background:var(--card);border:1px solid ${total>0?'var(--pd)':'var(--bdr)'};border-radius:10px;padding:10px 12px;flex:1;min-width:130px">
+        <div style="font-size:.65rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${l.name}</div>
+        <div style="font-size:1.4rem;font-weight:800;color:${total>0?'var(--pd)':'var(--txl)'};line-height:1">${total} GK</div>
+        ${detail}${barHtml}
       </div>`;
     }).join('');
-    zwlHtml=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${cards}</div>`;
+    // Leergut-Saldo neben den Bestand-Karten
+    const lgGK=calcLeergutGK();
+    const lgCard=lgGK!==0?`<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:10px 12px;flex:1;min-width:130px">
+      <div style="font-size:.65rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">📦 GK Saldo</div>
+      <div style="font-size:1.4rem;font-weight:800;color:${lgGK>=0?'var(--s)':'var(--crit)'};line-height:1">${lgGK>=0?'+':''}${lgGK} GK</div>
+      <div style="font-size:.65rem;color:var(--txl);margin-top:2px">Leergut-Rückgaben</div>
+    </div>`:'';
+    bestandHtml=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${cards}${lgCard}</div>`;
   }
 
-  // Leergut Saldo
-  const lgGK=calcLeergutBestand('grosskisten');
-  const lgEP=calcLeergutBestand('europaletten');
-  const lgSK=calcLeergutBestand('saftkisten');
-  const leergutHtml=(lgGK||lgEP||lgSK)?`
-    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:16px;align-items:center">
-      <span style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">📦 Leergut-Saldo</span>
-      ${lgGK?`<span style="font-size:.85rem"><b>${lgGK>0?'+'+lgGK:lgGK}</b> Großkisten</span>`:''}
-      ${lgEP?`<span style="font-size:.85rem"><b>${lgEP>0?'+'+lgEP:lgEP}</b> Europaletten</span>`:''}
-      ${lgSK?`<span style="font-size:.85rem"><b>${lgSK>0?'+'+lgSK:lgSK}</b> Saftkisten</span>`:''}
-    </div>`:''
-
-  // Sortenübersicht (pro Sorte eine Zeile, nur ernteJahr)
+  // ── Sortenübersicht (nur Ernte-Buchungen des aktuellen Jahres) ─
   const sortenMap={};
   D.ernte_ist.forEach(e=>{
     if(!e.datum||!e.datum.startsWith(String(ernteJahr))) return;
+    const typ=getEntryTyp(e);
+    if(typ!=='ernte') return;
     const sc=D.schlage.find(x=>x.id===e.schlag_id);
-    if(!sc) return;
-    const sorte=sc.sorte||sc.name||'Unbekannt';
-    if(!sortenMap[sorte]) sortenMap[sorte]={tafel:0,verarbeitung:0,lager:{}};
+    const sorte=(sc?.sorte||sc?.name||'Unbekannt');
+    if(!sortenMap[sorte]) sortenMap[sorte]={kl1:0,ver:0};
+    // neues Format
+    if(e.gk_1kl!==undefined||e.gk_verarbeitung!==undefined){
+      sortenMap[sorte].kl1+=(e.gk_1kl||0);
+      sortenMap[sorte].ver+=(e.gk_verarbeitung||0);
+    }
+    // altes Format
     (e.buchungen||[]).forEach(b=>{
-      const t=b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0);
-      const v=b.verarbeitung_gk||0;
-      if(t>0) sortenMap[sorte].tafel+=t;
-      if(v>0) sortenMap[sorte].verarbeitung+=v;
-      if(!sortenMap[sorte].lager[b.lager_id]) sortenMap[sorte].lager[b.lager_id]={tafel:0,verarbeitung:0};
-      if(t>0) sortenMap[sorte].lager[b.lager_id].tafel+=t;
-      if(v>0) sortenMap[sorte].lager[b.lager_id].verarbeitung+=v;
+      sortenMap[sorte].kl1+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));
+      sortenMap[sorte].ver+=(b.verarbeitung_gk||0);
     });
   });
   let sortenHtml='';
   const sortenKeys=Object.keys(sortenMap).sort();
   if(sortenKeys.length){
-    const lCols=D.lagerorte.map(l=>`<th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700;white-space:nowrap">${l.name}</th>`).join('');
+    let totKl1=0,totVer=0;
     const sRows=sortenKeys.map(sorte=>{
       const sd=sortenMap[sorte];
-      const gesamt=sd.tafel+sd.verarbeitung;
-      const lCells=D.lagerorte.map(l=>{
-        const ld=sd.lager[l.id]||{tafel:0,verarbeitung:0};
-        const lt=ld.tafel,lv=ld.verarbeitung,lg=lt+lv;
-        if(!lg) return`<td style="padding:4px 8px"></td>`;
-        let cell=`<b>${lg}</b>`;
-        if(lt&&lv) cell+=`<br><span style="font-size:.62rem;color:var(--txl)">${lt}T · ${lv}V</span>`;
-        return`<td style="padding:4px 8px;text-align:right;font-size:.8rem;color:var(--pd);line-height:1.3">${cell}</td>`;
-      }).join('');
+      totKl1+=sd.kl1;totVer+=sd.ver;
+      const gesamt=sd.kl1+sd.ver;
       return`<tr style="border-bottom:1px solid var(--bdr)">
-        <td style="padding:5px 8px;font-size:.82rem;font-weight:700;color:var(--pd)">${sorte}</td>
-        <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--pl)"><b>${sd.tafel}</b><br><span style="font-size:.62rem;color:var(--txl)">Tafel</span></td>
-        <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--info)"><b>${sd.verarbeitung}</b><br><span style="font-size:.62rem;color:var(--txl)">Verarb.</span></td>
+        <td style="padding:5px 8px;font-size:.82rem;font-weight:600;color:var(--pd)">${sorte}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--pl)"><b>${sd.kl1}</b></td>
+        <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--info)"><b>${sd.ver}</b></td>
         <td style="padding:5px 8px;text-align:right;font-size:.82rem;font-weight:700">${gesamt}</td>
-        ${lCells}
       </tr>`;
     }).join('');
     sortenHtml=`<div style="margin-bottom:14px">
@@ -4108,84 +4077,97 @@ function renderErnteIst(){
       <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem">
         <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
           <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Sorte</th>
-          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Tafel GK</th>
-          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">🐛 Verarb. GK</th>
+          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--pl);font-weight:700">🍎 1. Kl GK</th>
+          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--info);font-weight:700">🐛 Verarb. GK</th>
           <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Gesamt</th>
-          ${lCols}
-        </thead>
+        </tr></thead>
         <tbody>${sRows}</tbody>
+        <tfoot><tr style="border-top:2px solid var(--bdr);background:var(--bg)">
+          <td style="padding:5px 8px;font-size:.8rem;font-weight:700">Gesamt</td>
+          <td style="padding:5px 8px;text-align:right;font-size:.8rem;font-weight:700;color:var(--pl)">${totKl1}</td>
+          <td style="padding:5px 8px;text-align:right;font-size:.8rem;font-weight:700;color:var(--info)">${totVer}</td>
+          <td style="padding:5px 8px;text-align:right;font-size:.8rem;font-weight:700">${totKl1+totVer}</td>
+        </tr></tfoot>
       </table></div>
     </div>`;
   }
 
-  // Journal mit Spalten pro Lager
-  const entries=[...D.ernte_ist].reverse();
+  // ── Journal ──────────────────────────────────────────────────
+  const yearEntries=[...D.ernte_ist].filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))).reverse();
   let journalHtml='';
-  if(entries.length){
-    // Column headers: Datum | Schlag | je Lager eine Spalte | HACCP | Leergut | Edit
-    const lagerCols=D.lagerorte.map(l=>`<th style="text-align:right;padding:4px 6px;color:var(--txl);font-size:.7rem;font-weight:700;white-space:nowrap;min-width:90px">${l.name}</th>`).join('');
-    const rows=entries.map(e=>{
+  if(yearEntries.length){
+    const rows=yearEntries.map(e=>{
+      const typ=getEntryTyp(e);
+      const icon=typ==='ernte'?'🌿':typ==='leergut'?'📦':'🚛';
       const s=D.schlage.find(x=>x.id===e.schlag_id);
-      const schlagName=e.schlag_id?( s?s.name:'?'):'–';
-      const lagerCells=D.lagerorte.map(l=>{
-        const b=(e.buchungen||[]).find(x=>x.lager_id===l.id);
-        if(!b) return`<td style="padding:5px 6px"></td>`;
-        // support old gk and new tafel_gk/verarbeitung_gk
-        const tafel=b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0);
-        const ver=b.verarbeitung_gk||0;
-        const total=tafel+ver;
-        const color=total>0?'color:var(--pl)':total<0?'color:var(--crit)':'color:var(--txl)';
-        const sign=total>0?'+':'';
-        // show split if both present
-        let cell='';
-        if(tafel!==0&&ver!==0){
-          cell=`<span style="font-weight:700">${sign}${total}</span><br><span style="font-size:.65rem;color:var(--txl)">${tafel>=0?'+':''}${tafel}T ${ver>=0?'+':''}${ver}V</span>`;
-        } else if(tafel!==0){
-          cell=`<span style="font-weight:700">${sign}${tafel}</span><br><span style="font-size:.65rem;color:var(--txl)">Tafel</span>`;
-        } else if(ver!==0){
-          cell=`<span style="font-weight:700">${sign}${ver}</span><br><span style="font-size:.65rem;color:var(--txl)">Verarb.</span>`;
+      const schlagTxt=e.schlag_id?(s?s.name:'?'):'–';
+      let detailHtml='';
+      if(typ==='ernte'){
+        const standort=D.lagerorte.find(x=>x.id===e.standort_id);
+        const standortName=standort?standort.name:'?';
+        // neues Format
+        if(e.gk_1kl!==undefined||e.gk_verarbeitung!==undefined){
+          const parts=[];
+          if(e.gk_1kl) parts.push(`🍎 ${e.gk_1kl} GK 1.Kl`);
+          if(e.gk_verarbeitung) parts.push(`🐛 ${e.gk_verarbeitung} GK Verarb.`);
+          detailHtml=`<span style="color:var(--pl)">${parts.join(' · ')}</span> → <b>${standortName}</b>`;
+        } else {
+          // altes Format
+          const bParts=(e.buchungen||[]).map(b=>{
+            const lo=D.lagerorte.find(x=>x.id===b.lager_id);
+            const n=lo?lo.name:'?';
+            const t=b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0);
+            const v=b.verarbeitung_gk||0;
+            return n+(t?` ${t}T`:'')+(v?` ${v}V`:'');
+          }).join(', ');
+          detailHtml=`<span style="color:var(--pl)">${bParts}</span>`;
         }
-        return`<td style="padding:5px 6px;text-align:right;font-size:.8rem;line-height:1.2;${color}">${cell}</td>`;
-      }).join('');
-      const haccp=e.haccp;
-      const haccpText=haccp?[haccp.grosskisten,haccp.erntegeraet,haccp.tieflader,haccp.kuehlung,haccp.reinigung!==false].map(v=>v?'✅':'❌').join(''):e.ernte?'':'–';
-      const lg=e.leergut||{};
-      const lgParts=[lg.grosskisten&&lg.grosskisten!==0?(lg.grosskisten>0?'+':'')+lg.grosskisten+'GK':'',lg.europaletten&&lg.europaletten!==0?(lg.europaletten>0?'+':'')+lg.europaletten+'EP':'',lg.saftkisten&&lg.saftkisten!==0?(lg.saftkisten>0?'+':'')+lg.saftkisten+'SK':''].filter(Boolean);
-      const losHtml=e.los_nr?` <span style="font-size:.65rem;color:var(--txl)">Los ${e.los_nr}</span>`:'';
-      const notizHtml=e.notiz?`<div style="font-size:.68rem;color:var(--txl)">${e.notiz}</div>`:'';
+      } else if(typ==='transport'){
+        const verwendung=verwendungen.find(x=>x.id===e.verwendung_id);
+        const vonStandort=D.lagerorte.find(x=>x.id===e.von_standort_id);
+        const vName=verwendung?verwendung.name:'?';
+        const vsName=vonStandort?vonStandort.name:'?';
+        detailHtml=`<b>${e.gk_anzahl||0} GK</b> von <b>${vsName}</b> → <span style="background:var(--ps);color:var(--pd);border-radius:4px;padding:1px 6px;font-size:.75rem">${vName}</span>`;
+      } else {
+        // leergut & altes Format
+        const gk=e.gk_anzahl!==undefined?e.gk_anzahl:(e.leergut?.grosskisten||0);
+        detailHtml=`<b>+${gk} GK</b> zurück von Haiming`;
+      }
+      const notizHtml=e.notiz?`<div style="font-size:.68rem;color:var(--txl);margin-top:2px">${e.notiz}</div>`:'';
       return`<tr style="border-bottom:1px solid var(--bdr)">
-        <td style="padding:5px 8px;white-space:nowrap"><b>${e.datum}</b>${losHtml}</td>
-        <td style="padding:5px 8px;font-size:.8rem;white-space:nowrap">${e.ernte?'🌿':e._buchTyp==='leergut'?'📦':'🚛'} ${schlagName}${notizHtml}</td>
-        ${lagerCells}
-        <td style="padding:5px 8px;text-align:center;white-space:nowrap;font-size:.8rem">${haccpText}</td>
-        <td style="padding:5px 8px;text-align:right;white-space:nowrap;font-size:.72rem;color:var(--txl)">${lgParts.join(' ')}</td>
-        <td style="padding:5px 6px"><button class="btn btn-s btn-sm" onclick="openErnteBuchungMod('${e.id}')" style="padding:3px 7px">✏️</button></td>
+        <td style="padding:6px 8px;white-space:nowrap;font-size:.8rem"><b>${e.datum}</b></td>
+        <td style="padding:6px 8px;font-size:.85rem;white-space:nowrap">${icon} ${schlagTxt}</td>
+        <td style="padding:6px 8px;font-size:.8rem">${detailHtml}${notizHtml}</td>
+        <td style="padding:6px 6px"><button class="btn btn-s btn-sm" onclick="openErnteBuchungMod('${e.id}')" style="padding:3px 7px">✏️</button></td>
       </tr>`;
     }).join('');
-    journalHtml=`<div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem">
-      <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
-        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.7rem;font-weight:700;white-space:nowrap">Datum</th>
-        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.7rem;font-weight:700;white-space:nowrap">Schlag</th>
-        ${lagerCols}
-        <th style="text-align:center;padding:5px 8px;color:var(--txl);font-size:.7rem;font-weight:700">HACCP</th>
-        <th style="text-align:right;padding:5px 8px;color:var(--txl);font-size:.7rem;font-weight:700;white-space:nowrap">Leergut</th>
-        <th></th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>`;
+    journalHtml=`<div style="margin-top:4px">
+      <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">📋 Journal ${ernteJahr}</div>
+      <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem">
+        <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
+          <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.68rem;font-weight:700;white-space:nowrap">Datum</th>
+          <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.68rem;font-weight:700;white-space:nowrap">Schlag</th>
+          <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.68rem;font-weight:700">Details</th>
+          <th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
   } else {
-    journalHtml='<div style="font-size:.82rem;color:var(--txl)">Noch keine Buchungen — klicke auf "+ Buchung".</div>';
+    journalHtml=`<div style="font-size:.82rem;color:var(--txl);padding:8px 0">Noch keine Buchungen für ${ernteJahr}.</div>`;
   }
 
   el.innerHTML=`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:1rem;font-weight:700;color:var(--pd)">🌾 Ernte Ist ${ernteJahr}</div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-s btn-sm" onclick="setBuchTyp('leergut');openErnteBuchungMod()">📦 Leergut</button>
-        <button class="btn btn-p btn-sm" onclick="openErnteBuchungMod()">+ Buchung</button>
+      <div style="font-size:1rem;font-weight:700;color:var(--pd)">🌾 Ernte ${ernteJahr}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" onclick="openLagerMod()">⚙️ Standorte</button>
+        <button class="btn btn-s btn-sm" onclick="setBuchTyp('leergut');openErnteBuchungMod()">📦 Leergut zurück</button>
+        <button class="btn btn-s btn-sm" onclick="setBuchTyp('transport');openErnteBuchungMod()">🚛 Transport</button>
+        <button class="btn btn-p btn-sm" onclick="setBuchTyp('ernte');openErnteBuchungMod()">🌿 + Ernte</button>
       </div>
     </div>
-    ${zwlHtml}${leergutHtml}${sortenHtml}${journalHtml}
+    ${bestandHtml}${sortenHtml}${journalHtml}
   </div>`;
 }
 
