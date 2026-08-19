@@ -1545,7 +1545,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.16.3";
+const APP_VERSION="v2.16.4";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2173,16 +2173,6 @@ function renderSchlage(){
   }
   const allB=Object.keys(byBetrieb);
   // Sortierung: Nachname A-Z, dann Vorname A-Z; "Kein Betrieb" ans Ende
-  const allBetriebe=[..._eoBetriebe,..._gruppenBetriebe];
-  function _betriebSortKey(nameStr){
-    const bObj=allBetriebe.find(b=>b.name===nameStr||b.id===nameStr);
-    if(bObj&&bObj.nachname) return (bObj.nachname+' '+bObj.vorname).toLowerCase();
-    // Fallback: letztes Wort = Nachname
-    const parts=(nameStr||'').trim().split(' ');
-    const nn=parts.length>1?parts[parts.length-1]:parts[0]||'';
-    const vn=parts.length>1?parts.slice(0,-1).join(' '):'';
-    return (nn+' '+vn).toLowerCase();
-  }
   const betriebeOrder=[
     ...allB.filter(b=>b).sort((a,b)=>_betriebSortKey(a).localeCompare(_betriebSortKey(b),'de')),
     ...(allB.includes('')?['']:[])
@@ -3268,6 +3258,17 @@ const BETRIEBE=['Florian Kuenz','Johannes Kuenz','Johanna Kuenz'];
 
 function fmtKg(v){if(!v&&v!==0)return'–';return v>=1000?(v/1000).toFixed(2).replace('.',',')+' t':v+' kg';}
 function fmtKisten(v){if(!v&&v!==0)return'–';return v+' GK';}
+
+// Globale Sort-Hilfsfunktion für Betriebe (Nachname A-Z, Vorname A-Z)
+function _betriebSortKey(nameStr){
+  const allBetriebe=[..._eoBetriebe,..._gruppenBetriebe];
+  const bObj=allBetriebe.find(b=>b.name===nameStr||b.id===nameStr);
+  if(bObj&&bObj.nachname) return (bObj.nachname+' '+(bObj.vorname||'')).toLowerCase();
+  const parts=(nameStr||'').trim().split(' ');
+  const nn=parts.length>1?parts[parts.length-1]:parts[0]||'';
+  const vn=parts.length>1?parts.slice(0,-1).join(' '):'';
+  return (nn+' '+vn).toLowerCase();
+}
 
 function calcProg(s,p){
   const baumzahl=s.baumzahl||(s.reihenlange&&s.pabst_baum?Math.round(s.reihenlange/s.pabst_baum):0);
