@@ -698,9 +698,6 @@ tr:hover td{background:#f9fcfa}
       <div class="fg"><label>Betrieb</label>
         <select id="ms-betrieb" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);width:100%">
           <option value="">– kein Betrieb –</option>
-          <option value="Florian Kuenz">Florian Kuenz</option>
-          <option value="Johannes Kuenz">Johannes Kuenz</option>
-          <option value="Johanna Kuenz">Johanna Kuenz</option>
         </select>
       </div>
       <div class="fg"><label>Los-Nr.</label><select id="ms-losnr" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);width:100%"><option value="">– keine –</option></select></div>
@@ -1437,7 +1434,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.2 · 19.08.2026 13:45";
+const APP_VERSION="v2.5 · 19.08.2026 15:00";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1736,36 +1733,13 @@ async function cloudLoad(){
     const rows=await r.json();
     if(!rows.length){
       lsLoad();migrateD();
-      // Migration: alte Schläge aus localStorage → schlage-Tabelle
-      if(D.schlage&&D.schlage.length) await migrateSchlagToSupabase(D.schlage);
       await cloudSave();
       toast('✓ Lokale Daten nach Supabase übertragen');
     }else{
       D=rows[0].data||{};migrateD();lsSave();
-      // Migration: falls blob noch alte Schläge enthält
-      if(D.schlage&&D.schlage.length){
-        await migrateSchlagToSupabase(D.schlage);
-        D.schlage=[];
-        await cloudSave();
-      }
     }
     // Schläge immer direkt aus schlage-Tabelle laden
     await loadSchlage();
-    // Fallback: wenn schlage-Tabelle leer → aus localStorage retten
-    if(!D.schlage||D.schlage.length===0){
-      try{
-        const lsRaw=localStorage.getItem('obs_v2');
-        if(lsRaw){
-          const lsD=JSON.parse(lsRaw);
-          if(lsD.schlage&&lsD.schlage.length>0){
-            console.log('Rescue: '+lsD.schlage.length+' Schläge aus localStorage');
-            toast('🔄 Schläge werden wiederhergestellt…');
-            await migrateSchlagToSupabase(lsD.schlage);
-            await loadSchlage();
-          }
-        }
-      }catch(e){console.warn('Rescue fehlgeschlagen:',e.message);}
-    }
     const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
     updateSbar('ok','☁️ Geladen · '+t);
     renderAll();
@@ -2154,7 +2128,7 @@ function openSchlagMod(id=null, preFeld=null){
     document.getElementById('ms-hn').value=s.hagelnetz?'1':'0';
     document.getElementById('ms-bw').value=s.bewasserung?'1':'0';
     document.getElementById('ms-notiz').value=s.notiz||'';
-    document.getElementById('ms-betrieb').value=s.betrieb||'';
+    document.getElementById('ms-betrieb').value=s.betrieb_id||'';
     fillLosNrDropdown(s.los_nr||'',s.id);
     del.style.display='inline-flex';
   }else{
@@ -2166,6 +2140,15 @@ function openSchlagMod(id=null, preFeld=null){
     document.getElementById('ms-bw').value='0';
     document.getElementById('ms-betrieb').value='';
     del.style.display='none';
+  }
+  // Betrieb-Dropdown dynamisch befüllen
+  {
+    const bSel=document.getElementById('ms-betrieb');
+    const curVal=bSel.value;
+    bSel.innerHTML='<option value="">– kein Betrieb –</option>';
+    const list=_gruppenBetriebe.length?_gruppenBetriebe:(_meinBetriebId?[{id:_meinBetriebId,name:_meinBetriebName||'Mein Betrieb'}]:[]);
+    for(const b of list) bSel.innerHTML+=`<option value="${b.id}">${b.name}</option>`;
+    bSel.value=curVal;
   }
   openMod('mod-schlag');
 }
@@ -2189,9 +2172,10 @@ function calcTheorBaumzahl(){
 }
 
 async function saveSchlag(){
-  const betriebName=v('ms-betrieb');
-  let betriebId=_meinBetriebId;
-  if(_gruppenBetriebe.length){const found=_gruppenBetriebe.find(b=>b.name===betriebName);if(found)betriebId=found.id;}
+  const selBetriebId=v('ms-betrieb');
+  const betriebId=selBetriebId||_meinBetriebId||null;
+  const foundB=_gruppenBetriebe.find(b=>b.id===betriebId);
+  const betriebName=foundB?foundB.name:'';
   const s={
     id:editSid||uid(),betrieb_id:betriebId,
     feldstuck:document.getElementById('ms-fs').value,name:v('ms-nm'),sorte:v('ms-sorte'),
@@ -3653,7 +3637,8 @@ function renderErnteIst(){
 // EO VERWALTUNG (eo_admin)
 // ═══════════════════════════════════════════════════
 
-let _eoBetriebe=[];   // Liste aller Betriebe aus Supabase
+let _eoBetriebe=[];      // Liste aller Betriebe aus Supabase
+let _eoAllSchlage=[];   // Alle Schläge (EO-Ansicht)
 let _eoEditId=null;   // aktuell bearbeiteter Betrieb
 
 async function renderEO(){
@@ -3671,20 +3656,91 @@ async function _loadEOBetriebe(){
     if(!r.ok) throw new Error('HTTP '+r.status);
     _eoBetriebe=await r.json();
   }catch(e){toast('⚠ Betriebe: '+e.message);}
+  try{
+    const r2=await _supaFetch(SUPA_URL+'/rest/v1/schlage?select=*,betriebe(name)&order=feldstuck,name',{headers:supaHeaders()});
+    if(r2.ok) _eoAllSchlage=await r2.json();
+  }catch(e){console.warn('EO Schläge:',e.message);}
 }
 
 function _renderEOBetriebeListe(){
   const el=document.getElementById('eo-betriebe-wrap');
   if(!_eoBetriebe.length){el.innerHTML='<div class="empty">Keine Betriebe angelegt.</div>';return;}
-  el.innerHTML='<div class="twrap"><table><thead><tr><th>Kürzel</th><th>Name</th><th>Ort</th><th>E-Mail</th><th>Aktiv</th><th></th></tr></thead><tbody>'+
-    _eoBetriebe.map(b=>`<tr>
-      <td><b>${b.kuerzel||'–'}</b></td>
-      <td>${b.name}</td>
-      <td>${b.ort||'–'}</td>
-      <td>${b.email||'–'}</td>
-      <td>${b.aktiv?'✅':'❌'}</td>
-      <td><button class="btn btn-s btn-sm" onclick="openBetriebMod('${b.id}')">✏️</button></td>
-    </tr>`).join('')+'</tbody></table></div>';
+
+  const allSchlage=window._eoAllSchlage||[];
+  const unassigned=allSchlage.filter(s=>!s.betrieb_id);
+
+  // Betriebsoption für Dropdown
+  const betriebOpts=_eoBetriebe.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+
+  let html='';
+
+  // Nicht zugewiesene Schläge
+  if(unassigned.length){
+    html+=`<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:16px">
+      <div style="font-weight:700;color:#92400e;margin-bottom:10px">⚠️ ${unassigned.length} Schlag/Schläge ohne Betrieb</div>`;
+    for(const s of unassigned){
+      html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:#fff;border-radius:7px;padding:7px 10px;border:1px solid #fcd34d">
+        <span style="flex:1;font-size:.83rem">${s.feldstuck?s.feldstuck+' › ':''}<b>${s.name}</b>${s.sorte?' · '+s.sorte:''}</span>
+        <select onchange="eoAssignSchlag('${s.id}',this.value)" style="font-size:.8rem;border:1px solid #d1d5db;border-radius:5px;padding:4px 6px">
+          <option value="">Betrieb wählen…</option>${betriebOpts}
+        </select>
+      </div>`;
+    }
+    html+='</div>';
+  }
+
+  // Betriebe als Akkordeon mit Schlägen
+  for(const b of _eoBetriebe){
+    const bSchlage=allSchlage.filter(s=>s.betrieb_id===b.id);
+    const acc=`eo-acc-${b.id.replace(/-/g,'_')}`;
+    html+=`<div style="border:1px solid var(--bdr);border-radius:10px;margin-bottom:10px;overflow:hidden">
+      <div onclick="document.getElementById('${acc}').style.display=document.getElementById('${acc}').style.display==='none'?'block':'none'"
+        style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:var(--bg);user-select:none">
+        <span style="font-weight:700;min-width:36px;font-size:.8rem;color:var(--p)">${b.kuerzel||'–'}</span>
+        <span style="flex:1;font-weight:600">${b.name}</span>
+        <span style="font-size:.75rem;color:var(--txl)">${bSchlage.length} Schläge</span>
+        <span style="font-size:.75rem;color:var(--txl)">${b.aktiv?'✅':'❌'}</span>
+        <button class="btn btn-s btn-sm" onclick="event.stopPropagation();openBetriebMod('${b.id}')">✏️</button>
+      </div>
+      <div id="${acc}" style="display:none;padding:10px 14px;border-top:1px solid var(--bdr)">`;
+    if(!bSchlage.length){
+      html+=`<div style="font-size:.82rem;color:var(--txl);font-style:italic">Noch keine Schläge zugewiesen.</div>`;
+    } else {
+      // Group by Feldstück
+      const grp={};
+      for(const s of bSchlage){if(!grp[s.feldstuck])grp[s.feldstuck]=[];grp[s.feldstuck].push(s);}
+      for(const fs of Object.keys(grp).sort()){
+        html+=`<div style="font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;margin:8px 0 4px">${fs}</div>`;
+        for(const s of grp[fs]){
+          html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr)">
+            <span style="font-size:.82rem;flex:1">${s.typ==='birne'?'🍐':'🍎'} <b>${s.name}</b>${s.sorte?' · '+s.sorte:''}${s.ha_netto?' · '+s.ha_netto+' ha':''}</span>
+            <select onchange="eoAssignSchlag('${s.id}',this.value)" style="font-size:.78rem;border:1px solid var(--bdr);border-radius:5px;padding:3px 5px">
+              ${_eoBetriebe.map(bb=>`<option value="${bb.id}"${bb.id===s.betrieb_id?' selected':''}>${bb.name}</option>`).join('')}
+            </select>
+          </div>`;
+        }
+      }
+    }
+    html+='</div></div>';
+  }
+
+  el.innerHTML=html;
+}
+
+async function eoAssignSchlag(schlagId, betriebId){
+  if(!betriebId) return;
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/schlage?id=eq.'+schlagId,{
+      method:'PATCH',
+      headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({betrieb_id:betriebId})
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    toast('✓ Betrieb zugewiesen');
+    await _loadEOBetriebe();
+    await loadSchlage();
+    _renderEOBetriebeListe();
+  }catch(e){toast('⚠ '+e.message);}
 }
 
 function _fillEOJahrSel(){
