@@ -150,7 +150,7 @@ tr:hover td{background:#f9fcfa}
 <div class="sbar" id="sbar">
   <div class="sbar-dot warn" id="sbar-dot"></div>
   <span id="sbar-txt">Nicht angemeldet</span>
-  <span style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap">v 2026-08-19 · EO</span>
+  <span id="sbar-ver" style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap"></span>
 </div>
 
 <nav class="nav">
@@ -1481,7 +1481,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.9 · 19.08.2026 16:30";
+const APP_VERSION="v2.10 · 19.08.2026 18:45";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1799,6 +1799,8 @@ async function cloudLoad(){
 function updateSbar(state,msg){
   document.getElementById('sbar-dot').className='sbar-dot '+state;
   document.getElementById('sbar-txt').textContent=msg;
+  const verEl=document.getElementById('sbar-ver');
+  if(verEl) verEl.textContent=APP_VERSION;
 }
 
 // ═══════════════════════════════════════════════════
@@ -4253,6 +4255,9 @@ function toast(msg){const el=document.createElement('div');el.className='toast';
 })();
 
 // Fokus auf E-Mail wenn Login-Overlay sichtbar wird
+// Versionsnummer sofort in sbar einsetzen
+(function(){const el=document.getElementById('sbar-ver');if(el)el.textContent=APP_VERSION;})();
+
 const _loginEmailObs=new MutationObserver(()=>{
   const ov=document.getElementById('login-overlay');
   if(ov&&ov.style.display!=='none'){
