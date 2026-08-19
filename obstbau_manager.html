@@ -4,23 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Obstbau Manager · Betrieb Kuenz</title>
-<script>
-// OAuth-Callback-Erkennung (muss vor dem DOM laufen)
-window._isOauthCallback=false;
-(function(){
-  var p=new URLSearchParams(location.search);
-  var code=p.get('code'),state=p.get('state');
-  if(code&&state&&window.opener&&window.opener!==window){
-    window._isOauthCallback=true;
-    window.opener.postMessage({type:'obstbau_oauth',code:code,state:state},'*');
-    document.addEventListener('DOMContentLoaded',function(){
-      document.body.innerHTML='<div style="font-family:sans-serif;padding:40px;text-align:center;color:#2d6a4f"><h2>&#10003; Anmeldung erfolgreich!</h2><p>Dieses Fenster schlie&szlig;t sich automatisch&hellip;</p></div>';
-    });
-    setTimeout(function(){window.close()},1500);
-  }
-})();
-</script>
+<title>🍎 Obstbau Manager · Oberinntalobst</title>
+<script>window._isOauthCallback=false;</script>
 <style>
 :root {
   --p:    #2d6a4f;
@@ -127,61 +112,45 @@ tr:hover td{background:#f9fcfa}
 </head>
 <body>
 
-<!-- PIN-Schutz -->
-<div id="pin-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px">
-  <div style="font-size:2rem">🍎</div>
-  <div style="font-size:1.1rem;font-weight:600;color:var(--txt)">Obstbau Manager</div>
-  <div style="font-size:.85rem;color:var(--txl)">Betrieb Kuenz · Tirol</div>
-  <input id="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="PIN eingeben"
-    style="margin-top:12px;padding:12px 20px;font-size:1.3rem;border:2px solid var(--bdr);border-radius:12px;text-align:center;width:180px;outline:none"
-    onkeydown="if(event.key==='Enter')checkPin()">
-  <button onclick="checkPin()" style="background:var(--p);color:#fff;border:none;border-radius:12px;padding:12px 32px;font-size:1rem;cursor:pointer">Öffnen</button>
-  <div id="pin-err" style="color:var(--crit);font-size:.85rem;min-height:1.2em"></div>
+<!-- LOGIN OVERLAY (Supabase Auth) -->
+<div id="login-overlay" style="display:flex;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px">
+  <div style="font-size:2.8rem">🍎</div>
+  <div style="font-size:1.2rem;font-weight:700;color:var(--txt)">Obstbau Manager</div>
+  <div style="font-size:.85rem;color:var(--txl)">Oberinntalobst GmbH · Erzeugerorganisation</div>
+  <div style="background:var(--card);border-radius:14px;padding:22px;max-width:360px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,.1);border:1px solid var(--bdr);margin-top:8px">
+    <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">Anmeldung</div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>E-Mail</label>
+      <input id="login-email" type="email" autocomplete="email" placeholder="name@betrieb.at"
+        onkeydown="if(event.key==='Enter')document.getElementById('login-pw').focus()" style="font-size:.95rem">
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label>Passwort</label>
+      <input id="login-pw" type="password" autocomplete="current-password" placeholder="••••••••"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button id="login-btn" onclick="doLogin()" class="btn btn-p" style="width:100%;padding:11px;font-size:.9rem">Anmelden</button>
+    <div id="login-err" style="color:var(--crit);font-size:.78rem;margin-top:10px;min-height:18px;text-align:center"></div>
+  </div>
+  <div style="font-size:.7rem;color:var(--txl);opacity:.7">Zugangsdaten vom EO-Administrator erhalten</div>
 </div>
-<script>
-(function(){
-  if(window._isOauthCallback) return;
-  const PIN='0816';
-  const KEY='obs_pin_ok';
-  function checkPin(){
-    const v=document.getElementById('pin-input').value;
-    if(v===PIN){
-      sessionStorage.setItem(KEY,'1');
-      document.getElementById('pin-overlay').style.display='none';
-    }else{
-      document.getElementById('pin-err').textContent='Falscher PIN – bitte nochmal versuchen.';
-      document.getElementById('pin-input').value='';
-      document.getElementById('pin-input').focus();
-    }
-  }
-  window.checkPin=checkPin;
-  document.addEventListener('DOMContentLoaded',function(){
-    if(location.hostname==='localhost'||sessionStorage.getItem(KEY)==='1'){
-      document.getElementById('pin-overlay').style.display='none';
-    }else{
-      document.getElementById('pin-overlay').style.display='flex';
-      setTimeout(()=>document.getElementById('pin-input').focus(),100);
-    }
-  });
-})();
-</script>
 
 <div class="hdr">
   <div>
-    <div class="hdr-sub">Betrieb Kuenz · Tirol</div>
+    <div class="hdr-sub" id="hdr-sub">Oberinntalobst GmbH</div>
     <div class="hdr-title">🍎 Obstbau Manager</div>
   </div>
   <div class="hdr-right">
-    <button class="btn btn-s btn-sm" onclick="cloudLoad()">☁️ Laden</button>
-    <button class="btn btn-s btn-sm" onclick="cloudSave()">☁️ Speichern</button>
-    <button class="btn btn-s btn-sm" id="btn-auth" onclick="openAuthMod()">🔑 Anmelden</button>
+    <button class="btn btn-s btn-sm" onclick="cloudLoad()" title="Daten neu laden">🔄</button>
+    <button class="btn btn-s btn-sm" id="btn-auth" onclick="openAuthMod()">👤 <span id="hdr-user">…</span></button>
+    <button class="btn btn-s btn-sm" onclick="supaSignOut()" title="Abmelden">🚪</button>
   </div>
 </div>
 
 <div class="sbar" id="sbar">
   <div class="sbar-dot warn" id="sbar-dot"></div>
   <span id="sbar-txt">Nicht angemeldet</span>
-  <span style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap">v 2026-08-19 · 10:58</span>
+  <span style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap">v 2026-08-19 · EO</span>
 </div>
 
 <nav class="nav">
@@ -192,12 +161,20 @@ tr:hover td{background:#f9fcfa}
   <div class="ntab" onclick="goSec('betriebsmittel',this)">🧪 Arbeit</div>
   <div class="ntab" onclick="goSec('referenz',this)">📋 Ref.</div>
   <div class="ntab" onclick="goSec('dashboard',this)">📈 Dash</div>
+  <div class="ntab" id="tab-eo" style="display:none" onclick="goSec('eo',this)">🏢 EO</div>
 </nav>
 
 <div class="main">
 
 <!-- DASHBOARD -->
 <div id="sec-dashboard" class="sec">
+  <!-- Gruppen-Übersicht (nur wenn User einer Gruppe angehört) -->
+  <div id="dash-gruppe-wrap" style="display:none;margin-bottom:12px">
+    <div class="card">
+      <div class="card-hdr" id="dash-gruppe-titel">Betriebsgruppe</div>
+      <div id="dash-gruppe-content"><div class="empty">⏳ Lade…</div></div>
+    </div>
+  </div>
   <div class="g2">
     <div>
       <div class="card">
@@ -367,14 +344,14 @@ tr:hover td{background:#f9fcfa}
 <!-- REFERENZ -->
 <div id="sec-referenz" class="sec">
   <div class="card">
-    <div class="card-hdr">📖 Anleitung OneDrive-Sync</div>
+    <div class="card-hdr">📖 Anleitung</div>
     <div class="infobox">
-      <strong>Einmalige Anmeldung:</strong><br><br>
-      1. App über <b>Obstbau_Starten.bat</b> öffnen (Doppelklick)<br>
-      2. Oben auf <b>🔑 Anmelden</b> klicken<br>
-      3. Im Popup mit Microsoft-Konto anmelden<br>
-      4. Danach ☁️ <b>Speichern</b> und ☁️ <b>Laden</b> verwenden<br><br>
-      Daten liegen in deiner OneDrive unter: <b>Apps / Kuenz Obstbau Manager / obstbau_data.json</b>
+      <strong>Anmeldung:</strong> E-Mail und Passwort eingeben (vom EO-Administrator erhalten).<br><br>
+      <strong>Datenspeicherung:</strong> Alle Daten werden automatisch in Supabase (EU-Server, Irland) gespeichert und alle Geräte synchronisiert.<br><br>
+      <strong>Rollen:</strong><br>
+      · <b>Betrieb</b> – sieht nur eigene Schläge und Erntedaten<br>
+      · <b>EO-Admin</b> – sieht alle Betriebe (Tab 🏢 EO)<br>
+      · <b>Lager</b> – Lagerverwaltung (in Entwicklung)
     </div>
   </div>
   <div class="card">
@@ -391,7 +368,74 @@ tr:hover td{background:#f9fcfa}
   </div>
 </div>
 
+<!-- EO ÜBERSICHT -->
+<div id="sec-eo" class="sec">
+  <div class="btn-row">
+    <div class="sec-title" style="margin:0">🏢 EO Übersicht · Oberinntalobst</div>
+    <button class="btn btn-p btn-sm" style="margin-left:auto" onclick="openBetriebMod()">+ Betrieb</button>
+    <button class="btn btn-s btn-sm" onclick="renderEO()">🔄 Aktualisieren</button>
+  </div>
+
+  <!-- Betriebsregister -->
+  <div class="card">
+    <div class="card-hdr">Mitgliedsbetriebe</div>
+    <div id="eo-betriebe-wrap">
+      <div class="empty">Lade Betriebe…</div>
+    </div>
+  </div>
+
+  <!-- EO Ernte-Übersicht -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-hdr" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Erntemengen gesamt · <select id="eo-jahr-sel" onchange="renderEOErnte()" style="border:1px solid var(--bdr);border-radius:5px;padding:3px 6px;font-size:.78rem;background:#fff"></select></span>
+      <span id="eo-gesamt-badge" class="bdg bdg-g"></span>
+    </div>
+    <div id="eo-ernte-wrap">
+      <div class="empty">Wähle ein Erntejahr</div>
+    </div>
+  </div>
+
+  <!-- EO Prognose-Übersicht -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-hdr">Prognosen gesamt</div>
+    <div id="eo-prog-wrap">
+      <div class="empty">–</div>
+    </div>
+  </div>
+</div>
+
 </div><!-- main -->
+
+<!-- MODAL: Betrieb anlegen/bearbeiten (EO-Admin) -->
+<div class="mov" id="mod-betrieb">
+  <div class="mod" style="max-width:440px">
+    <div class="mod-hdr">
+      <div class="mod-title" id="mb-title">Betrieb anlegen</div>
+      <button class="mod-x" onclick="closeMod('mod-betrieb')">✕</button>
+    </div>
+    <div class="fg2">
+      <div class="fg"><label>Name</label><input id="mb-name" placeholder="z.B. Mustermann Franz"></div>
+      <div class="fg"><label>Kürzel (2-3 Buchst.)</label><input id="mb-kuerzel" placeholder="z.B. MF" maxlength="4" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+      <div class="fg fw"><label>E-Mail</label><input id="mb-email" type="email" placeholder="franz@betrieb.at"></div>
+      <div class="fg fw"><label>Ort / Adresse</label><input id="mb-ort" placeholder="z.B. Haiming, Tirol"></div>
+      <div class="fg fw">
+        <label>Supabase Auth E-Mail (für Login)</label>
+        <input id="mb-auth-email" type="email" placeholder="Gleich wie E-Mail oder abweichend">
+      </div>
+      <div class="fg fw">
+        <label>Startpasswort</label>
+        <input id="mb-auth-pw" type="text" placeholder="Muss Betrieb nach 1. Login ändern">
+        <div style="font-size:.7rem;color:var(--txl);margin-top:2px">Mindestens 8 Zeichen. Betrieb erhält per Mail Zugangsdaten.</div>
+      </div>
+    </div>
+    <div id="mb-err" style="color:var(--crit);font-size:.78rem;margin-top:6px;min-height:16px"></div>
+    <div class="mod-ft">
+      <button class="btn btn-s" onclick="closeMod('mod-betrieb')">Abbrechen</button>
+      <button class="btn btn-d btn-sm" id="mb-del" style="display:none" onclick="delBetrieb()">Löschen</button>
+      <button class="btn btn-p" onclick="saveBetrieb()">Speichern</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: Lagerorte -->
 <div class="mov" id="mod-lager">
@@ -607,34 +651,23 @@ tr:hover td{background:#f9fcfa}
   </div>
 </div>
 
-<!-- MODAL: Microsoft Login -->
+<!-- MODAL: Benutzerprofil -->
 <div class="mov" id="mod-login">
-  <div class="mod" style="max-width:440px">
+  <div class="mod" style="max-width:380px">
     <div class="mod-hdr">
-      <div class="mod-title">☁️ OneDrive-Anmeldung</div>
+      <div class="mod-title">👤 Angemeldet</div>
       <button class="mod-x" onclick="closeMod('mod-login')">✕</button>
     </div>
-    <div id="login-s-loading">
-      <p style="font-size:.85rem;margin-bottom:16px;color:var(--txl)">Daten werden sicher in deiner persönlichen OneDrive gespeichert.</p>
-      <button class="btn btn-p" onclick="startLogin()">🔑 Mit Microsoft anmelden</button>
-    </div>
-    <div id="login-s-code" style="display:none">
-      <div class="infobox">
-        Code wird angezeigt – bitte warten…
-        <div id="login-code" style="font-size:1.8rem;font-weight:800;letter-spacing:.15em;color:var(--pd);text-align:center;padding:10px 0;font-family:monospace;background:var(--bg);border-radius:8px;margin:8px 0"></div>
+    <div style="font-size:.85rem;line-height:1.7">
+      <div style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:12px">
+        <div><b>Betrieb:</b> <span id="prof-betrieb">–</span></div>
+        <div><b>Rolle:</b> <span id="prof-rolle">–</span></div>
+        <div><b>E-Mail:</b> <span id="prof-email">–</span></div>
+        <div style="margin-top:6px;font-size:.72rem;color:var(--txl)"><b>Server:</b> Supabase EU-West (Irland) · Oberinntalobst</div>
       </div>
+      <button class="btn btn-p" style="width:100%;margin-bottom:8px" onclick="cloudLoad();closeMod('mod-login')">🔄 Daten neu laden</button>
+      <button class="btn btn-d" style="width:100%" onclick="supaSignOut()">🚪 Abmelden</button>
     </div>
-    <div id="login-s-done" style="display:none">
-      <div style="text-align:center;padding:20px;color:var(--p);font-size:1.1rem;font-weight:700">✅ Erfolgreich angemeldet!</div>
-    </div>
-    <div id="login-s-loggedin" style="display:none">
-      <div style="color:var(--p);font-size:.85rem;margin-bottom:16px">
-        ✅ Du bist mit Microsoft angemeldet.<br>
-        <span style="color:var(--txl)">Daten werden in OneDrive unter Apps/Kuenz Obstbau Manager gespeichert.</span>
-      </div>
-      <button class="btn btn-d btn-sm" onclick="odLogout()">Abmelden</button>
-    </div>
-    <div id="login-err" style="color:var(--crit);font-size:.78rem;margin-top:8px;min-height:18px"></div>
   </div>
 </div>
 
@@ -1397,211 +1430,219 @@ function getFeldDisplay(name){
   return f?f.nummer+'. '+name:name;
 }
 
+// ═══════════════════════════════════════════════════
+// Supabase Auth + Konfiguration
+// ═══════════════════════════════════════════════════
+const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
+const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
+
+let _supaSession=null;       // { access_token, refresh_token, user }
+let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
+let _meinBetriebId=null;     // UUID
+let _meinBetriebName=null;   // Anzeigename
+let _meineGruppeId=null;     // UUID der Betriebsgruppe (z.B. Familie Kuenz)
+let _gruppenBetriebe=[];     // [{id, name, kuerzel}] aller Betriebe in meiner Gruppe
 let _cloudSaveTimer=null;
-let _cloudDirty=false; // true = lokale Änderungen noch nicht in OneDrive
+let _cloudDirty=false;
 
-function scheduleSave(){
-  lsSave();
-  _cloudDirty=true;
-  updateSbar('warn','💾 Ungespeicherte Änderungen…');
-  clearTimeout(_cloudSaveTimer);
-  _cloudSaveTimer=setTimeout(async()=>{
-    if(!isLoggedIn()) return;
-    try{
-      await cloudSave();
-      _cloudDirty=false;
-    }catch(e){
-      updateSbar('err','⚠ Auto-Speichern fehlgeschlagen');
-    }
-  }, 3000);
-}
-
-// ═══════════════════════════════════════════════════
-// OneDrive / Microsoft Graph (PKCE)
-// ═══════════════════════════════════════════════════
-const GRAPH_CLIENT_ID='6ade15a3-b25b-49bb-a9ce-8cbefc92a355';
-const GRAPH_TENANT='common';
-const GRAPH_SCOPE='https://graph.microsoft.com/Files.ReadWrite.AppFolder offline_access';
-const GRAPH_FILE='obstbau_data.json';
-const REDIRECT_URI=location.hostname==='localhost'
-  ?'http://localhost:8080/obstbau_manager.html'
-  :'https://kuenz-9991.github.io/obstbau/obstbau_manager.html';
-
-function getOdToken(){try{return JSON.parse(localStorage.getItem('obs_od_token')||'null')}catch(e){return null}}
-function setOdToken(t){localStorage.setItem('obs_od_token',JSON.stringify(t))}
-function clearOdToken(){localStorage.removeItem('obs_od_token')}
-function isLoggedIn(){const t=getOdToken();return!!(t&&t.refresh_token)}
-
-function b64url(buf){
-  const bytes=buf instanceof ArrayBuffer?new Uint8Array(buf):buf;
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
-}
-function genVerifier(){return b64url(crypto.getRandomValues(new Uint8Array(32)))}
-async function genChallenge(v){return b64url(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)))}
-
-async function ensureAccessToken(){
-  let t=getOdToken();
-  if(!t||!t.refresh_token) throw new Error('Nicht angemeldet');
-  if(!t.expires_at||Date.now()>t.expires_at-300000){
-    const r=await fetch(`https://login.microsoftonline.com/${GRAPH_TENANT}/oauth2/v2.0/token`,{
-      method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:new URLSearchParams({client_id:GRAPH_CLIENT_ID,grant_type:'refresh_token',
-        refresh_token:t.refresh_token,scope:GRAPH_SCOPE})
-    });
-    const d=await r.json();
-    if(d.error) throw new Error(d.error_description||d.error);
-    t={access_token:d.access_token,refresh_token:d.refresh_token||t.refresh_token,
-       expires_at:Date.now()+d.expires_in*1000};
-    setOdToken(t);
-  }
-  return t.access_token;
-}
-
-let _authMsgHandler=null;
-
-function isAllowedHost(){return location.hostname==='localhost'||location.hostname==='kuenz-9991.github.io';}
-async function startLogin(){
-  if(!isAllowedHost()){
-    document.getElementById('login-err').textContent='Bitte Obstbau_Starten.bat zum Öffnen verwenden.';
-    return;
-  }
-  document.getElementById('login-err').textContent='';
-  showLoginStep('loading');
-  document.getElementById('login-s-loading').innerHTML='<div style="color:var(--txl);font-size:.82rem">⏳ Microsoft-Anmeldefenster wird geöffnet…</div>';
-
-  const verifier=genVerifier();
-  const challenge=await genChallenge(verifier);
-  const state=b64url(crypto.getRandomValues(new Uint8Array(8)));
-  sessionStorage.setItem('pkce_v',verifier);
-  sessionStorage.setItem('oauth_s',state);
-
-  const url=new URL(`https://login.microsoftonline.com/${GRAPH_TENANT}/oauth2/v2.0/authorize`);
-  url.searchParams.set('client_id',GRAPH_CLIENT_ID);
-  url.searchParams.set('response_type','code');
-  url.searchParams.set('redirect_uri',REDIRECT_URI);
-  url.searchParams.set('scope',GRAPH_SCOPE);
-  url.searchParams.set('state',state);
-  url.searchParams.set('code_challenge',challenge);
-  url.searchParams.set('code_challenge_method','S256');
-
-  if(_authMsgHandler) window.removeEventListener('message',_authMsgHandler);
-  _authMsgHandler=async function(e){
-    if(!e.data||e.data.type!=='obstbau_oauth') return;
-    if(e.data.state!==sessionStorage.getItem('oauth_s')){
-      document.getElementById('login-err').textContent='Sicherheitsfehler – bitte nochmal versuchen';return;
-    }
-    window.removeEventListener('message',_authMsgHandler);
-    showLoginStep('loading');
-    document.getElementById('login-s-loading').innerHTML='<div style="color:var(--txl);font-size:.82rem">⏳ Token wird abgerufen…</div>';
-    try{
-      await exchangeCode(e.data.code);
-      showLoginStep('done');
-      updateAuthUI();
-      setTimeout(async()=>{closeMod('mod-login');await cloudLoad();},800);
-    }catch(ex){
-      resetLoginBtn();
-      document.getElementById('login-err').textContent='⚠ '+ex.message;
-    }
+function supaHeaders(useAnon=false){
+  const tok=(useAnon||!_supaSession)?SUPA_KEY:_supaSession.access_token;
+  return {
+    'apikey':SUPA_KEY,
+    'Authorization':'Bearer '+tok,
+    'Content-Type':'application/json',
+    'Prefer':'return=minimal'
   };
-  window.addEventListener('message',_authMsgHandler);
+}
 
-  const popup=window.open(url.toString(),'mslogin','width=520,height=660,left=200,top=80');
-  if(!popup){
-    resetLoginBtn();
-    document.getElementById('login-err').textContent='⚠ Popup blockiert! Bitte Popup-Blocker für localhost deaktivieren.';
+// ── Login / Logout ──────────────────────────────────
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pw=document.getElementById('login-pw').value;
+  const btn=document.getElementById('login-btn');
+  const err=document.getElementById('login-err');
+  if(!email||!pw){err.textContent='Bitte E-Mail und Passwort eingeben.';return;}
+  err.textContent='';btn.disabled=true;btn.textContent='⏳ Anmelden…';
+  try{
+    const r=await fetch(SUPA_URL+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pw})
+    });
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error_description||data.msg||'Anmeldung fehlgeschlagen');
+    _supaSession=data;
+    sessionStorage.setItem('obs_session',JSON.stringify(data));
+    await _loadUserRolle();
+    document.getElementById('login-overlay').style.display='none';
+    updateAuthUI();
+    await cloudLoad();
+    updateEOTabVisibility();
+    toast('✓ Willkommen, '+_meinBetriebName+'!');
+  }catch(e){
+    err.textContent=e.message;
+    btn.disabled=false;btn.textContent='Anmelden';
   }
 }
 
-async function exchangeCode(code){
-  const r=await fetch(`https://login.microsoftonline.com/${GRAPH_TENANT}/oauth2/v2.0/token`,{
-    method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:new URLSearchParams({client_id:GRAPH_CLIENT_ID,grant_type:'authorization_code',
-      code,redirect_uri:REDIRECT_URI,code_verifier:sessionStorage.getItem('pkce_v'),scope:GRAPH_SCOPE})
-  });
-  const d=await r.json();
-  if(d.error) throw new Error(d.error_description||d.error);
-  setOdToken({access_token:d.access_token,refresh_token:d.refresh_token,
-    expires_at:Date.now()+d.expires_in*1000});
+async function supaSignOut(){
+  if(_supaSession){
+    fetch(SUPA_URL+'/auth/v1/logout',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_supaSession.access_token}
+    }).catch(()=>{});
+  }
+  _supaSession=null;_meineRolle=null;_meinBetriebId=null;_meinBetriebName=null;
+  sessionStorage.removeItem('obs_session');
+  lsSave();
+  document.getElementById('login-overlay').style.display='flex';
 }
 
-function resetLoginBtn(){
-  document.getElementById('login-s-loading').innerHTML='<p style="font-size:.85rem;margin-bottom:16px;color:var(--txl)">Daten werden sicher in deiner persönlichen OneDrive gespeichert.</p><button class="btn btn-p" onclick="startLogin()">🔑 Mit Microsoft anmelden</button>';
-  showLoginStep('loading');
+async function _supaRefresh(){
+  if(!_supaSession?.refresh_token) return false;
+  try{
+    const r=await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:_supaSession.refresh_token})
+    });
+    if(!r.ok) return false;
+    _supaSession=await r.json();
+    sessionStorage.setItem('obs_session',JSON.stringify(_supaSession));
+    return true;
+  }catch(e){return false;}
 }
 
-function showLoginStep(step){
-  ['loading','code','done','loggedin'].forEach(s=>{
-    const el=document.getElementById('login-s-'+s);
-    if(el) el.style.display=s===step?'block':'none';
-  });
+async function _supaFetch(url,opts={}){
+  let r=await fetch(url,opts);
+  if(r.status===401){
+    const ok=await _supaRefresh();
+    if(ok){
+      // retry with new token
+      if(opts.headers) opts.headers['Authorization']='Bearer '+_supaSession.access_token;
+      r=await fetch(url,opts);
+    }
+  }
+  return r;
 }
+
+async function _loadUserRolle(){
+  const uid=_supaSession?.user?.id;
+  if(!uid) throw new Error('Keine User-ID');
+  const r=await fetch(SUPA_URL+'/rest/v1/user_rollen?user_id=eq.'+uid+'&select=rolle,betrieb_id,betriebe(name,kuerzel)',{
+    headers:supaHeaders()
+  });
+  if(!r.ok) throw new Error('Rolle konnte nicht geladen werden ('+r.status+')');
+  const rows=await r.json();
+  if(!rows.length) throw new Error('Kein Betrieb zugewiesen. Bitte EO-Administrator kontaktieren.');
+  const eoRow=rows.find(x=>x.rolle==='eo_admin');
+  if(eoRow){
+    _meineRolle='eo_admin';
+    _meinBetriebId=eoRow.betrieb_id;
+    _meinBetriebName=eoRow.betriebe?.name||'EO-Admin';
+  }else{
+    const row=rows.find(x=>x.rolle==='betrieb')||rows[0];
+    _meineRolle=row.rolle;
+    _meinBetriebId=row.betrieb_id;
+    _meinBetriebName=row.betriebe?.name||'Betrieb';
+  }
+  // Gruppe laden falls vorhanden
+  const gruppeRow=rows.find(x=>x.gruppe_id);
+  if(gruppeRow?.gruppe_id){
+    _meineGruppeId=gruppeRow.gruppe_id;
+    await _loadGruppeBetriebe();
+  }
+}
+
+async function _loadGruppeBetriebe(){
+  if(!_meineGruppeId) return;
+  try{
+    const r=await fetch(SUPA_URL+'/rest/v1/betriebsgruppe_mitglieder?gruppe_id=eq.'+_meineGruppeId+'&select=betrieb_id,betriebe(id,name,kuerzel)',{
+      headers:supaHeaders()
+    });
+    if(!r.ok) return;
+    const rows=await r.json();
+    _gruppenBetriebe=rows.map(r=>r.betriebe).filter(Boolean);
+  }catch(e){console.warn('Gruppe laden:',e.message);}
+}
+
+function isLoggedIn(){return !!_supaSession;}
 
 function openAuthMod(){
-  document.getElementById('login-err').textContent='';
-  resetLoginBtn();
-  if(isLoggedIn()) showLoginStep('loggedin');
+  if(!_supaSession){document.getElementById('login-overlay').style.display='flex';return;}
+  document.getElementById('prof-betrieb').textContent=_meinBetriebName||'–';
+  document.getElementById('prof-rolle').textContent=_meineRolle||'–';
+  document.getElementById('prof-email').textContent=_supaSession?.user?.email||'–';
   openMod('mod-login');
 }
 
-function odLogout(){
-  clearOdToken();
-  updateAuthUI();
-  closeMod('mod-login');
-  toast('Abgemeldet');
+function updateAuthUI(){
+  const hdrUser=document.getElementById('hdr-user');
+  const hdrSub=document.getElementById('hdr-sub');
+  if(hdrUser) hdrUser.textContent=_meinBetriebName||'…';
+  if(hdrSub) hdrSub.textContent=
+    _meineRolle==='eo_admin'?'EO-Admin · Oberinntalobst':
+    (_meinBetriebName||'Oberinntalobst GmbH');
+  if(_supaSession){
+    updateSbar('ok','✅ '+(_meinBetriebName||'')+ ' · '+(_meineRolle||''));
+  }else{
+    updateSbar('err','Nicht angemeldet');
+  }
+}
+
+function updateEOTabVisibility(){
+  const tab=document.getElementById('tab-eo');
+  if(tab) tab.style.display=(_meineRolle==='eo_admin')?'':'none';
+}
+
+// ── Cloud Save / Load ────────────────────────────────
+function scheduleSave(){
+  lsSave();_cloudDirty=true;
+  updateSbar('warn','💾 Ungespeicherte Änderungen…');
+  clearTimeout(_cloudSaveTimer);
+  _cloudSaveTimer=setTimeout(async()=>{
+    try{await cloudSave();_cloudDirty=false;}
+    catch(e){updateSbar('err','⚠ Auto-Speichern fehlgeschlagen');}
+  },3000);
 }
 
 async function cloudSave(){
-  if(!isLoggedIn()){openAuthMod();return;}
-  updateSbar('warn','⏳ Wird in OneDrive gespeichert…');
+  if(!_supaSession||!_meinBetriebId){toast('⚠ Bitte zuerst anmelden');return;}
+  updateSbar('warn','⏳ Wird gespeichert…');
   try{
-    const tok=await ensureAccessToken();
-    const r=await fetch(`https://graph.microsoft.com/v1.0/me/drive/special/approot:/${GRAPH_FILE}:/content`,{
-      method:'PUT',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
-      body:JSON.stringify(D)
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data',{
+      method:'POST',
+      headers:{...supaHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify({betrieb_id:_meinBetriebId,data:D,updated_at:new Date().toISOString()})
     });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    lsSave();
-    _cloudDirty=false;
-    clearTimeout(_cloudSaveTimer);
+    if(!r.ok){const t=await r.text();throw new Error('HTTP '+r.status+' '+t);}
+    lsSave();_cloudDirty=false;clearTimeout(_cloudSaveTimer);
     const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
-    updateSbar('ok','☁️ OneDrive gespeichert · '+t);
-    toast('✓ In OneDrive gespeichert');
-  }catch(e){updateSbar('err','⚠ '+e.message);toast('⚠ '+e.message);}
+    updateSbar('ok','☁️ Gespeichert · '+t);
+  }catch(e){updateSbar('err','⚠ '+e.message);toast('⚠ '+e.message);throw e;}
 }
 
 async function cloudLoad(){
-  if(!isLoggedIn()){openAuthMod();return;}
-  updateSbar('warn','⏳ Wird aus OneDrive geladen…');
+  if(!_supaSession||!_meinBetriebId){toast('⚠ Bitte zuerst anmelden');return;}
+  updateSbar('warn','⏳ Wird geladen…');
   try{
-    const tok=await ensureAccessToken();
-    const r=await fetch(`https://graph.microsoft.com/v1.0/me/drive/special/approot:/${GRAPH_FILE}:/content`,{
-      headers:{'Authorization':'Bearer '+tok}
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data?betrieb_id=eq.'+_meinBetriebId+'&select=data',{
+      headers:supaHeaders()
     });
-    if(r.status===404){toast('Noch keine Daten in OneDrive – wird jetzt angelegt');await cloudSave();return;}
     if(!r.ok) throw new Error('HTTP '+r.status);
-    D=await r.json();
-    mergeNewSchlage();
-    migrateD();
-    lsSave();
-    const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
-    updateSbar('ok','☁️ Aus OneDrive geladen · '+t);
-    renderAll();
-    toast('✓ Daten geladen');
+    const rows=await r.json();
+    if(!rows.length){
+      lsLoad();migrateD();
+      await cloudSave();
+      toast('✓ Lokale Daten nach Supabase übertragen');
+    }else{
+      D=rows[0].data;migrateD();lsSave();
+      const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
+      updateSbar('ok','☁️ Geladen · '+t);
+      renderAll();
+      toast('✓ Daten geladen');
+    }
   }catch(e){updateSbar('err','⚠ '+e.message);toast('⚠ '+e.message);}
-}
-
-function updateAuthUI(){
-  const btn=document.getElementById('btn-auth');
-  if(isLoggedIn()){
-    btn.textContent='👤 Microsoft';
-    updateSbar('ok','☁️ OneDrive verbunden · mit ☁️ Laden/Speichern synchronisieren');
-  }else if(!isAllowedHost()){
-    btn.textContent='⚠️ Starter';
-    updateSbar('warn','Bitte Obstbau_Starten.bat zum Öffnen verwenden');
-  }else{
-    btn.textContent='🔑 Anmelden';
-    updateSbar('warn','Nicht angemeldet – klicke 🔑 Anmelden');
-  }
 }
 
 function updateSbar(state,msg){
@@ -1624,6 +1665,7 @@ function goSec(id,tab){
   if(id==='ernte'){fillJahrSel('ernte-jahr-sel',()=>renderErnteIst());}
   if(id==='ernteprognose'){fillJahrSel('prognose-jahr-sel',()=>renderErntePrognose());}
   if(id==='referenz') renderRef();
+  if(id==='eo') renderEO();
 }
 function fillJahrSel(selId,cb){
   const sel=document.getElementById(selId);if(!sel)return;
@@ -1645,6 +1687,7 @@ function renderAll(){
     if(id==='betriebsmittel') renderBm();
     if(id==='ernte') renderErnte();
     if(id==='referenz') renderRef();
+    if(id==='eo') renderEO();
   }
 }
 
@@ -1657,7 +1700,62 @@ function bbchName(b){
   return n;
 }
 
-function renderDash(){renderBbchOv();renderWarn();renderRecent();}
+function renderDash(){renderBbchOv();renderWarn();renderRecent();renderGruppeDash();}
+
+async function renderGruppeDash(){
+  const wrap=document.getElementById('dash-gruppe-wrap');
+  const content=document.getElementById('dash-gruppe-content');
+  const titel=document.getElementById('dash-gruppe-titel');
+  if(!wrap) return;
+  // Nur anzeigen wenn Gruppe vorhanden und mehr als 1 Betrieb
+  if(!_meineGruppeId||_gruppenBetriebe.length<=1){wrap.style.display='none';return;}
+  wrap.style.display='';
+  titel.textContent='Betriebsgruppe — '+_gruppenBetriebe.map(b=>b.name).join(' · ');
+  content.innerHTML='<div class="empty">⏳ Lade Betriebsdaten…</div>';
+  // Daten aller Betriebe in der Gruppe laden
+  try{
+    const betriebIds=_gruppenBetriebe.map(b=>"'"+b.id+"'").join(',');
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data?betrieb_id=in.('+betriebIds+')&select=betrieb_id,data',{
+      headers:supaHeaders()
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const rows=await r.json();
+    // Ernte-Ist pro Betrieb aggregieren
+    const cy=new Date().getFullYear();
+    const items=_gruppenBetriebe.map(b=>{
+      const row=rows.find(r=>r.betrieb_id===b.id);
+      const data=row?.data||{};
+      const buchungen=(data.ernte_ist||[]).filter(e=>{
+        const y=e.datum?parseInt(e.datum.slice(0,4)):0;
+        return y===cy;
+      });
+      let tafelGK=0,verGK=0;
+      buchungen.forEach(e=>{
+        (e.buchungen||[]).forEach(bu=>{
+          tafelGK+=(bu.tafel_gk||bu.gk||0);
+          verGK+=(bu.verarbeitung_gk||0);
+        });
+      });
+      const schlageAnz=(data.schlage||[]).length;
+      const offMassn=(data.massnahmen||[]).filter(m=>!m.erledigt).length;
+      return {b,tafelGK,verGK,schlageAnz,offMassn};
+    });
+    content.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">'+
+      items.map(({b,tafelGK,verGK,schlageAnz,offMassn})=>`
+        <div style="background:var(--bg);border-radius:8px;padding:12px;border:1px solid var(--bdr)">
+          <div style="font-weight:700;font-size:.88rem;color:var(--pd);margin-bottom:6px">${b.kuerzel||''} ${b.name}</div>
+          <div style="font-size:.78rem;color:var(--txl);line-height:1.8">
+            <div>🌳 ${schlageAnz} Schläge</div>
+            <div>📦 Tafel: <b>${tafelGK}</b> GK</div>
+            ${verGK?`<div>🐛 Verarb.: <b>${verGK}</b> GK</div>`:''}
+            ${offMassn?`<div style="color:var(--warn)">📝 ${offMassn} offene Maßnahmen</div>`:''}
+          </div>
+        </div>`).join('')+
+      '</div><div style="font-size:.7rem;color:var(--txl);margin-top:8px;text-align:right">Erntejahr '+cy+'</div>';
+  }catch(e){
+    content.innerHTML='<div class="empty">⚠ '+e.message+'</div>';
+  }
+}
 
 function renderBbchOv(){
   const el=document.getElementById('bbch-ov');
@@ -3372,6 +3470,233 @@ function renderErnteIst(){
 
 
 // ═══════════════════════════════════════════════════
+// EO VERWALTUNG (eo_admin)
+// ═══════════════════════════════════════════════════
+
+let _eoBetriebe=[];   // Liste aller Betriebe aus Supabase
+let _eoEditId=null;   // aktuell bearbeiteter Betrieb
+
+async function renderEO(){
+  if(_meineRolle!=='eo_admin'){document.getElementById('eo-betriebe-wrap').innerHTML='<div class="empty">Kein Zugriff.</div>';return;}
+  await _loadEOBetriebe();
+  _renderEOBetriebeListe();
+  _fillEOJahrSel();
+  renderEOErnte();
+  renderEOProg();
+}
+
+async function _loadEOBetriebe(){
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebe?order=name&select=*',{headers:supaHeaders()});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    _eoBetriebe=await r.json();
+  }catch(e){toast('⚠ Betriebe: '+e.message);}
+}
+
+function _renderEOBetriebeListe(){
+  const el=document.getElementById('eo-betriebe-wrap');
+  if(!_eoBetriebe.length){el.innerHTML='<div class="empty">Keine Betriebe angelegt.</div>';return;}
+  el.innerHTML='<div class="twrap"><table><thead><tr><th>Kürzel</th><th>Name</th><th>Ort</th><th>E-Mail</th><th>Aktiv</th><th></th></tr></thead><tbody>'+
+    _eoBetriebe.map(b=>`<tr>
+      <td><b>${b.kuerzel||'–'}</b></td>
+      <td>${b.name}</td>
+      <td>${b.ort||'–'}</td>
+      <td>${b.email||'–'}</td>
+      <td>${b.aktiv?'✅':'❌'}</td>
+      <td><button class="btn btn-s btn-sm" onclick="openBetriebMod('${b.id}')">✏️</button></td>
+    </tr>`).join('')+'</tbody></table></div>';
+}
+
+function _fillEOJahrSel(){
+  const sel=document.getElementById('eo-jahr-sel');if(!sel)return;
+  const cy=new Date().getFullYear();
+  let opts='';
+  for(let y=cy+1;y>=cy-3;y--) opts+=`<option value="${y}"${y===cy?' selected':''}>${y}</option>`;
+  sel.innerHTML=opts;
+}
+
+async function renderEOErnte(){
+  const el=document.getElementById('eo-ernte-wrap');
+  const sel=document.getElementById('eo-jahr-sel');
+  const jahr=sel?parseInt(sel.value):new Date().getFullYear();
+  el.innerHTML='<div class="empty">⏳ Lade…</div>';
+  // Load all betrieb_data rows (eo_admin can see all via RLS)
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data?select=betrieb_id,data',{headers:supaHeaders()});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const rows=await r.json();
+    // Aggregate by Sorte across all Betriebe
+    const sortenMap={};
+    let gesamtGK=0;
+    rows.forEach(row=>{
+      const betrieb=_eoBetriebe.find(b=>b.id===row.betrieb_id);
+      const bName=betrieb?betrieb.name:'Unbekannt';
+      const bKuerzel=betrieb?betrieb.kuerzel:'?';
+      const data=row.data||{};
+      const buchungen=(data.ernte_ist||[]).filter(b=>{
+        const y=b.datum?parseInt(b.datum.slice(0,4)):0;
+        return y===jahr;
+      });
+      buchungen.forEach(b=>{
+        const schlage=data.schlage||[];
+        const sch=schlage.find(s=>s.id===b.schlag_id)||{sorte:'Unbekannt',los_nr:''};
+        const sorte=(sch.sorte||'Unbekannt');
+        const key=sorte;
+        if(!sortenMap[key]) sortenMap[key]={sorte,tafel:0,ver:0,betriebe:{}};
+        (b.buchungen||[]).forEach(bu=>{
+          const tgk=bu.tafel_gk||bu.gk||0;
+          const vgk=bu.verarbeitung_gk||0;
+          sortenMap[key].tafel+=tgk;
+          sortenMap[key].ver+=vgk;
+          gesamtGK+=tgk+vgk;
+          if(!sortenMap[key].betriebe[bKuerzel]) sortenMap[key].betriebe[bKuerzel]={tafel:0,ver:0};
+          sortenMap[key].betriebe[bKuerzel].tafel+=tgk;
+          sortenMap[key].betriebe[bKuerzel].ver+=vgk;
+        });
+      });
+    });
+    const sortenArr=Object.values(sortenMap).sort((a,b)=>(b.tafel+b.ver)-(a.tafel+a.ver));
+    const badge=document.getElementById('eo-gesamt-badge');
+    if(badge) badge.textContent=gesamtGK+' GK gesamt';
+    if(!sortenArr.length){el.innerHTML='<div class="empty">Keine Erntedaten für '+jahr+'</div>';return;}
+    const betriebKeys=[...new Set(sortenArr.flatMap(s=>Object.keys(s.betriebe)))].sort();
+    el.innerHTML='<div class="twrap"><table><thead><tr><th>Sorte</th>'+
+      betriebKeys.map(k=>`<th>${k}<br><span style="font-weight:400;font-size:.68rem">T / V</span></th>`).join('')+
+      '<th>Total GK</th></tr></thead><tbody>'+
+      sortenArr.map(s=>{
+        const total=s.tafel+s.ver;
+        return `<tr><td><b>${s.sorte}</b></td>`+
+          betriebKeys.map(k=>{
+            const e=s.betriebe[k];
+            return e?`<td>${e.tafel?'<span class="bdg bdg-g">'+e.tafel+'</span>':''} ${e.ver?'<span style="background:#fff3e0;color:#a0440a;padding:2px 5px;border-radius:10px;font-size:.68rem;font-weight:700">🐛'+e.ver+'</span>':''}</td>`:'<td style="color:#ccc">–</td>';
+          }).join('')+
+          `<td><b>${total}</b></td></tr>`;
+      }).join('')+'</tbody></table></div>';
+  }catch(e){el.innerHTML='<div class="empty">⚠ '+e.message+'</div>';}
+}
+
+async function renderEOProg(){
+  const el=document.getElementById('eo-prog-wrap');
+  el.innerHTML='<div class="empty">⏳ Lade…</div>';
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data?select=betrieb_id,data',{headers:supaHeaders()});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const rows=await r.json();
+    const cy=new Date().getFullYear();
+    const sortenMap={};
+    rows.forEach(row=>{
+      const betrieb=_eoBetriebe.find(b=>b.id===row.betrieb_id);
+      const bKuerzel=betrieb?betrieb.kuerzel:'?';
+      const data=row.data||{};
+      (data.prognosen||[]).filter(p=>p.jahr===cy).forEach(p=>{
+        const sch=(data.schlage||[]).find(s=>s.id===p.schlag_id)||{};
+        const sorte=sch.sorte||'Unbekannt';
+        const zus=(p.werte||{}).zus_prog||0;
+        if(!sortenMap[sorte]) sortenMap[sorte]={sorte,betriebe:{},gesamt:0};
+        sortenMap[sorte].betriebe[bKuerzel]=(sortenMap[sorte].betriebe[bKuerzel]||0)+zus;
+        sortenMap[sorte].gesamt+=zus;
+      });
+    });
+    const arr=Object.values(sortenMap).sort((a,b)=>b.gesamt-a.gesamt);
+    if(!arr.length){el.innerHTML='<div class="empty">Keine Prognosen für '+cy+'</div>';return;}
+    el.innerHTML='<div class="twrap"><table><thead><tr><th>Sorte</th><th>Prognose '+cy+' (GK)</th></tr></thead><tbody>'+
+      arr.map(s=>`<tr><td><b>${s.sorte}</b></td><td>${s.gesamt} GK</td></tr>`).join('')+'</tbody></table></div>';
+  }catch(e){el.innerHTML='<div class="empty">⚠ '+e.message+'</div>';}
+}
+
+// ── Betrieb Modal ────────────────────────────────────
+function openBetriebMod(id=null){
+  _eoEditId=id;
+  const b=id?(_eoBetriebe.find(x=>x.id===id)||{}):null;
+  document.getElementById('mb-title').textContent=b?'Betrieb bearbeiten':'Betrieb anlegen';
+  document.getElementById('mb-name').value=b?b.name:'';
+  document.getElementById('mb-kuerzel').value=b?b.kuerzel:'';
+  document.getElementById('mb-email').value=b?b.email:'';
+  document.getElementById('mb-ort').value=b?b.ort:'';
+  document.getElementById('mb-auth-email').value='';
+  document.getElementById('mb-auth-pw').value='';
+  document.getElementById('mb-err').textContent='';
+  document.getElementById('mb-del').style.display=b?'':'none';
+  openMod('mod-betrieb');
+}
+
+async function saveBetrieb(){
+  const name=v('mb-name');const kuerzel=v('mb-kuerzel');
+  const email=v('mb-email');const ort=v('mb-ort');
+  const authEmail=v('mb-auth-email');const authPw=v('mb-auth-pw');
+  if(!name){document.getElementById('mb-err').textContent='Name ist Pflicht.';return;}
+  const btn=document.querySelector('#mod-betrieb .btn-p');
+  btn.disabled=true;btn.textContent='⏳';
+  document.getElementById('mb-err').textContent='';
+  try{
+    let betriebId=_eoEditId;
+    if(!betriebId){
+      // Neuer Betrieb anlegen
+      const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebe',{
+        method:'POST',
+        headers:{...supaHeaders(),'Prefer':'return=representation'},
+        body:JSON.stringify({name,kuerzel:kuerzel||null,email:email||null,ort:ort||null,aktiv:true})
+      });
+      if(!r.ok){const t=await r.text();throw new Error(t);}
+      const rows=await r.json();
+      betriebId=rows[0].id;
+      toast('✓ Betrieb angelegt: '+name);
+    }else{
+      // Bestehender Betrieb bearbeiten
+      const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebe?id=eq.'+betriebId,{
+        method:'PATCH',
+        headers:supaHeaders(),
+        body:JSON.stringify({name,kuerzel:kuerzel||null,email:email||null,ort:ort||null})
+      });
+      if(!r.ok){const t=await r.text();throw new Error(t);}
+      toast('✓ Betrieb aktualisiert');
+    }
+    // Supabase Auth User anlegen falls Daten vorhanden
+    if(authEmail&&authPw&&!_eoEditId){
+      const invR=await fetch(SUPA_URL+'/auth/v1/admin/users',{
+        method:'POST',
+        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_supaSession.access_token,'Content-Type':'application/json'},
+        body:JSON.stringify({email:authEmail,password:authPw,email_confirm:true})
+      });
+      if(invR.ok){
+        const invData=await invR.json();
+        // Rolle zuweisen
+        await _supaFetch(SUPA_URL+'/rest/v1/user_rollen',{
+          method:'POST',
+          headers:supaHeaders(),
+          body:JSON.stringify({user_id:invData.id,betrieb_id:betriebId,rolle:'betrieb'})
+        });
+        toast('✓ Login angelegt für: '+authEmail);
+      }else{
+        const er=await invR.json();
+        toast('⚠ Login-Anlage: '+(er.msg||er.message||'Fehler'));
+      }
+    }
+    closeMod('mod-betrieb');
+    await _loadEOBetriebe();
+    _renderEOBetriebeListe();
+  }catch(e){
+    document.getElementById('mb-err').textContent=e.message;
+  }finally{btn.disabled=false;btn.textContent='Speichern';}
+}
+
+async function delBetrieb(){
+  if(!_eoEditId) return;
+  const b=_eoBetriebe.find(x=>x.id===_eoEditId);
+  if(!confirm('Betrieb "'+( b?b.name:'?')+'" wirklich löschen?')) return;
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebe?id=eq.'+_eoEditId,{
+      method:'DELETE',headers:supaHeaders()
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    toast('✓ Betrieb gelöscht');
+    closeMod('mod-betrieb');
+    await _loadEOBetriebe();
+    _renderEOBetriebeListe();
+  }catch(e){document.getElementById('mb-err').textContent=e.message;}
+}
+
+// ═══════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════
 function openMod(id){document.getElementById(id).classList.add('open')}
@@ -3388,55 +3713,71 @@ function toast(msg){const el=document.createElement('div');el.className='toast';
 // ═══════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════
-if(!window._isOauthCallback){
+// ── INIT ────────────────────────────────────────────
+(async function(){
+  // Lokale Daten vorsorglich laden (Offline-Fallback)
   lsLoad();
-  if(!D.schlage||!D.schlage.length){ D=emptyData(); }
-  else{ mergeNewSchlage(); }
+  if(!D.schlage||!D.schlage.length) D=emptyData();
+  else mergeNewSchlage();
   migrateD();
-  updateAuthUI();
   renderDash();
   renderRef();
 
-  // Auto-Login & Auto-Load beim Start
-  if(isAllowedHost()){
-    if(isLoggedIn()){
-      // Bereits angemeldet → sofort laden
-      setTimeout(()=>cloudLoad(),500);
-    } else {
-      // Nicht angemeldet → Login-Modal nach kurzer Verzögerung
-      setTimeout(()=>openAuthMod(),1000);
+  // Session aus sessionStorage wiederherstellen
+  try{
+    const saved=sessionStorage.getItem('obs_session');
+    if(saved){
+      _supaSession=JSON.parse(saved);
+      await _loadUserRolle();
+      updateAuthUI();
+      updateEOTabVisibility();
+      await cloudLoad();
+    }else{
+      // Kein gespeicherter Login – Loginmaske zeigen
+      document.getElementById('login-overlay').style.display='flex';
+      updateSbar('err','Nicht angemeldet – bitte anmelden');
     }
+  }catch(e){
+    // Session abgelaufen / ungültig
+    console.warn('Session-Fehler:',e.message);
+    sessionStorage.removeItem('obs_session');
+    _supaSession=null;
+    document.getElementById('login-overlay').style.display='flex';
+    updateSbar('err','Sitzung abgelaufen – bitte erneut anmelden');
   }
 
-  // Auto-Sync alle 60 Sekunden – überspringen wenn lokale Änderungen ausstehen
+  // Auto-Sync alle 90 Sekunden
   setInterval(async()=>{
-    if(!isLoggedIn()) return;
-    // Nicht laden wenn noch ungespeicherte Änderungen vorhanden
-    if(_cloudDirty) return;
-    // Nicht laden wenn gerade ein Modal geöffnet ist
+    if(_cloudDirty||!_supaSession||!_meinBetriebId) return;
     if(document.querySelector('.mov.open')) return;
     try{
-      const tok=await ensureAccessToken();
-      const r=await fetch(`https://graph.microsoft.com/v1.0/me/drive/special/approot:/${GRAPH_FILE}:/content`,{
-        headers:{'Authorization':'Bearer '+tok}
+      const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data?betrieb_id=eq.'+_meinBetriebId+'&select=data,updated_at',{
+        headers:supaHeaders()
       });
       if(!r.ok) return;
-      const remote=await r.json();
-      // Nur laden wenn Remote-Daten neuer (mehr Maßnahmen) oder gleich
-      const remoteCount=(remote.massnahmen||[]).length;
-      const localCount=(D.massnahmen||[]).length;
-      if(remoteCount>=localCount){
-        D=remote;
-        mergeNewSchlage();
-        migrateD();
-        lsSave();
-        renderAll();
+      const rows=await r.json();
+      if(!rows.length) return;
+      const remote=rows[0].data;
+      const remoteCount=(remote.massnahmen||[]).length+(remote.ernte_ist||[]).length;
+      const localCount=(D.massnahmen||[]).length+(D.ernte_ist||[]).length;
+      if(remoteCount>localCount){
+        D=remote;mergeNewSchlage();migrateD();lsSave();renderAll();
         const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
         updateSbar('ok','☁️ Auto-Sync · '+t);
       }
     }catch(e){}
-  }, 60000);
-}
+  },90000);
+})();
+
+// Fokus auf E-Mail wenn Login-Overlay sichtbar wird
+const _loginEmailObs=new MutationObserver(()=>{
+  const ov=document.getElementById('login-overlay');
+  if(ov&&ov.style.display!=='none'){
+    setTimeout(()=>{const e=document.getElementById('login-email');if(e)e.focus();},150);
+  }
+});
+const _lov=document.getElementById('login-overlay');
+if(_lov) _loginEmailObs.observe(_lov,{attributes:true,attributeFilter:['style']});
 </script>
 </body>
 </html>
