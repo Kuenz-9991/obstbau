@@ -355,6 +355,13 @@ tr:hover td{background:#f9fcfa}
     </div>
   </div>
   <div class="card">
+    <div class="card-hdr" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🍎 Sorten-Stammdaten</span>
+      <button class="btn btn-p btn-sm" onclick="openNeueSorte()">+ Neue Sorte</button>
+    </div>
+    <div id="sorten-ref"></div>
+  </div>
+  <div class="card">
     <div class="card-hdr">BBCH-Stadien Kernobst (Apfel/Birne)</div>
     <div id="bbch-ref"></div>
   </div>
@@ -631,6 +638,27 @@ tr:hover td{background:#f9fcfa}
   </div>
 </div>
 
+<!-- MODAL: Neue Sorte -->
+<div class="mov" id="mod-sorte">
+  <div class="mod" style="max-width:360px">
+    <div class="mod-hdr">
+      <div class="mod-title">Sorte anlegen</div>
+      <button class="mod-x" onclick="closeMod('mod-sorte')">✕</button>
+    </div>
+    <div class="fg"><label>Sortenname</label><input id="ns-name" placeholder="z.B. Braeburn"></div>
+    <div class="fg"><label>Obstart</label>
+      <select id="ns-typ" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);width:100%">
+        <option value="apfel">🍎 Apfel</option>
+        <option value="birne">🍐 Birne</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-p" style="flex:1" onclick="saveNeueSorte()">✓ Speichern</button>
+      <button class="btn btn-s" onclick="closeMod('mod-sorte')">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Feld -->
 <div class="mov" id="mod-feld">
   <div class="mod" style="max-width:380px">
@@ -666,6 +694,10 @@ tr:hover td{background:#f9fcfa}
         <div style="margin-top:6px;font-size:.72rem;color:var(--txl)"><b>Server:</b> Supabase EU-West (Irland) · Oberinntalobst</div>
       </div>
       <button class="btn btn-p" style="width:100%;margin-bottom:8px" onclick="cloudLoad();closeMod('mod-login')">🔄 Daten neu laden</button>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <button class="btn btn-s" style="flex:1" onclick="backupJSON()">💾 Backup JSON</button>
+        <button class="btn btn-s" style="flex:1" onclick="backupCSV()">📊 Backup CSV</button>
+      </div>
       <button class="btn btn-d" style="width:100%" onclick="supaSignOut()">🚪 Abmelden</button>
     </div>
   </div>
@@ -690,9 +722,14 @@ tr:hover td{background:#f9fcfa}
       </div>
       <!-- Schlagname | Obstart -->
       <div class="fg"><label>Schlagname</label><input id="ms-nm" placeholder="z.B. HG Topaz 2026-0,85" oninput="tryHa()"></div>
-      <div class="fg"><label>Obstart</label><select id="ms-typ"><option value="apfel">🍎 Apfel</option><option value="birne">🍐 Birne</option></select></div>
+      <div class="fg"><label>Obstart</label><select id="ms-typ" onchange="populateSorteDropdown('',this.value)"><option value="apfel">🍎 Apfel</option><option value="birne">🍐 Birne</option></select></div>
       <!-- Sorte | Klon -->
-      <div class="fg"><label>Sorte</label><input id="ms-sorte" placeholder="z.B. Gala, Topaz, Williams"></div>
+      <div class="fg"><label>Sorte</label>
+        <select id="ms-sorte" onchange="fillLosNrDropdown(document.getElementById('ms-losnr').value,window._editSidRef||null,this.value)"
+          style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);width:100%">
+          <option value="">– Sorte wählen –</option>
+        </select>
+      </div>
       <div class="fg"><label>Klon</label><input id="ms-klon" placeholder="z.B. RKD, Baigent"></div>
       <!-- Betrieb | Los-Nr. -->
       <div class="fg"><label>Betrieb</label>
@@ -1337,6 +1374,7 @@ function migrateD(){
   if(!D.prognosen) D.prognosen={};
   if(!D.zuteilungen) D.zuteilungen={};
   if(!D.ernte_ist) D.ernte_ist=[];
+  if(!D.sorten||!D.sorten.length) D.sorten=[...DEFAULT_SORTEN];
   // Migrate old buchungen format: {lager_id, gk} → {lager_id, tafel_gk, verarbeitung_gk}
   D.ernte_ist.forEach(e=>{
     (e.buchungen||[]).forEach(b=>{
@@ -1434,7 +1472,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.6 · 19.08.2026 15:15";
+const APP_VERSION="v2.8 · 19.08.2026 16:00";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1751,6 +1789,60 @@ async function cloudLoad(){
 function updateSbar(state,msg){
   document.getElementById('sbar-dot').className='sbar-dot '+state;
   document.getElementById('sbar-txt').textContent=msg;
+}
+
+// ═══════════════════════════════════════════════════
+// BACKUP / EXPORT
+// ═══════════════════════════════════════════════════
+async function _fetchAllForBackup(){
+  const ts=new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
+  const headers=supaHeaders();
+  const [rS,rB,rG]=await Promise.all([
+    _supaFetch(SUPA_URL+'/rest/v1/schlage?select=*,betriebe(name,kuerzel)&order=betrieb_id,feldstuck,name',{headers}),
+    _supaFetch(SUPA_URL+'/rest/v1/betriebe?select=*&order=name',{headers}),
+    _supaFetch(SUPA_URL+'/rest/v1/betriebsgruppen?select=*',{headers})
+  ]);
+  const schlage=rS.ok?await rS.json():[];
+  const betriebe=rB.ok?await rB.json():[];
+  const gruppen=rG.ok?await rG.json():[];
+  return {ts,schlage,betriebe,gruppen};
+}
+
+function _downloadFile(content,filename,mime){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([content],{type:mime}));
+  a.download=filename;a.click();URL.revokeObjectURL(a.href);
+}
+
+async function backupJSON(){
+  toast('⏳ Backup wird erstellt…');
+  try{
+    const {ts,schlage,betriebe,gruppen}=await _fetchAllForBackup();
+    const data={exportiert:new Date().toISOString(),version:APP_VERSION,betriebe,gruppen,schlage};
+    _downloadFile(JSON.stringify(data,null,2),'obstbau_backup_'+ts+'.json','application/json');
+    toast('✓ JSON-Backup heruntergeladen');
+  }catch(e){toast('⚠ '+e.message);}
+}
+
+async function backupCSV(){
+  toast('⏳ CSV wird erstellt…');
+  try{
+    const {ts,schlage}=await _fetchAllForBackup();
+    const cols=['id','betrieb_id','betrieb_name','betrieb_kuerzel','feldstuck','name','typ','sorte','klon','los_nr',
+      'pflanzjahr','ha_netto','ha_brutto','reihenanzahl','reihenlange','grosskisten_kg','baumzahl','unterlage',
+      'hagelnetz','bewasserung','notiz'];
+    const esc=v=>v==null?'':String(v).includes(',')||String(v).includes('"')||String(v).includes('\n')
+      ?'"'+String(v).replace(/"/g,'""')+'"':String(v);
+    const rows=schlage.map(s=>[
+      s.id,s.betrieb_id,s.betriebe?.name||'',s.betriebe?.kuerzel||'',
+      s.feldstuck,s.name,s.typ,s.sorte,s.klon,s.los_nr,
+      s.pflanzjahr,s.ha_netto,s.ha_brutto,s.reihenanzahl,s.reihenlange,s.grosskisten_kg,s.baumzahl,s.unterlage,
+      s.hagelnetz?'1':'0',s.bewasserung?'1':'0',s.notiz
+    ].map(esc).join(','));
+    const csv=[cols.join(','),...rows].join('\r\n');
+    _downloadFile('﻿'+csv,'obstbau_schlage_'+ts+'.csv','text/csv;charset=utf-8');
+    toast('✓ CSV-Backup heruntergeladen ('+schlage.length+' Schläge)');
+  }catch(e){toast('⚠ '+e.message);}
 }
 
 // ═══════════════════════════════════════════════════
@@ -2080,11 +2172,12 @@ function populateFeldSelect(selectId, selectedName){
 }
 
 let editSid=null;
-function fillLosNrDropdown(currentLosNr, editingSchlagId){
-  // Alle bereits verwendeten Los-Nummern über alle Betriebe sammeln
+function fillLosNrDropdown(currentLosNr, editingSchlagId, currentSorte){
+  // Los-Nummern sind pro Sorte vergeben (z.B. Topaz 01, Topaz 02 — unabhängig von Gala 01)
+  const sorte=currentSorte||document.getElementById('ms-sorte')?.value||'';
   const used=new Set();
   D.schlage.forEach(s=>{
-    if(s.los_nr&&s.id!==editingSchlagId) used.add(s.los_nr);
+    if(s.los_nr&&s.id!==editingSchlagId&&s.sorte===sorte) used.add(s.los_nr);
   });
   const sel=document.getElementById('ms-losnr');
   let opts='<option value="">– keine –</option>';
@@ -2100,6 +2193,45 @@ function fillLosNrDropdown(currentLosNr, editingSchlagId){
   }
   sel.innerHTML=opts;
   if(currentLosNr) sel.value=currentLosNr;
+}
+
+const DEFAULT_SORTEN=[
+  // IP / Konventionell Äpfel
+  {name:'Arlet',typ:'apfel'},{name:'Boskoop',typ:'apfel'},{name:'Elstar',typ:'apfel'},
+  {name:'Envy',typ:'apfel'},{name:'Gala',typ:'apfel'},{name:'Gala (Brookfield)',typ:'apfel'},
+  {name:'Gala (RKD)',typ:'apfel'},{name:'Gala (Schnico)',typ:'apfel'},
+  {name:'Golden Delicious',typ:'apfel'},{name:'Idared',typ:'apfel'},
+  {name:'Jazz',typ:'apfel'},{name:'Jonagold',typ:'apfel'},{name:'Mairac',typ:'apfel'},
+  {name:'Pinova',typ:'apfel'},{name:'Red Topaz',typ:'apfel'},{name:'Rubinette',typ:'apfel'},
+  {name:'Topaz',typ:'apfel'},{name:'Wurwinning',typ:'apfel'},
+  // BIO Äpfel
+  {name:'BIO Arlet',typ:'apfel'},{name:'BIO Boskoop',typ:'apfel'},
+  {name:'BIO Braeburn',typ:'apfel'},{name:'BIO Gala',typ:'apfel'},
+  {name:'BIO Pinova',typ:'apfel'},{name:'BIO Topaz',typ:'apfel'},
+  // Birnen
+  {name:'Ha. Gold (Birne)',typ:'birne'},{name:'Kaiser Wilhelm',typ:'birne'},
+  {name:'Wahl',typ:'birne'},{name:'Williams',typ:'birne'},
+];
+
+function getSortenList(){
+  if(!D.sorten||!D.sorten.length) D.sorten=[...DEFAULT_SORTEN];
+  return D.sorten;
+}
+
+function populateSorteDropdown(currentSorte, typFilter){
+  const sel=document.getElementById('ms-sorte');
+  if(!sel) return;
+  const list=getSortenList();
+  const typ=typFilter||document.getElementById('ms-typ')?.value||'';
+  sel.innerHTML='<option value="">– Sorte wählen –</option>';
+  const filtered=typ?list.filter(s=>s.typ===typ||!s.typ):list;
+  for(const s of filtered.sort((a,b)=>a.name.localeCompare(b.name,['de']))){
+    sel.innerHTML+=`<option value="${s.name}"${s.name===currentSorte?' selected':''}>${s.name}</option>`;
+  }
+  // Aktuelle Sorte auch wenn nicht in Liste (Bestandsdaten)
+  if(currentSorte&&!filtered.find(s=>s.name===currentSorte)){
+    sel.innerHTML+=`<option value="${currentSorte}" selected>${currentSorte} ⚠</option>`;
+  }
 }
 
 function openSchlagMod(id=null, preFeld=null){
@@ -2130,12 +2262,16 @@ function openSchlagMod(id=null, preFeld=null){
     document.getElementById('ms-bw').value=s.bewasserung?'1':'0';
     document.getElementById('ms-notiz').value=s.notiz||'';
     document.getElementById('ms-betrieb').value=s.betrieb_id||'';
-    fillLosNrDropdown(s.los_nr||'',s.id);
+    window._editSidRef=s.id;
+    populateSorteDropdown(s.sorte||'',s.typ||'apfel');
+    fillLosNrDropdown(s.los_nr||'',s.id,s.sorte||'');
     del.style.display='inline-flex';
   }else{
     document.getElementById('ms-title').textContent='Schlag anlegen';
-    ['ms-fs','ms-nm','ms-sorte','ms-klon','ms-netto','ms-brutto','ms-rl','ms-bz','ms-bz-bef','ms-bz-calc','ms-rn','ms-pr','ms-pb','ms-gkk','ms-ul','ms-pj','ms-notiz'].forEach(i=>document.getElementById(i).value='');
-    fillLosNrDropdown('',null);
+    ['ms-fs','ms-nm','ms-klon','ms-netto','ms-brutto','ms-rl','ms-bz','ms-bz-bef','ms-bz-calc','ms-rn','ms-pr','ms-pb','ms-gkk','ms-ul','ms-pj','ms-notiz'].forEach(i=>document.getElementById(i).value='');
+    window._editSidRef=null;
+    populateSorteDropdown('','apfel');
+    fillLosNrDropdown('',null,'');
     document.getElementById('ms-typ').value='apfel';
     document.getElementById('ms-hn').value='0';
     document.getElementById('ms-bw').value='0';
@@ -2871,7 +3007,48 @@ function pickBm(id){
 // ═══════════════════════════════════════════════════
 // REFERENZ
 // ═══════════════════════════════════════════════════
+function renderSortenRef(){
+  const el=document.getElementById('sorten-ref');if(!el)return;
+  const list=getSortenList();
+  const apfel=list.filter(s=>s.typ==='apfel').sort((a,b)=>a.name.localeCompare(b.name,'de'));
+  const birne=list.filter(s=>s.typ==='birne').sort((a,b)=>a.name.localeCompare(b.name,'de'));
+  const renderGrp=(arr,label)=>arr.length?`
+    <div style="font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;margin:10px 0 5px">${label}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px">
+      ${arr.map(s=>`<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;font-size:.8rem">
+        <span>${s.name}</span>
+        <button onclick="deleteSorte('${s.name.replace(/'/g,"\\'")}')" style="background:none;border:none;cursor:pointer;color:var(--crit);font-size:.75rem;padding:0 2px" title="Löschen">✕</button>
+      </div>`).join('')}
+    </div>`:'';
+  el.innerHTML=renderGrp(apfel,'🍎 Äpfel')+renderGrp(birne,'🍐 Birnen');
+}
+
+function openNeueSorte(){
+  document.getElementById('ns-name').value='';
+  document.getElementById('ns-typ').value='apfel';
+  openMod('mod-sorte');
+}
+
+function saveNeueSorte(){
+  const name=document.getElementById('ns-name').value.trim();
+  const typ=document.getElementById('ns-typ').value;
+  if(!name){alert('Bitte Sortenname eingeben');return;}
+  if(!D.sorten) D.sorten=[...DEFAULT_SORTEN];
+  if(D.sorten.find(s=>s.name.toLowerCase()===name.toLowerCase())){toast('Sorte bereits vorhanden');return;}
+  D.sorten.push({name,typ});
+  D.sorten.sort((a,b)=>a.name.localeCompare(b.name,'de'));
+  cloudSave();renderSortenRef();
+  closeMod('mod-sorte');toast('✓ Sorte "'+name+'" angelegt');
+}
+
+function deleteSorte(name){
+  if(!confirm('Sorte "'+name+'" löschen?')) return;
+  D.sorten=(D.sorten||[]).filter(s=>s.name!==name);
+  cloudSave();renderSortenRef();toast('Sorte gelöscht');
+}
+
 function renderRef(){
+  renderSortenRef();
   document.getElementById('bbch-ref').innerHTML=BBCH_MAP.map(([n,l])=>`
     <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:.8rem">
       <span style="background:var(--p);color:#fff;border-radius:4px;padding:1px 6px;font-weight:700;min-width:36px;text-align:center;font-size:.72rem">${n}</span>
