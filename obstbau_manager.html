@@ -1436,6 +1436,8 @@ function getFeldDisplay(name){
 const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
+
+const APP_VERSION="v2.1 · 19.08.2026 11:03";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1705,15 +1707,21 @@ async function delSchlagSupabase(id){
   if(!r.ok){const t=await r.text();throw new Error('Schlag-Löschen: HTTP '+r.status+' '+t);}
 }
 
+function isValidUUID(str){
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
 async function migrateSchlagToSupabase(schlage){
   // Einmalige Migration: alte JSON-Schläge → schlage-Tabelle
   for(const s of schlage){
+    // Alte kurze IDs → echte UUID
+    if(!s.id||!isValidUUID(s.id)) s.id=crypto.randomUUID();
+    // Betrieb-ID anhand Name ermitteln
     if(!s.betrieb_id){
-      // Betrieb-ID anhand Name ermitteln
       const found=_gruppenBetriebe.find(b=>b.name===s.betrieb);
       s.betrieb_id=found?.id||_meinBetriebId;
     }
-    try{await saveSchlagSupabase(s);}catch(e){console.warn('Migration:',e.message);}
+    try{await saveSchlagSupabase(s);}catch(e){console.warn('Migration fehlgeschlagen für "'+s.name+'":',e.message);}
   }
 }
 
