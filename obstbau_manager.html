@@ -293,22 +293,14 @@ tr:hover td{background:#f9fcfa}
         <label style="font-size:.72rem;font-weight:700;color:#388e3c">Schlag</label>
         <select id="buch-schlag" style="border:1px solid #a5d6a7;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select>
       </div>
-      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#388e3c">GK 1. Klasse</label>
-          <input type="number" id="buch-gk-1kl" min="0" placeholder="0" style="border:1px solid #a5d6a7;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#388e3c">GK Verarbeitung</label>
-          <input type="number" id="buch-gk-ver" min="0" placeholder="0" style="border:1px solid #a5d6a7;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#388e3c">GK 1. Klasse (gesamt)</label>
+          <input type="number" id="buch-gk-1kl" min="0" placeholder="0" oninput="updateErnteVerteilungTotals()" style="border:1px solid #a5d6a7;border-radius:6px;padding:6px 8px;font-size:.9rem;font-weight:700;width:100%"></div>
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#388e3c">GK Verarbeitung (gesamt)</label>
+          <input type="number" id="buch-gk-ver" min="0" placeholder="0" oninput="updateErnteVerteilungTotals()" style="border:1px solid #a5d6a7;border-radius:6px;padding:6px 8px;font-size:.9rem;font-weight:700;width:100%"></div>
       </div>
-      <div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:.72rem;font-weight:700;color:#388e3c">📍 Direkt an Standort?</span>
-          <button type="button" id="buch-sofort-toggle" onclick="toggleBuchSofort()"
-            style="padding:3px 10px;border-radius:12px;border:1px solid #a5d6a7;background:#fff;font-size:.72rem;cursor:pointer;color:#388e3c;font-weight:600">Nein</button>
-        </div>
-        <div id="buch-standort-wrap" style="display:none;margin-top:8px">
-          <div id="buch-standort-sel" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-        </div>
-      </div>
+      <!-- Verteilung auf Lagerorte -->
+      <div id="buch-verteilung-wrap"></div>
     </div>
 
     <!-- ─── TRANSPORT ─────────────────────────────────── -->
@@ -332,18 +324,6 @@ tr:hover td{background:#f9fcfa}
           <input type="number" id="buch-transport-1kl" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
         <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">🐛 GK Verarbeitung</label>
           <input type="number" id="buch-transport-ver" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-      </div>
-    </div>
-
-    <!-- ─── LEERGUT ───────────────────────────────────── -->
-    <div id="buch-leergut-sect" style="border-left:4px solid #90a4ae;background:#f5f7f8;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:12px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <span style="font-size:.82rem;font-weight:800;color:#546e7a;letter-spacing:.01em">📦 Leergut zurück</span>
-        <span id="buch-leergut-edit-badge" style="display:none;font-size:.68rem;background:#546e7a;color:#fff;border-radius:4px;padding:2px 7px">✏️ wird bearbeitet</span>
-      </div>
-      <div class="fg">
-        <label style="font-size:.72rem;font-weight:700;color:#546e7a">GK zurück (von Haiming)</label>
-        <input type="number" id="buch-leergut-gk" min="0" placeholder="0" style="border:1px solid #b0bec5;border-radius:6px;padding:6px 8px;font-size:.85rem;max-width:140px;display:block">
       </div>
     </div>
 
@@ -1577,7 +1557,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.16.7";
+const APP_VERSION="v2.16.8";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -3884,6 +3864,68 @@ function selectBuchStandort(id){
   renderBuchStandortSel(id);
 }
 
+function renderErnteVerteilungTable(){
+  const wrap=document.getElementById('buch-verteilung-wrap');
+  if(!wrap) return;
+  if(!D.lagerorte.length){
+    wrap.innerHTML='<div style="font-size:.75rem;color:#388e3c;padding:4px 0">Keine Lagerorte — <a href="#" onclick="event.preventDefault();closeMod(\'mod-ernte-buchung\');openLagerMod()" style="color:var(--p)">Standorte anlegen</a></div>';
+    return;
+  }
+  const iStyle='border:1px solid #a5d6a7;border-radius:4px;padding:5px 6px;font-size:.85rem;width:72px;text-align:right;background:#fff';
+  const rows=D.lagerorte.map(l=>`<tr>
+    <td style="padding:5px 8px;font-size:.8rem;font-weight:600;color:#2e7d32;white-space:nowrap">${l.name}</td>
+    <td style="padding:3px 4px"><input type="number" id="buch-vert-1kl-${l.id}" min="0" placeholder="0" oninput="updateErnteVerteilungTotals()" style="${iStyle}"></td>
+    <td style="padding:3px 4px"><input type="number" id="buch-vert-ver-${l.id}" min="0" placeholder="0" oninput="updateErnteVerteilungTotals()" style="${iStyle}"></td>
+  </tr>`).join('');
+  wrap.innerHTML=`<div style="font-size:.68rem;font-weight:700;color:#388e3c;text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px">Zuteilung auf Lagerorte</div>
+  <table style="border-collapse:collapse;width:100%;background:#fff;border-radius:6px;overflow:hidden;border:1px solid #a5d6a7">
+    <thead><tr style="background:#e8f5e9;border-bottom:1px solid #a5d6a7">
+      <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:#388e3c;font-weight:700">Lagerort</th>
+      <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:#2e7d32;font-weight:700">🍎 GK 1.Kl</th>
+      <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:#2e7d32;font-weight:700">🐛 GK Verarb.</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot>
+      <tr style="border-top:2px solid #a5d6a7;background:#e8f5e9">
+        <td style="padding:4px 8px;font-size:.75rem;font-weight:700;color:#388e3c">Zugeteilt</td>
+        <td id="buch-vert-sum-1kl" style="padding:4px 8px;text-align:right;font-size:.8rem;font-weight:700;color:#388e3c">0</td>
+        <td id="buch-vert-sum-ver" style="padding:4px 8px;text-align:right;font-size:.8rem;font-weight:700;color:#388e3c">0</td>
+      </tr>
+      <tr id="buch-vert-offen-row" style="border-top:1px solid #a5d6a7">
+        <td style="padding:4px 8px;font-size:.75rem;font-weight:700;color:#388e3c">Noch offen ⚠️</td>
+        <td id="buch-vert-offen-1kl" style="padding:4px 8px;text-align:right;font-size:.8rem;font-weight:700">0</td>
+        <td id="buch-vert-offen-ver" style="padding:4px 8px;text-align:right;font-size:.8rem;font-weight:700">0</td>
+      </tr>
+    </tfoot>
+  </table>`;
+  updateErnteVerteilungTotals();
+}
+
+function updateErnteVerteilungTotals(){
+  const tot1kl=parseFloat(document.getElementById('buch-gk-1kl')?.value||'')||0;
+  const totVer=parseFloat(document.getElementById('buch-gk-ver')?.value||'')||0;
+  let sum1kl=0,sumVer=0;
+  (D.lagerorte||[]).forEach(l=>{
+    sum1kl+=parseFloat(document.getElementById('buch-vert-1kl-'+l.id)?.value||'')||0;
+    sumVer+=parseFloat(document.getElementById('buch-vert-ver-'+l.id)?.value||'')||0;
+  });
+  const rem1kl=tot1kl-sum1kl,remVer=totVer-sumVer;
+  const allOk=(rem1kl===0&&rem1kl===0)&&(tot1kl>0||totVer>0)&&rem1kl===0&&remVer===0;
+  const anyOver=rem1kl<0||remVer<0;
+  const el=id=>document.getElementById(id);
+  if(el('buch-vert-sum-1kl')) el('buch-vert-sum-1kl').textContent=sum1kl;
+  if(el('buch-vert-sum-ver')) el('buch-vert-sum-ver').textContent=sumVer;
+  const o1=el('buch-vert-offen-1kl'),oV=el('buch-vert-offen-ver'),oRow=el('buch-vert-offen-row');
+  if(o1){o1.textContent=rem1kl;o1.style.color=rem1kl<0?'var(--crit)':rem1kl===0&&tot1kl>0?'var(--s)':'var(--txt)';}
+  if(oV){oV.textContent=remVer;oV.style.color=remVer<0?'var(--crit)':remVer===0&&totVer>0?'var(--s)':'var(--txt)';}
+  if(oRow){
+    oRow.style.display=(tot1kl>0||totVer>0)?'':'none';
+    oRow.style.background=anyOver?'#ffebee':allOk?'#e8f5e9':'';
+    const lbl=oRow.querySelector('td');
+    if(lbl) lbl.textContent=allOk?'Vollständig zugeteilt ✅':'Noch offen ⚠️';
+  }
+}
+
 function openErnteBuchungMod(editId){
   const today=new Date().toISOString().slice(0,10);
   // Reset
@@ -3909,10 +3951,11 @@ function openErnteBuchungMod(editId){
   const vwSel=document.getElementById('buch-verwendung');
   vwSel.innerHTML=getVerwendungen().map(v=>`<option value="${v.id}">${v.typ==='tafel'?'🍎':'🏭'} ${v.name}</option>`).join('');
   // Alle GK-Inputs leeren
-  ['buch-gk-1kl','buch-gk-ver','buch-transport-1kl','buch-transport-ver','buch-leergut-gk'].forEach(id=>{
+  ['buch-gk-1kl','buch-gk-ver','buch-transport-1kl','buch-transport-ver'].forEach(id=>{
     const el=document.getElementById(id);if(el) el.value='';
   });
-  _resetSofortToggle();
+  // Verteilungstabelle rendern (nach GK-Reset)
+  renderErnteVerteilungTable();
   // Pre-open Schlag
   if(typeof _preopenSchlagId!=='undefined'&&_preopenSchlagId){
     document.getElementById('buch-schlag').value=_preopenSchlagId;
@@ -3936,14 +3979,21 @@ function openErnteBuchungMod(editId){
         document.getElementById('buch-schlag').value=entry.schlag_id||'';
         document.getElementById('buch-gk-1kl').value=entry.gk_1kl||'';
         document.getElementById('buch-gk-ver').value=entry.gk_verarbeitung||'';
-        if(entry.standort_id){
-          _buchSofort=true;
-          const btn=document.getElementById('buch-sofort-toggle');
-          const wrap=document.getElementById('buch-standort-wrap');
-          if(btn){btn.textContent='Ja';btn.style.background='var(--p)';btn.style.color='#fff';}
-          if(wrap) wrap.style.display='';
-          renderBuchStandortSel(entry.standort_id);
+        // Verteilung befüllen (neues Format)
+        (entry.verteilung||[]).forEach(v=>{
+          const e1=document.getElementById('buch-vert-1kl-'+v.standort_id);
+          const eV=document.getElementById('buch-vert-ver-'+v.standort_id);
+          if(e1) e1.value=v.gk_1kl||'';
+          if(eV) eV.value=v.gk_verarbeitung||'';
+        });
+        // Compat: altes standort_id → single Standort vorfüllen
+        if(entry.standort_id&&!entry.verteilung){
+          const e1=document.getElementById('buch-vert-1kl-'+entry.standort_id);
+          const eV=document.getElementById('buch-vert-ver-'+entry.standort_id);
+          if(e1) e1.value=entry.gk_1kl||'';
+          if(eV) eV.value=entry.gk_verarbeitung||'';
         }
+        updateErnteVerteilungTotals();
       } else if(typ==='transport'){
         document.getElementById('buch-transport-schlag').value=entry.schlag_id||'';
         document.getElementById('buch-von-standort').value=entry.von_standort_id||'';
@@ -3977,10 +4027,21 @@ function saveErnteBuchung(){
   const ernteFilled=eKl1||eVer;
   if(ernteFilled){
     if(!eSchlag){alert('🌿 Ernte: Bitte Schlag auswählen');return;}
-    if(_buchSofort&&!_buchStandortId){alert('🌿 Ernte: Bitte Standort auswählen');return;}
-    const entry={id:(editTyp==='ernte'?editId:null)||uid(),typ:'ernte',datum,schlag_id:eSchlag,gk_1kl:eKl1,gk_verarbeitung:eVer,notiz};
-    if(_buchSofort&&_buchStandortId) entry.standort_id=_buchStandortId;
-    newEntries.push(entry);
+    // Verteilung einlesen
+    const verteilung=[];
+    let vSum1kl=0,vSumVer=0;
+    (D.lagerorte||[]).forEach(l=>{
+      const v1=parseFloat(document.getElementById('buch-vert-1kl-'+l.id)?.value||'')||0;
+      const vv=parseFloat(document.getElementById('buch-vert-ver-'+l.id)?.value||'')||0;
+      if(v1||vv) verteilung.push({standort_id:l.id,gk_1kl:v1,gk_verarbeitung:vv});
+      vSum1kl+=v1;vSumVer+=vv;
+    });
+    // Validierung: alle Kisten müssen zugeteilt sein
+    if(vSum1kl!==eKl1||vSumVer!==eVer){
+      alert(`🌿 Ernte: Alle Kisten müssen einem Lagerort zugeteilt werden!\n1.Kl: ${vSum1kl} von ${eKl1} GK zugeteilt\nVerarb.: ${vSumVer} von ${eVer} GK zugeteilt`);
+      return;
+    }
+    newEntries.push({id:(editTyp==='ernte'?editId:null)||uid(),typ:'ernte',datum,schlag_id:eSchlag,gk_1kl:eKl1,gk_verarbeitung:eVer,verteilung,notiz});
   }
 
   // ── Transport-Sektion auslesen ──────────────────────
@@ -3995,12 +4056,6 @@ function saveErnteBuchung(){
     if(!tVon){alert('🚛 Transport: Bitte Von-Standort auswählen');return;}
     if(!tVerw){alert('🚛 Transport: Bitte Verwendung auswählen');return;}
     newEntries.push({id:(editTyp==='transport'?editId:null)||uid(),typ:'transport',datum,schlag_id:tSchlag,gk_1kl:tKl1,gk_verarbeitung:tVer,von_standort_id:tVon,verwendung_id:tVerw,notiz});
-  }
-
-  // ── Leergut-Sektion auslesen ────────────────────────
-  const lgGK=parseFloat(document.getElementById('buch-leergut-gk')?.value||'')||0;
-  if(lgGK){
-    newEntries.push({id:(editTyp==='leergut'?editId:null)||uid(),typ:'leergut',datum,gk_anzahl:lgGK,notiz});
   }
 
   if(!newEntries.length){alert('Bitte mindestens einen Bereich ausfüllen');return;}
@@ -4036,9 +4091,16 @@ function calcStandortBestand(lagerId){
   D.ernte_ist.forEach(e=>{
     const typ=getEntryTyp(e);
     if(typ==='ernte'){
-      // neues Format
-      if(e.standort_id===lagerId){gk1kl+=(e.gk_1kl||0);gkVer+=(e.gk_verarbeitung||0);}
-      // altes Format (buchungen-Array) → als 1.Kl behandeln
+      // neues Format: verteilung-Array
+      if(e.verteilung){
+        e.verteilung.forEach(v=>{
+          if(v.standort_id===lagerId){gk1kl+=(v.gk_1kl||0);gkVer+=(v.gk_verarbeitung||0);}
+        });
+      } else if(e.standort_id===lagerId){
+        // älteres Format: einzelner standort_id
+        gk1kl+=(e.gk_1kl||0);gkVer+=(e.gk_verarbeitung||0);
+      }
+      // ältestes Format (buchungen-Array)
       (e.buchungen||[]).forEach(b=>{
         if(b.lager_id===lagerId){
           gk1kl+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));
@@ -4181,25 +4243,33 @@ function renderErnteIst(){
       const schlagTxt=e.schlag_id?(s?s.name:'?'):'–';
       let detailHtml='';
       if(typ==='ernte'){
-        const standort=D.lagerorte.find(x=>x.id===e.standort_id);
-        const standortName=standort?standort.name:'?';
-        // neues Format
-        if(e.gk_1kl!==undefined||e.gk_verarbeitung!==undefined){
-          const parts=[];
-          if(e.gk_1kl) parts.push(`🍎 ${e.gk_1kl} GK 1.Kl`);
-          if(e.gk_verarbeitung) parts.push(`🐛 ${e.gk_verarbeitung} GK Verarb.`);
-          detailHtml=`<span style="color:var(--pl)">${parts.join(' · ')}</span> → <b>${standortName}</b>`;
-        } else {
-          // altes Format
-          const bParts=(e.buchungen||[]).map(b=>{
-            const lo=D.lagerorte.find(x=>x.id===b.lager_id);
+        // Gesamtmenge
+        const kl1Total=e.gk_1kl||(e.buchungen||[]).reduce((s,b)=>s+(b.tafel_gk!==undefined?b.tafel_gk:b.gk||0),0);
+        const verTotal=e.gk_verarbeitung||(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
+        const totalStr=verTotal?`🍎 ${kl1Total} + 🐛 ${verTotal} GK`:`🍎 ${kl1Total} GK`;
+        // Verteilung
+        let verteilungStr='';
+        if(e.verteilung&&e.verteilung.length){
+          verteilungStr=e.verteilung.map(v=>{
+            const lo=D.lagerorte.find(x=>x.id===v.standort_id);
             const n=lo?lo.name:'?';
+            const p=[];
+            if(v.gk_1kl) p.push(`${v.gk_1kl}×1.Kl`);
+            if(v.gk_verarbeitung) p.push(`${v.gk_verarbeitung}×V`);
+            return`<span style="background:var(--ps);color:var(--pd);border-radius:3px;padding:1px 5px;font-size:.7rem">${n}: ${p.join('+')}</span>`;
+          }).join(' ');
+        } else if(e.standort_id){
+          const lo=D.lagerorte.find(x=>x.id===e.standort_id);
+          verteilungStr=`<span style="background:var(--ps);color:var(--pd);border-radius:3px;padding:1px 5px;font-size:.7rem">${lo?lo.name:'?'}</span>`;
+        } else if(e.buchungen&&e.buchungen.length){
+          verteilungStr=e.buchungen.map(b=>{
+            const lo=D.lagerorte.find(x=>x.id===b.lager_id);
             const t=b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0);
             const v=b.verarbeitung_gk||0;
-            return n+(t?` ${t}T`:'')+(v?` ${v}V`:'');
-          }).join(', ');
-          detailHtml=`<span style="color:var(--pl)">${bParts}</span>`;
+            return`<span style="background:var(--ps);color:var(--pd);border-radius:3px;padding:1px 5px;font-size:.7rem">${lo?lo.name:'?'}: ${t?t+'T':''} ${v?v+'V':''}</span>`;
+          }).join(' ');
         }
+        detailHtml=`<span style="color:var(--pl);font-weight:600">${totalStr}</span>${verteilungStr?' → '+verteilungStr:''}`;
       } else if(typ==='transport'){
         const verwendung=verwendungen.find(x=>x.id===e.verwendung_id);
         const vonStandort=D.lagerorte.find(x=>x.id===e.von_standort_id);
