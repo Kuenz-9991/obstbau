@@ -1434,7 +1434,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.5 · 19.08.2026 15:00";
+const APP_VERSION="v2.6 · 19.08.2026 15:15";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1476,6 +1476,7 @@ async function doLogin(){
     document.getElementById('login-overlay').style.display='none';
     updateAuthUI();
     await cloudLoad();
+    if(_meineRolle==='eo_admin') await _loadEOBetriebe();
     updateEOTabVisibility();
     toast('✓ Willkommen, '+_meinBetriebName+'!');
   }catch(e){
@@ -2146,7 +2147,10 @@ function openSchlagMod(id=null, preFeld=null){
     const bSel=document.getElementById('ms-betrieb');
     const curVal=bSel.value;
     bSel.innerHTML='<option value="">– kein Betrieb –</option>';
-    const list=_gruppenBetriebe.length?_gruppenBetriebe:(_meinBetriebId?[{id:_meinBetriebId,name:_meinBetriebName||'Mein Betrieb'}]:[]);
+    // EO-Admin: alle Betriebe; sonst: Gruppenbetriebe oder eigener Betrieb
+    const list=(_meineRolle==='eo_admin'&&_eoBetriebe&&_eoBetriebe.length)?_eoBetriebe
+              :_gruppenBetriebe.length?_gruppenBetriebe
+              :(_meinBetriebId?[{id:_meinBetriebId,name:_meinBetriebName||'Mein Betrieb'}]:[]);
     for(const b of list) bSel.innerHTML+=`<option value="${b.id}">${b.name}</option>`;
     bSel.value=curVal;
   }
