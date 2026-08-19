@@ -1481,7 +1481,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.10 · 19.08.2026 18:45";
+const APP_VERSION="v2.11 · 19.08.2026 19:10";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -3026,15 +3026,21 @@ function renderSortenRef(){
   const list=getSortenList();
   const apfel=list.filter(s=>s.typ==='apfel').sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const birne=list.filter(s=>s.typ==='birne').sort((a,b)=>a.name.localeCompare(b.name,'de'));
-  const renderGrp=(arr,label)=>arr.length?`
-    <div style="font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;margin:10px 0 5px">${label}</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px">
-      ${arr.map(s=>`<div style="display:flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--bdr);border-radius:6px;padding:4px 8px;font-size:.8rem">
-        <span>${s.name}</span>
-        <button onclick="deleteSorte('${s.name.replace(/'/g,"\\'")}')" style="background:none;border:none;cursor:pointer;color:var(--crit);font-size:.75rem;padding:0 2px" title="Löschen">✕</button>
-      </div>`).join('')}
-    </div>`:'';
-  el.innerHTML=renderGrp(apfel,'🍎 Äpfel')+renderGrp(birne,'🍐 Birnen');
+  if(!list.length){el.innerHTML='<div class="empty">Keine Sorten angelegt.</div>';return;}
+  const renderGrp=(arr,label)=>!arr.length?'':
+    `<tr><td colspan="4" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
+    arr.map(s=>`<tr>
+      <td style="padding:6px 10px;font-size:.83rem;font-weight:600">${s.name}</td>
+      <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.typ==='birne'?'🍐 Birne':'🍎 Apfel'}</td>
+      <td style="padding:6px 10px;font-size:.78rem">${s.aktiv===false?'<span style="color:var(--crit)">❌ inaktiv</span>':'<span style="color:var(--p)">✅ aktiv</span>'}</td>
+      <td style="padding:4px 6px;text-align:right">
+        ${s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false})">✏️</button>`:''}
+      </td>
+    </tr>`).join('');
+  el.innerHTML=`<div class="twrap"><table style="width:100%">
+    <thead><tr><th>Name</th><th>Typ</th><th>Status</th><th></th></tr></thead>
+    <tbody>${renderGrp(apfel,'🍎 Äpfel')}${renderGrp(birne,'🍐 Birnen')}</tbody>
+  </table></div>`;
 }
 
 // Sorten-Modal öffnen (Ref-Tab Button leitet zum EO-Modal weiter)
