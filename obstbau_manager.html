@@ -1482,7 +1482,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.14.3";
+const APP_VERSION="v2.15.0";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2064,82 +2064,69 @@ function sorteFarbe(sorte){
   return '#f9fafb';
 }
 
+function _schlagCard(s){
+  const sid=s.id.replace(/[^a-z0-9]/gi,'_');
+  const sorteInfo=[s.sorte,s.pflanzjahr?'PJ '+s.pflanzjahr:''].filter(Boolean).join(' · ');
+  const losInfo=s.los_nr?` · Los ${s.los_nr}`:'';
+  const bc=betriebFarbe(s.betrieb||'');
+  const sc=sorteFarbe(s.sorte);
+  // Betrieb-Kürzel aus _eoBetriebe oder Name
+  const bObj=(_eoBetriebe||[]).find(b=>b.id===s.betrieb_id)||(_gruppenBetriebe||[]).find(b=>b.id===s.betrieb_id);
+  const bKurz=bObj?(bObj.kuerzel||bObj.name.split(' ').map(w=>w[0]).join('').toUpperCase()):(s.betrieb?s.betrieb.split(' ').map(w=>w[0]).join('').toUpperCase():'?');
+  return `<div class="scard" style="position:relative;border-left:5px solid ${bc};background:${sc}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:8px">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
+          <span style="background:${bc};color:#fff;border-radius:4px;padding:1px 5px;font-size:.65rem;font-weight:700;flex-shrink:0">${bKurz}</span>
+          <span style="font-size:.88rem;font-weight:700;color:var(--pd)">${s.typ==='birne'?'🍐':'🍎'} ${s.name}</span>
+        </div>
+        ${sorteInfo||losInfo?`<div style="font-size:.7rem;color:var(--txl)">${sorteInfo}${losInfo}</div>`:''}
+      </div>
+      <button class="btn btn-s btn-sm" style="padding:3px 8px;font-size:1rem;flex-shrink:0" onclick="event.stopPropagation();toggleSchlagMenu('${s.id}')" title="Mehr">⋮</button>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="btn btn-p btn-sm" style="flex:1;min-width:120px;font-size:.8rem;padding:7px 10px" onclick="quickErnte('${s.id}')">🌿 Ernte erfassen</button>
+      <button class="btn btn-s btn-sm" style="flex:1;min-width:120px;font-size:.8rem;padding:7px 10px" onclick="quickMassnahme('${s.id}')">📝 Maßnahme</button>
+    </div>
+    <div id="smenu-${sid}" style="display:none;position:absolute;right:10px;top:44px;background:#fff;border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:60;min-width:160px;overflow:hidden">
+      <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openBbchMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📍 BBCH setzen</div>
+      <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openSchlagMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">✏️ Bearbeiten</div>
+      <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openMassnahmenForSchlag('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📋 Alle Maßnahmen</div>
+      <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openFotochronik('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📷 Fotochronik</div>
+    </div>
+  </div>`;
+}
+
 function renderSchlage(){
   const el=document.getElementById('sg-grid');
   if(!D.schlage.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🌳</div>Keine Schläge vorhanden.</div>';return;}
 
-  // Group by Betrieb first, then by Feldstück
-  const prefOrder=['Kuenz Johannes','Johannes Kuenz','Kuenz Florian','Florian Kuenz','Kuenz Johanna','Johanna Kuenz'];
-  const byBetrieb={};
+  // Primär nach Feldstück gruppieren (Gruppe-Ebene)
+  const byFs={};
   for(const s of D.schlage){
-    const b=s.betrieb||'';
-    if(!byBetrieb[b]) byBetrieb[b]=[];
-    byBetrieb[b].push(s);
+    const fs=s.feldstuck||'';
+    if(!byFs[fs]) byFs[fs]=[];
+    byFs[fs].push(s);
   }
-  // Build dynamic order: preferred names first, then any others, then ''
-  const allB=Object.keys(byBetrieb);
-  const betriebeOrder=[
-    ...prefOrder.filter(b=>allB.includes(b)),
-    ...allB.filter(b=>b&&!prefOrder.includes(b)),
-    ...(allB.includes('')?['']:[])
-  ];
 
   let html='';
-  for(const betrieb of betriebeOrder){
-    const schlage=byBetrieb[betrieb]||[];
-    if(!schlage.length) continue;
-    // Betrieb header — ausklappbar
-    const betriebLabel=betrieb||'Kein Betrieb';
-    const bclr=betriebFarbe(betrieb);
-    const accId='bacc-'+betrieb.replace(/[^a-z0-9]/gi,'_');
+  for(const fs of Object.keys(byFs).sort(feldSort)){
+    const list=byFs[fs];
+    const accId='fsacc-'+fs.replace(/[^a-z0-9]/gi,'_');
     html+=`<div style="grid-column:1/-1;margin-top:10px">
-      <div onclick="(function(el){el.style.display=el.style.display==='none'?'':'none'})(document.getElementById('${accId}'))"
-        style="padding:8px 12px;background:${bclr};color:#fff;border-radius:8px;font-size:.85rem;font-weight:700;border-left:5px solid rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none">
-        <span>👤 ${betriebLabel}</span>
-        <span style="font-size:.8rem;opacity:.75">▼</span>
-      </div>
-      <div id="${accId}" style="display:''">`;
-    // Group by Feldstück within Betrieb
-    const grp={};
-    for(const s of schlage){if(!grp[s.feldstuck])grp[s.feldstuck]=[];grp[s.feldstuck].push(s);}
-    for(const fs of Object.keys(grp).sort(feldSort)){
-      const list=grp[fs];
-      html+=`<div class="fs-hdr" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div onclick="(function(el){el.style.display=el.style.display==='none'?'':'none';this.querySelector('.fs-arr').textContent=el.style.display==='none'?'▶':'▼"})(document.getElementById('${accId}'),this)"
+        class="fs-hdr" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;user-select:none">
         <span>${getFeldDisplay(fs)}</span>
-        <div style="display:flex;gap:5px;flex-shrink:0">
-          <button class="btn btn-s btn-sm" onclick="openSchlagMod(null,'${fs.replace(/'/g,"\\'")}')">+ Schlag</button>
-          <button class="btn btn-s btn-sm" onclick="openFeldMod('${fs.replace(/'/g,"\\'")}')">✏️</button>
+        <div style="display:flex;gap:5px;flex-shrink:0;align-items:center">
+          <button class="btn btn-s btn-sm" onclick="event.stopPropagation();openSchlagMod(null,'${fs.replace(/'/g,"\\'")}')">+ Schlag</button>
+          <button class="btn btn-s btn-sm" onclick="event.stopPropagation();openFeldMod('${fs.replace(/'/g,"\\'")}')">✏️</button>
+          <span class="fs-arr" style="font-size:.75rem;color:var(--txl);min-width:12px">▼</span>
         </div>
-      </div>`;
-      for(const s of list){
-        const sid=s.id.replace(/[^a-z0-9]/gi,'_');
-        const sorteInfo=[s.sorte,s.pflanzjahr?'PJ '+s.pflanzjahr:''].filter(Boolean).join(' · ');
-        const losInfo=s.los_nr?` · Los ${s.los_nr}`:'';
-        const bc=betriebFarbe(betrieb);const sc=sorteFarbe(s.sorte);
-        html+=`<div class="scard" style="position:relative;border-left:5px solid ${bc};background:${sc}">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px">
-            <div>
-              <span style="font-size:.88rem;font-weight:700;color:var(--pd)">${s.typ==='birne'?'🍐':'🍎'} ${s.name}</span>
-              ${sorteInfo||losInfo?`<div style="font-size:.7rem;color:var(--txl);margin-top:1px">${sorteInfo}${losInfo}</div>`:''}
-            </div>
-            <button class="btn btn-s btn-sm" style="padding:3px 8px;font-size:1rem" onclick="event.stopPropagation();toggleSchlagMenu('${s.id}')" title="Mehr">⋮</button>
-          </div>
-          <div style="display:flex;gap:7px;flex-wrap:wrap">
-            <button class="btn btn-p btn-sm" style="flex:1;min-width:120px;font-size:.8rem;padding:7px 10px"
-              onclick="quickErnte('${s.id}')">🌿 Ernte erfassen</button>
-            <button class="btn btn-s btn-sm" style="flex:1;min-width:120px;font-size:.8rem;padding:7px 10px"
-              onclick="quickMassnahme('${s.id}')">📝 Maßnahme</button>
-          </div>
-          <div id="smenu-${sid}" style="display:none;position:absolute;right:10px;top:44px;background:#fff;border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:60;min-width:160px;overflow:hidden">
-            <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openBbchMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📍 BBCH setzen</div>
-            <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openSchlagMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">✏️ Bearbeiten</div>
-            <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openMassnahmenForSchlag('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📋 Alle Maßnahmen</div>
-            <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openFotochronik('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📷 Fotochronik</div>
-          </div>
-        </div>`;
-      }
-    }
-    html+='</div></div>'; // close accId div + outer div
+      </div>
+      <div id="${accId}" class="sg" style="margin-top:6px">
+        ${list.map(s=>_schlagCard(s)).join('')}
+      </div>
+    </div>`;
   }
   el.innerHTML=html;
 }
@@ -3909,12 +3896,13 @@ function _renderEOBetriebeListe(){
     } else {
       // Group by Feldstück
       const grp={};
-      for(const s of bSchlage){if(!grp[s.feldstuck])grp[s.feldstuck]=[];grp[s.feldstuck].push(s);}
-      for(const fs of Object.keys(grp).sort()){
-        html+=`<div style="font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;margin:8px 0 4px">${fs}</div>`;
+      for(const s of bSchlage){const fs=s.feldstuck||'';if(!grp[fs])grp[fs]=[];grp[fs].push(s);}
+      for(const fs of Object.keys(grp).sort(feldSort)){
+        const fsLabel=getFeldDisplay(fs);
+        html+=`<div style="font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;margin:10px 0 4px;padding-bottom:3px;border-bottom:2px solid var(--bdr)">📍 ${fsLabel}</div>`;
         for(const s of grp[fs]){
-          html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr)">
-            <span style="font-size:.82rem;flex:1">${s.typ==='birne'?'🍐':'🍎'} <b>${s.name}</b>${s.sorte?' · '+s.sorte:''}${s.ha_netto?' · '+s.ha_netto+' ha':''}</span>
+          html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0 5px 8px;border-bottom:1px solid var(--bdr)">
+            <span style="font-size:.82rem;flex:1">${s.typ==='birne'?'🍐':'🍎'} <b>${s.name}</b>${s.sorte?' · '+s.sorte:''}${s.ha_netto?' · '+s.ha_netto+' ha':''}${s.los_nr?' · Los '+s.los_nr:''}</span>
             <select onchange="eoAssignSchlag('${s.id}',this.value)" style="font-size:.78rem;border:1px solid var(--bdr);border-radius:5px;padding:3px 5px">
               ${_eoBetriebe.map(bb=>`<option value="${bb.id}"${bb.id===s.betrieb_id?' selected':''}>${bb.name}</option>`).join('')}
             </select>
