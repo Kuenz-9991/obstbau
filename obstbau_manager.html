@@ -1484,7 +1484,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.13 · 19.08.2026 16:22";
+const APP_VERSION="v2.14 · 19.08.2026 16:22";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2331,7 +2331,8 @@ function calcTheorBaumzahl(){
 async function saveSchlag(){
   const selBetriebId=v('ms-betrieb');
   const betriebId=selBetriebId||_meinBetriebId||null;
-  const foundB=_gruppenBetriebe.find(b=>b.id===betriebId);
+  const allBetriebe=[..._eoBetriebe,..._gruppenBetriebe];
+  const foundB=allBetriebe.find(b=>b.id===betriebId);
   const betriebName=foundB?foundB.name:'';
   const s={
     id:editSid||uid(),betrieb_id:betriebId,
