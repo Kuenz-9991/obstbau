@@ -320,34 +320,38 @@ tr:hover td{background:#f9fcfa}
   </div>
 </div>
 
-<!-- MODAL: Transport-Buchung -->
+<!-- MODAL: Transport-Buchung (Multi-Position) -->
 <div class="mov" id="mod-transport-buchung">
-  <div class="mod" style="max-width:480px">
+  <div class="mod" style="max-width:640px">
     <div class="mod-hdr">
       <div class="mod-title" id="transp-buch-title">🚛 Transport erfassen</div>
       <button class="mod-x" onclick="closeMod('mod-transport-buchung')">✕</button>
     </div>
     <div style="border-left:4px solid #fb8c00;background:#fff8f0;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:12px">
-      <div class="fg" style="margin-bottom:8px">
-        <label style="font-size:.72rem;font-weight:700;color:#e65100">Datum</label>
-        <input type="date" id="transp-datum" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.88rem;width:100%">
+      <!-- Datum + Lieferziel -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+        <div class="fg">
+          <label style="font-size:.72rem;font-weight:700;color:#e65100">Datum</label>
+          <input type="date" id="transp-datum" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.88rem;width:100%">
+        </div>
+        <div class="fg">
+          <label style="font-size:.72rem;font-weight:700;color:#e65100">🎯 Lieferziel</label>
+          <select id="transp-verwendung" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select>
+        </div>
       </div>
-      <div class="fg" style="margin-bottom:8px">
-        <label style="font-size:.72rem;font-weight:700;color:#e65100">Schlag</label>
-        <select id="transp-schlag" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select>
+      <!-- Positions-Header -->
+      <div style="display:grid;grid-template-columns:1.6fr 1.6fr 72px 72px 28px;gap:4px;margin-bottom:4px;padding:0 2px">
+        <span style="font-size:.67rem;font-weight:700;color:#e65100;text-transform:uppercase">Von Standort</span>
+        <span style="font-size:.67rem;font-weight:700;color:#e65100;text-transform:uppercase">Schlag</span>
+        <span style="font-size:.67rem;font-weight:700;color:#e65100;text-transform:uppercase;text-align:right">🍎 1.Kl</span>
+        <span style="font-size:.67rem;font-weight:700;color:#e65100;text-transform:uppercase;text-align:right">🐛 Verarb.</span>
+        <span></span>
       </div>
-      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">Von Standort</label>
-          <select id="transp-von-standort" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select></div>
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">Verwendung / Ziel</label>
-          <select id="transp-verwendung" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select></div>
-      </div>
-      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px">
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">🍎 GK 1. Klasse</label>
-          <input type="number" id="transp-gk-1kl" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.9rem;font-weight:700;width:100%"></div>
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">🐛 GK Verarbeitung</label>
-          <input type="number" id="transp-gk-ver" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.9rem;font-weight:700;width:100%"></div>
-      </div>
+      <!-- Dynamic rows -->
+      <div id="transp-positionen"></div>
+      <button onclick="addTranspPosition()" style="margin-top:6px;background:none;border:1px dashed #fb8c00;color:#e65100;border-radius:6px;padding:4px 12px;font-size:.78rem;cursor:pointer;width:100%">+ Position hinzufügen</button>
+      <!-- Summe -->
+      <div id="transp-summe" style="margin-top:8px;padding:6px 8px;background:#fff3e0;border-radius:6px;font-size:.8rem;display:none"></div>
     </div>
     <div class="fg" style="margin-bottom:14px">
       <label style="font-size:.75rem;font-weight:700;color:var(--txl)">Notiz</label>
@@ -1581,7 +1585,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.17.2";
+const APP_VERSION="v2.17.3";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -4088,6 +4092,91 @@ function saveErnteBuchung(){
 }
 
 // ── Transport-Modal ──────────────────────────────────
+
+// Backward-compat: gibt positions-Array zurück (neu oder aus altem Format)
+function getTransportPositionen(e){
+  if(e.positionen&&e.positionen.length) return e.positionen;
+  return [{von_standort_id:e.von_standort_id||'',schlag_id:e.schlag_id||'',
+           gk_1kl:e.gk_1kl||e.gk_anzahl||0,gk_verarbeitung:e.gk_verarbeitung||0}];
+}
+
+function _transpStandortOpts(){
+  return '<option value="">– Standort –</option>'+D.lagerorte.map(l=>{
+    const b=calcStandortBestand(l.id);
+    let s='';
+    if(b.total>0){
+      if(b.gk1kl>0&&b.gkVer>0) s=` [${b.gk1kl} 1.Kl + ${b.gkVer} V = ${b.total} GK]`;
+      else if(b.gk1kl>0) s=` [${b.gk1kl} GK 1.Kl]`;
+      else s=` [${b.gkVer} GK Verarb.]`;
+    }
+    return`<option value="${l.id}">${l.name}${s}</option>`;
+  }).join('');
+}
+
+function _transpSchlagOpts(){
+  const grp={};
+  D.schlage.forEach(s=>{
+    const sorte=s.sorte||s.name||'Sonstige';
+    if(!grp[sorte]) grp[sorte]=[];
+    grp[sorte].push(s);
+  });
+  return '<option value="">– Schlag –</option>'+
+    Object.keys(grp).sort().map(sorte=>`<optgroup label="🍎 ${sorte}">${
+      grp[sorte].sort((a,b)=>(a.betrieb||'').localeCompare(b.betrieb||'','de'))
+        .map(s=>`<option value="${s.id}">${s.name}${s.betrieb?' — '+s.betrieb:''}</option>`).join('')
+    }</optgroup>`).join('');
+}
+
+function addTranspPosition(pos){
+  const container=document.getElementById('transp-positionen');
+  const div=document.createElement('div');
+  div.className='tp-row';
+  div.style.cssText='display:grid;grid-template-columns:1.6fr 1.6fr 70px 70px 26px;gap:4px;margin-bottom:5px;align-items:center';
+  div.innerHTML=
+    `<select class="tp-standort" onchange="updateTranspSummary()" style="border:1px solid #ffcc80;border-radius:6px;padding:4px 5px;font-size:.73rem;background:#fff;width:100%">${_transpStandortOpts()}</select>`+
+    `<select class="tp-schlag" onchange="updateTranspSummary()" style="border:1px solid #ffcc80;border-radius:6px;padding:4px 5px;font-size:.73rem;background:#fff;width:100%">${_transpSchlagOpts()}</select>`+
+    `<input type="number" class="tp-kl1" min="0" placeholder="0" oninput="updateTranspSummary()" style="border:1px solid #ffcc80;border-radius:6px;padding:4px 5px;font-size:.82rem;font-weight:700;text-align:right;width:100%">`+
+    `<input type="number" class="tp-ver" min="0" placeholder="0" oninput="updateTranspSummary()" style="border:1px solid #ffcc80;border-radius:6px;padding:4px 5px;font-size:.82rem;font-weight:700;text-align:right;width:100%">`+
+    `<button onclick="removeTranspPosition(this)" title="Position entfernen" style="background:none;border:none;color:#e63946;font-size:1rem;cursor:pointer;padding:0;line-height:1">✕</button>`;
+  container.appendChild(div);
+  if(pos){
+    div.querySelector('.tp-standort').value=pos.von_standort_id||'';
+    div.querySelector('.tp-schlag').value=pos.schlag_id||'';
+    div.querySelector('.tp-kl1').value=pos.gk_1kl||'';
+    div.querySelector('.tp-ver').value=pos.gk_verarbeitung||'';
+  } else if(D.standardLagerId){
+    div.querySelector('.tp-standort').value=D.standardLagerId;
+  }
+  updateTranspSummary();
+}
+
+function removeTranspPosition(btn){
+  const container=document.getElementById('transp-positionen');
+  if(container.children.length<=1){alert('Mindestens eine Position erforderlich');return;}
+  btn.closest('.tp-row').remove();
+  updateTranspSummary();
+}
+
+function updateTranspSummary(){
+  const rows=document.querySelectorAll('#transp-positionen .tp-row');
+  let t1=0,tV=0;
+  rows.forEach(r=>{
+    t1+=parseFloat(r.querySelector('.tp-kl1').value||0)||0;
+    tV+=parseFloat(r.querySelector('.tp-ver').value||0)||0;
+  });
+  const el=document.getElementById('transp-summe');
+  if(t1||tV){
+    el.style.display='';
+    const p=[];
+    if(t1) p.push(`<b>${t1}</b> GK 1.Kl`);
+    if(tV) p.push(`<b>${tV}</b> GK Verarb.`);
+    p.push(`= <b>${t1+tV}</b> GK gesamt`);
+    el.innerHTML='∑ '+p.join(' · ');
+  } else {
+    el.style.display='none';
+  }
+}
+
 function openTransportMod(editId){
   const today=new Date().toISOString().slice(0,10);
   document.getElementById('transp-datum').value=today;
@@ -4095,35 +4184,10 @@ function openTransportMod(editId){
   document.getElementById('transp-edit-id').value='';
   document.getElementById('transp-del-btn').style.display='none';
   document.getElementById('transp-buch-title').textContent='🚛 Transport erfassen';
-  // Schlag-Dropdown – nach Sorte gruppiert, Betrieb rechts
-  const sorteGrp={};
-  D.schlage.forEach(s=>{
-    const sorte=s.sorte||s.name||'Sonstige';
-    if(!sorteGrp[sorte]) sorteGrp[sorte]=[];
-    sorteGrp[sorte].push(s);
-  });
-  const schlagOpts='<option value="">– Schlag wählen –</option>'+
-    Object.keys(sorteGrp).sort().map(sorte=>`<optgroup label="🍎 ${sorte}">${
-      sorteGrp[sorte].sort((a,b)=>(a.betrieb||'').localeCompare(b.betrieb||'','de')).map(s=>`<option value="${s.id}">${s.name}${s.betrieb?' — '+s.betrieb:''}${s.pflanzjahr?' ('+s.pflanzjahr+')':''}</option>`).join('')
-    }</optgroup>`).join('');
-  document.getElementById('transp-schlag').innerHTML=schlagOpts;
-  // Von-Standort: Bestand je Standort anzeigen (mit 1.Kl / Verarb. Aufschlüsselung)
-  document.getElementById('transp-von-standort').innerHTML=D.lagerorte.map(l=>{
-    const b=calcStandortBestand(l.id);
-    let bestandStr='';
-    if(b.total>0){
-      if(b.gk1kl>0&&b.gkVer>0) bestandStr=` [${b.gk1kl} 1.Kl + ${b.gkVer} V = ${b.total} GK]`;
-      else if(b.gk1kl>0) bestandStr=` [${b.gk1kl} GK 1.Kl]`;
-      else bestandStr=` [${b.gkVer} GK Verarb.]`;
-    }
-    return`<option value="${l.id}">${l.name}${bestandStr}</option>`;
-  }).join('');
-  // Standard-Standort vorauswählen (nur neuer Eintrag)
-  if(!editId&&D.standardLagerId) document.getElementById('transp-von-standort').value=D.standardLagerId;
   document.getElementById('transp-verwendung').innerHTML=getVerwendungen().map(v=>`<option value="${v.id}">${v.typ==='tafel'?'🍎':'🏭'} ${v.name}</option>`).join('');
-  // GK leeren
-  document.getElementById('transp-gk-1kl').value='';
-  document.getElementById('transp-gk-ver').value='';
+  // Positionen zurücksetzen
+  document.getElementById('transp-positionen').innerHTML='';
+  document.getElementById('transp-summe').style.display='none';
   if(editId){
     const entry=D.ernte_ist.find(e=>e.id===editId);
     if(entry){
@@ -4132,12 +4196,11 @@ function openTransportMod(editId){
       document.getElementById('transp-edit-id').value=editId;
       document.getElementById('transp-del-btn').style.display='';
       document.getElementById('transp-buch-title').textContent='✏️ Transport bearbeiten';
-      document.getElementById('transp-schlag').value=entry.schlag_id||'';
-      document.getElementById('transp-von-standort').value=entry.von_standort_id||'';
       document.getElementById('transp-verwendung').value=entry.verwendung_id||'';
-      document.getElementById('transp-gk-1kl').value=entry.gk_1kl||entry.gk_anzahl||'';
-      document.getElementById('transp-gk-ver').value=entry.gk_verarbeitung||'';
+      getTransportPositionen(entry).forEach(p=>addTranspPosition(p));
     }
+  } else {
+    addTranspPosition(); // leere Start-Position
   }
   openMod('mod-transport-buchung');
 }
@@ -4145,37 +4208,57 @@ function openTransportMod(editId){
 function saveTransportBuchung(){
   const datum=document.getElementById('transp-datum').value;
   if(!datum){alert('Bitte Datum eingeben');return;}
-  const schlag=document.getElementById('transp-schlag').value;
-  if(!schlag){alert('Bitte Schlag auswählen');return;}
-  const von=document.getElementById('transp-von-standort').value;
-  if(!von){alert('Bitte Von-Standort auswählen');return;}
   const verw=document.getElementById('transp-verwendung').value;
-  if(!verw){alert('Bitte Verwendung auswählen');return;}
-  const kl1=parseFloat(document.getElementById('transp-gk-1kl').value||'')||0;
-  const ver=parseFloat(document.getElementById('transp-gk-ver').value||'')||0;
-  if(!kl1&&!ver){alert('Bitte GK-Menge eingeben');return;}
+  if(!verw){alert('Bitte Lieferziel auswählen');return;}
   const notiz=document.getElementById('transp-notiz').value.trim();
   const editId=document.getElementById('transp-edit-id').value;
-  // ── Minus-Bestand-Check: Bestand OHNE diesen Eintrag prüfen ──
+  // Positionen einlesen
+  const rows=document.querySelectorAll('#transp-positionen .tp-row');
+  const positionen=[];
+  for(const r of rows){
+    const von=r.querySelector('.tp-standort').value;
+    if(!von){alert('Bitte bei jeder Position einen Von-Standort auswählen');return;}
+    const schlag=r.querySelector('.tp-schlag').value;
+    const kl1=parseFloat(r.querySelector('.tp-kl1').value||0)||0;
+    const ver=parseFloat(r.querySelector('.tp-ver').value||0)||0;
+    if(!kl1&&!ver){alert('Bitte bei jeder Position eine GK-Menge eingeben');return;}
+    positionen.push({von_standort_id:von,schlag_id:schlag,gk_1kl:kl1,gk_verarbeitung:ver});
+  }
+  if(!positionen.length){alert('Mindestens eine Position erforderlich');return;}
+  // ── Minus-Bestand-Check pro Standort ──
   const tempData=editId?D.ernte_ist.filter(e=>e.id!==editId):D.ernte_ist;
-  let avail1kl=0,availVer=0;
-  tempData.forEach(e=>{
-    const t=getEntryTyp(e);
-    if(t==='ernte'){
-      if(e.verteilung) e.verteilung.forEach(v=>{if(v.standort_id===von){avail1kl+=(v.gk_1kl||0);availVer+=(v.gk_verarbeitung||0);}});
-      else if(e.standort_id===von){avail1kl+=(e.gk_1kl||0);availVer+=(e.gk_verarbeitung||0);}
-      (e.buchungen||[]).forEach(b=>{if(b.lager_id===von){avail1kl+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));availVer+=(b.verarbeitung_gk||0);}});
-    } else if(t==='transport'&&e.von_standort_id===von){
-      avail1kl-=(e.gk_1kl||e.gk_anzahl||0);
-      availVer-=(e.gk_verarbeitung||0);
-    }
+  const avail={};
+  D.lagerorte.forEach(l=>{
+    let g1=0,gV=0;
+    tempData.forEach(e=>{
+      const t=getEntryTyp(e);
+      if(t==='ernte'){
+        if(e.verteilung) e.verteilung.forEach(v=>{if(v.standort_id===l.id){g1+=(v.gk_1kl||0);gV+=(v.gk_verarbeitung||0);}});
+        else if(e.standort_id===l.id){g1+=(e.gk_1kl||0);gV+=(e.gk_verarbeitung||0);}
+        (e.buchungen||[]).forEach(b=>{if(b.lager_id===l.id){g1+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gV+=(b.verarbeitung_gk||0);}});
+      } else if(t==='transport'){
+        getTransportPositionen(e).forEach(p=>{if(p.von_standort_id===l.id){g1-=(p.gk_1kl||0);gV-=(p.gk_verarbeitung||0);}});
+        (e.buchungen||[]).forEach(b=>{if(b.lager_id===l.id){g1-=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gV-=(b.verarbeitung_gk||0);}});
+      }
+    });
+    avail[l.id]={g1,gV};
   });
-  const vonName=(D.lagerorte.find(l=>l.id===von)||{}).name||von;
-  if(kl1>avail1kl){alert(`⚠️ Minusbestand!\n${vonName}: nur ${avail1kl} GK (1.Kl) verfügbar, aber ${kl1} GK angefordert.`);return;}
-  if(ver>availVer){alert(`⚠️ Minusbestand!\n${vonName}: nur ${availVer} GK (Verarb.) verfügbar, aber ${ver} GK angefordert.`);return;}
+  // Neue Positionen pro Standort summieren und prüfen
+  const neuByS={};
+  positionen.forEach(p=>{
+    if(!neuByS[p.von_standort_id]) neuByS[p.von_standort_id]={kl1:0,ver:0};
+    neuByS[p.von_standort_id].kl1+=p.gk_1kl;
+    neuByS[p.von_standort_id].ver+=p.gk_verarbeitung;
+  });
+  for(const [sid,m] of Object.entries(neuByS)){
+    const a=avail[sid]||{g1:0,gV:0};
+    const lName=(D.lagerorte.find(l=>l.id===sid)||{}).name||sid;
+    if(m.kl1>a.g1){alert(`⚠️ Minusbestand!\n${lName}: nur ${a.g1} GK (1.Kl) verfügbar, aber ${m.kl1} GK angefordert.`);return;}
+    if(m.ver>a.gV){alert(`⚠️ Minusbestand!\n${lName}: nur ${a.gV} GK (Verarb.) verfügbar, aber ${m.ver} GK angefordert.`);return;}
+  }
   // ─────────────────────────────────────────────────────────────
   const entryId=editId||uid();
-  const entry={id:entryId,typ:'transport',datum,schlag_id:schlag,gk_1kl:kl1,gk_verarbeitung:ver,von_standort_id:von,verwendung_id:verw,notiz};
+  const entry={id:entryId,typ:'transport',datum,verwendung_id:verw,notiz,positionen};
   if(editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==editId);
   const idx=D.ernte_ist.findIndex(e=>e.id===entry.id);
   if(idx>=0) D.ernte_ist[idx]=entry; else D.ernte_ist.push(entry);
@@ -4183,7 +4266,6 @@ function saveTransportBuchung(){
   scheduleSave();
   closeMod('mod-transport-buchung');
   renderErnteIst();
-  // Lieferschein anbieten
   if(confirm('Transport gespeichert. Lieferschein drucken?')) printLieferschein(entryId);
 }
 
@@ -4199,30 +4281,46 @@ function deleteTransportBuchung(){
 function printLieferschein(entryId){
   const e=D.ernte_ist.find(x=>x.id===entryId);
   if(!e) return;
-  const sc=D.schlage.find(x=>x.id===e.schlag_id);
-  const vonStandort=D.lagerorte.find(x=>x.id===e.von_standort_id);
   const verwendung=getVerwendungen().find(x=>x.id===e.verwendung_id);
-  const kl1=e.gk_1kl||e.gk_anzahl||0;
-  const ver=e.gk_verarbeitung||0;
-  const schlagName=sc?sc.name:'–';
-  const betrieb=sc?sc.betrieb||'–':'–';
-  const sorte=sc?sc.sorte||'–':'–';
-  const vonName=vonStandort?vonStandort.name:'–';
   const zielName=verwendung?verwendung.name:'–';
+  const positionen=getTransportPositionen(e);
+  // Positionszeilen für die Tabelle
+  let posRows='';
+  let totalKl1=0,totalVer=0;
+  positionen.forEach((p,i)=>{
+    const sc=D.schlage.find(x=>x.id===p.schlag_id);
+    const standort=D.lagerorte.find(x=>x.id===p.von_standort_id);
+    const schlagTxt=sc?sc.name:'–';
+    const betriebTxt=sc?sc.betrieb||'–':'–';
+    const sorteTxt=sc?sc.sorte||'–':'–';
+    const vonName=standort?standort.name:'–';
+    const kl1=p.gk_1kl||0;const ver=p.gk_verarbeitung||0;
+    totalKl1+=kl1;totalVer+=ver;
+    posRows+=`<tr>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;font-size:12px;color:#555">${i+1}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd">${vonName}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd">${schlagTxt}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd">${betriebTxt}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd">${sorteTxt}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;text-align:right;font-weight:700">${kl1||'–'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;text-align:right;font-weight:700">${ver||'–'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;text-align:right;font-weight:700">${kl1+ver}</td>
+    </tr>`;
+  });
   const html=`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
   <title>Lieferschein ${e.datum}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;padding:32px;max-width:680px;margin:auto}
+    body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;padding:32px;max-width:780px;margin:auto}
     h1{font-size:22px;font-weight:800;margin-bottom:4px}
-    .sub{color:#666;font-size:12px;margin-bottom:28px}
+    .sub{color:#666;font-size:12px;margin-bottom:24px}
     table{width:100%;border-collapse:collapse;margin-bottom:20px}
-    th{background:#1b5e20;color:#fff;text-align:left;padding:7px 10px;font-size:12px}
-    td{padding:7px 10px;border-bottom:1px solid #ddd;font-size:13px}
-    .total td{font-weight:700;background:#f1faf1;border-top:2px solid #1b5e20}
-    .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:24px}
-    .meta-item{background:#f8f8f8;border:1px solid #ddd;border-radius:6px;padding:10px 14px}
-    .meta-label{font-size:10px;text-transform:uppercase;color:#666;letter-spacing:.04em;margin-bottom:3px}
+    th{background:#e65100;color:#fff;text-align:left;padding:7px 10px;font-size:11px;letter-spacing:.03em}
+    td{font-size:13px;vertical-align:top}
+    .total-row td{font-weight:700;background:#fff3e0;border-top:2px solid #e65100;padding:8px 10px}
+    .meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;margin-bottom:20px}
+    .meta-item{background:#f8f8f8;border:1px solid #ddd;border-radius:6px;padding:9px 12px}
+    .meta-label{font-size:10px;text-transform:uppercase;color:#888;letter-spacing:.04em;margin-bottom:3px}
     .meta-value{font-size:15px;font-weight:700}
     .footer{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:60px}
     .sig-line{border-top:1px solid #333;margin-top:40px;padding-top:6px;font-size:11px;color:#666}
@@ -4232,19 +4330,26 @@ function printLieferschein(entryId){
   <div class="sub">Obstbaumanager · Kuenz · erstellt: ${new Date().toLocaleDateString('de-AT')}</div>
   <div class="meta">
     <div class="meta-item"><div class="meta-label">Datum</div><div class="meta-value">${e.datum}</div></div>
-    <div class="meta-item"><div class="meta-label">Schlag</div><div class="meta-value">${schlagName}</div></div>
-    <div class="meta-item"><div class="meta-label">Betrieb</div><div class="meta-value">${betrieb}</div></div>
-    <div class="meta-item"><div class="meta-label">Sorte</div><div class="meta-value">${sorte}</div></div>
-    <div class="meta-item"><div class="meta-label">Abholstandort</div><div class="meta-value">${vonName}</div></div>
     <div class="meta-item"><div class="meta-label">Lieferziel</div><div class="meta-value">${zielName}</div></div>
   </div>
   <table>
-    <thead><tr><th>Position</th><th style="text-align:right">GK Anzahl</th></tr></thead>
-    <tbody>
-      ${kl1?`<tr><td>🍎 Grosskisten 1. Klasse</td><td style="text-align:right;font-weight:700">${kl1}</td></tr>`:''}
-      ${ver?`<tr><td>🐛 Grosskisten Verarbeitung</td><td style="text-align:right;font-weight:700">${ver}</td></tr>`:''}
-    </tbody>
-    <tfoot><tr class="total"><td>Gesamt</td><td style="text-align:right">${kl1+ver} GK</td></tr></tfoot>
+    <thead><tr>
+      <th style="width:30px">#</th>
+      <th>Von Standort</th>
+      <th>Schlag</th>
+      <th>Betrieb</th>
+      <th>Sorte</th>
+      <th style="text-align:right">GK 1.Kl</th>
+      <th style="text-align:right">GK Verarb.</th>
+      <th style="text-align:right">GK Σ</th>
+    </tr></thead>
+    <tbody>${posRows}</tbody>
+    <tfoot><tr class="total-row">
+      <td colspan="5">Gesamt</td>
+      <td style="text-align:right">${totalKl1||'–'}</td>
+      <td style="text-align:right">${totalVer||'–'}</td>
+      <td style="text-align:right">${totalKl1+totalVer} GK</td>
+    </tr></tfoot>
   </table>
   ${e.notiz?`<p style="margin-bottom:24px;font-size:12px;color:#555">Notiz: ${e.notiz}</p>`:''}
   <div class="footer">
@@ -4253,7 +4358,7 @@ function printLieferschein(entryId){
   </div>
   <script>window.onload=()=>{window.print();}<\/script>
   </body></html>`;
-  const win=window.open('','_blank','width=720,height=900');
+  const win=window.open('','_blank','width=820,height=900');
   if(!win){alert('Bitte Pop-ups erlauben für den Lieferschein-Druck.');return;}
   win.document.write(html);
   win.document.close();
@@ -4292,17 +4397,18 @@ function calcStandortBestand(lagerId){
         }
       });
     } else if(typ==='transport'){
-      // neues Format (gk_1kl + gk_verarbeitung)
-      if(e.von_standort_id===lagerId){
-        gk1kl-=(e.gk_1kl||e.gk_anzahl||0);
-        gkVer-=(e.gk_verarbeitung||0);
-      }
-      // altes Format (buchungen-Array)
+      // Multi-Position (neu) + backward-compat (alt via getTransportPositionen)
+      getTransportPositionen(e).forEach(p=>{
+        if(p.von_standort_id===lagerId){
+          gk1kl-=(p.gk_1kl||0);
+          gkVer-=(p.gk_verarbeitung||0);
+        }
+      });
+      // Uraltes buchungen-Array-Format
       (e.buchungen||[]).forEach(b=>{
         if(b.lager_id===lagerId){
-          const t=b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0);
-          const v=b.verarbeitung_gk||0;
-          gk1kl-=t;gkVer-=v;
+          gk1kl-=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));
+          gkVer-=(b.verarbeitung_gk||0);
         }
       });
     }
@@ -4592,28 +4698,41 @@ function renderErnteIst(){
     const tRows=[...transportEntries,...leergutEntries].sort((a,b)=>b.datum<a.datum?-1:b.datum>a.datum?1:0).map(e=>{
       const typ=getEntryTyp(e);
       const icon=typ==='transport'?'🚛':'📦';
-      const sc=D.schlage.find(x=>x.id===e.schlag_id);
-      const schlagTxt=sc?sc.name:(typ==='leergut'?'–':'?');
       let detailHtml='';
       if(typ==='transport'){
         const verwendung=verwendungen.find(x=>x.id===e.verwendung_id);
-        const vonStandort=D.lagerorte.find(x=>x.id===e.von_standort_id);
-        const kl1=e.gk_1kl||e.gk_anzahl||0;
-        const ver=e.gk_verarbeitung||0;
-        const mengeHtml=ver?`<b>${kl1}</b> 1.Kl + <b>${ver}</b> Verarb.`:`<b>${kl1}</b> GK`;
-        detailHtml=`${mengeHtml} · <span style="color:var(--txl)">${vonStandort?vonStandort.name:'?'}</span> → <span style="background:var(--ps);color:var(--pd);border-radius:4px;padding:1px 6px;font-size:.75rem">${verwendung?verwendung.name:'?'}</span>`;
+        const zielBadge=`<span style="background:#fff3e0;color:#e65100;border-radius:4px;padding:1px 6px;font-size:.73rem;font-weight:700">${verwendung?verwendung.name:'?'}</span>`;
+        const positionen=getTransportPositionen(e);
+        const posLines=positionen.map(p=>{
+          const sc=D.schlage.find(x=>x.id===p.schlag_id);
+          const standort=D.lagerorte.find(x=>x.id===p.von_standort_id);
+          const schlagTxt=sc?`${sc.name}${sc.betrieb?' <span style="color:#94a3b8;font-size:.68rem">('+sc.betrieb+')</span>':''}`:'';
+          const standortTxt=standort?standort.name:'?';
+          const kl1=p.gk_1kl||0;const ver=p.gk_verarbeitung||0;
+          const mengeHtml=kl1&&ver?`<b>${kl1}</b> 1.Kl + <b>${ver}</b> V`:(kl1?`<b>${kl1}</b> GK 1.Kl`:`<b>${ver}</b> GK V`);
+          return`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.75rem;margin-top:2px">
+            <span style="color:var(--txl)">${standortTxt}</span>
+            ${schlagTxt?`<span style="color:#94a3b8">›</span><span>${schlagTxt}</span>`:''}
+            <span style="color:#94a3b8">·</span><span style="color:#e65100">${mengeHtml}</span>
+          </div>`;
+        }).join('');
+        let totalKl1=0,totalVer=0;
+        positionen.forEach(p=>{totalKl1+=(p.gk_1kl||0);totalVer+=(p.gk_verarbeitung||0);});
+        const totalHtml=positionen.length>1?`<div style="font-size:.72rem;font-weight:700;color:#e65100;margin-top:3px">∑ ${totalKl1+totalVer} GK gesamt</div>`:'';
+        detailHtml=`<div style="margin-bottom:2px">${zielBadge}</div>${posLines}${totalHtml}`;
       } else {
         const gk=e.gk_anzahl!==undefined?e.gk_anzahl:(e.leergut?.grosskisten||0);
         detailHtml=`<b>+${gk} GK</b> Leergut zurück`;
       }
-      const notizHtml=e.notiz?`<div style="font-size:.68rem;color:var(--txl);margin-top:2px">${e.notiz}</div>`:'';
+      const notizHtml=e.notiz?`<div style="font-size:.68rem;color:var(--txl);margin-top:2px;font-style:italic">${e.notiz}</div>`:'';
       return`<tr style="border-bottom:1px solid var(--bdr)">
-        <td style="padding:5px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
-        <td style="padding:5px 8px;font-size:.85rem;white-space:nowrap">${icon} ${schlagTxt}</td>
-        <td style="padding:5px 8px;font-size:.8rem">${detailHtml}${notizHtml}</td>
-        <td style="padding:5px 4px;white-space:nowrap;display:flex;gap:4px">
-          <button class="btn btn-s btn-sm" onclick="openTransportMod('${e.id}')" style="padding:2px 6px" title="Bearbeiten">✏️</button>
-          ${typ==='transport'?`<button class="btn btn-s btn-sm" onclick="printLieferschein('${e.id}')" style="padding:2px 6px" title="Lieferschein drucken">🖨️</button>`:''}
+        <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap;vertical-align:top"><b>${e.datum}</b></td>
+        <td style="padding:6px 8px;font-size:.8rem;vertical-align:top">${detailHtml}${notizHtml}</td>
+        <td style="padding:6px 4px;white-space:nowrap;vertical-align:top">
+          <div style="display:flex;gap:3px">
+            <button class="btn btn-s btn-sm" onclick="openTransportMod('${e.id}')" style="padding:2px 6px" title="Bearbeiten">✏️</button>
+            ${typ==='transport'?`<button class="btn btn-s btn-sm" onclick="printLieferschein('${e.id}')" style="padding:2px 6px" title="Lieferschein drucken">🖨️</button>`:''}
+          </div>
         </td>
       </tr>`;
     }).join('');
@@ -4625,8 +4744,7 @@ function renderErnteIst(){
       <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem;border:1px solid var(--bdr);border-radius:6px">
         <thead><tr style="background:var(--bg);border-bottom:2px solid var(--bdr)">
           <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700;white-space:nowrap">Datum</th>
-          <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700;white-space:nowrap">Schlag</th>
-          <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700">Details</th>
+          <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700">Lieferziel · Herkunft · Menge</th>
           <th></th>
         </tr></thead>
         <tbody>${tRows}</tbody>
