@@ -144,6 +144,7 @@ tr:hover td{background:#f9fcfa}
   </div>
   <div class="hdr-right">
     <button class="btn btn-s btn-sm" onclick="cloudLoad()" title="Daten neu laden">🔄</button>
+    <button class="btn btn-s btn-sm" onclick="backupJSON()" title="Datensicherung (JSON)">💾</button>
     <button class="btn btn-s btn-sm" id="btn-auth" onclick="openAuthMod()">👤 <span id="hdr-user">…</span></button>
     <button class="btn btn-s btn-sm" onclick="supaSignOut()" title="Abmelden">🚪</button>
   </div>
@@ -434,10 +435,11 @@ tr:hover td{background:#f9fcfa}
       <!-- Basisdaten -->
       <div style="font-size:.7rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px">👤 Basisdaten</div>
       <div class="fg2" style="margin-bottom:12px">
-        <div class="fg"><label>Name *</label><input id="mb-name" placeholder="z.B. Mustermann Franz"></div>
+        <div class="fg"><label>Vorname *</label><input id="mb-vorname" placeholder="z.B. Franz"></div>
+        <div class="fg"><label>Nachname *</label><input id="mb-nachname" placeholder="z.B. Mustermann"></div>
         <div class="fg"><label>Kürzel (2–4 Buchst.) *</label><input id="mb-kuerzel" placeholder="z.B. MF" maxlength="4" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
         <div class="fg"><label>Telefon</label><input id="mb-tel" type="tel" placeholder="+43 ..."></div>
-        <div class="fg"><label>E-Mail</label><input id="mb-email" type="email" placeholder="franz@betrieb.at"></div>
+        <div class="fg fw"><label>E-Mail</label><input id="mb-email" type="email" placeholder="franz@betrieb.at"></div>
         <div class="fg fw"><label>Adresse</label><input id="mb-ort" placeholder="z.B. Dorfstraße 1, 6425 Haiming"></div>
       </div>
       <!-- Agrarnummern -->
@@ -1519,7 +1521,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.16.0";
+const APP_VERSION="v2.16.2";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2139,7 +2141,6 @@ function renderSchlage(){
   if(!D.schlage.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🌳</div>Keine Schläge vorhanden.</div>';return;}
 
   // Primär nach Betrieb, dann nach Feldstück
-  const prefOrder=['Kuenz Johannes','Johannes Kuenz','Kuenz Florian','Florian Kuenz','Kuenz Johanna','Johanna Kuenz'];
   const byBetrieb={};
   for(const s of D.schlage){
     const b=s.betrieb||'';
@@ -2147,9 +2148,19 @@ function renderSchlage(){
     byBetrieb[b].push(s);
   }
   const allB=Object.keys(byBetrieb);
+  // Sortierung: Nachname A-Z, dann Vorname A-Z; "Kein Betrieb" ans Ende
+  const allBetriebe=[..._eoBetriebe,..._gruppenBetriebe];
+  function _betriebSortKey(nameStr){
+    const bObj=allBetriebe.find(b=>b.name===nameStr||b.id===nameStr);
+    if(bObj&&bObj.nachname) return (bObj.nachname+' '+bObj.vorname).toLowerCase();
+    // Fallback: letztes Wort = Nachname
+    const parts=(nameStr||'').trim().split(' ');
+    const nn=parts.length>1?parts[parts.length-1]:parts[0]||'';
+    const vn=parts.length>1?parts.slice(0,-1).join(' '):'';
+    return (nn+' '+vn).toLowerCase();
+  }
   const betriebeOrder=[
-    ...prefOrder.filter(b=>allB.includes(b)),
-    ...allB.filter(b=>b&&!prefOrder.includes(b)),
+    ...allB.filter(b=>b).sort((a,b)=>_betriebSortKey(a).localeCompare(_betriebSortKey(b),'de')),
     ...(allB.includes('')?['']:[])
   ];
 
@@ -3916,9 +3927,15 @@ async function renderEO(){
 
 async function _loadEOBetriebe(){
   try{
-    const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebe?order=name&select=*',{headers:supaHeaders()});
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebe?order=nachname,vorname&select=*',{headers:supaHeaders()});
     if(!r.ok) throw new Error('HTTP '+r.status);
     _eoBetriebe=await r.json();
+    // Client-seitig nochmals sortieren (Fallback falls Spalten noch fehlen)
+    _eoBetriebe.sort((a,b)=>{
+      const an=(a.nachname||a.name||'').localeCompare(b.nachname||b.name||'','de');
+      if(an!==0) return an;
+      return (a.vorname||'').localeCompare(b.vorname||'','de');
+    });
   }catch(e){toast('⚠ Betriebe: '+e.message);}
   try{
     const r2=await _supaFetch(SUPA_URL+'/rest/v1/schlage?select=*,betriebe(name)&order=feldstuck,name',{headers:supaHeaders()});
@@ -4229,7 +4246,11 @@ function openBetriebMod(id=null){
   _eoEditId=id;
   const b=id?(_eoBetriebe.find(x=>x.id===id)||{}):null;
   document.getElementById('mb-title').textContent=b?'Betrieb bearbeiten':'Betrieb anlegen';
-  document.getElementById('mb-name').value=b?b.name:'';
+  // Vorname/Nachname: aus DB-Feldern, sonst aus name splitten (Fallback für Altdaten)
+  const vn=b?(b.vorname||( b.name?(b.name.split(' ')[0]||''):'')):'';
+  const nn=b?(b.nachname||(b.name?(b.name.split(' ').slice(1).join(' ')||''):'')):'';
+  document.getElementById('mb-vorname').value=vn;
+  document.getElementById('mb-nachname').value=nn;
   document.getElementById('mb-kuerzel').value=b?b.kuerzel:'';
   document.getElementById('mb-email').value=b?(b.email||''):'';
   document.getElementById('mb-tel').value=b?(b.telefon||''):'';
@@ -4247,17 +4268,20 @@ function openBetriebMod(id=null){
 }
 
 async function saveBetrieb(){
-  const name=v('mb-name');const kuerzel=v('mb-kuerzel');
+  const vorname=v('mb-vorname').trim();const nachname=v('mb-nachname').trim();
+  const name=(vorname+' '+nachname).trim();
+  const kuerzel=v('mb-kuerzel');
   const email=v('mb-email');const ort=v('mb-ort');
   const telefon=v('mb-tel');const lfbis_nr=v('mb-lfbis');
   const ggu_nr=v('mb-ggu');const notiz=v('mb-notiz');
   const authEmail=v('mb-auth-email');const authPw=v('mb-auth-pw');
-  if(!name){document.getElementById('mb-err').textContent='Name ist Pflicht.';return;}
+  if(!vorname||!nachname){document.getElementById('mb-err').textContent='Vor- und Nachname sind Pflicht.';return;}
   const btn=document.querySelector('#mod-betrieb .btn-p');
   btn.disabled=true;btn.textContent='⏳';
   document.getElementById('mb-err').textContent='';
   const payload={
-    name,kuerzel:kuerzel||null,email:email||null,ort:ort||null,
+    vorname,nachname,name,
+    kuerzel:kuerzel||null,email:email||null,ort:ort||null,
     telefon:telefon||null,lfbis_nr:lfbis_nr||null,ggu_nr:ggu_nr||null,
     notiz:notiz||null,zertifizierung:_mbZertList.length?_mbZertList:null
   };
