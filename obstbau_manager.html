@@ -334,13 +334,37 @@ tr:hover td{background:#f9fcfa}
 
 <!-- ERNTEPROGNOSE -->
 <div id="sec-ernteprognose" class="sec">
-  <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:10px">
+  <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
     <span style="font-weight:700;color:var(--pd);font-size:.88rem">Erntejahr:</span>
     <select id="prognose-jahr-sel" onchange="ernteJahr=parseInt(this.value);renderErntePrognose()" style="border:1px solid var(--bdr);border-radius:6px;padding:5px 8px;font-size:.85rem;background:#fff;color:var(--txt)"></select>
+    <button class="btn btn-s btn-sm" onclick="openVerwMod()">⚙️ Verwendungen</button>
     <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="openLagerMod()">🏪 Lagerorte</button>
   </div>
   <div id="ernte-prog-wrap2"></div>
-  <div id="ernte-zut-wrap2" style="margin-top:12px"></div>
+  <div id="ernte-etiketten-wrap" style="margin-top:14px"></div>
+</div>
+
+<!-- MODAL: Verwendungen konfigurieren -->
+<div class="mov" id="mod-verw">
+  <div class="mod" style="max-width:480px">
+    <div class="mod-hdr">
+      <div class="mod-title">⚙️ Verwendungen konfigurieren</div>
+      <button class="mod-x" onclick="closeMod('mod-verw')">✕</button>
+    </div>
+    <div style="font-size:.75rem;color:var(--txl);margin-bottom:10px">Definiere die Verwendungszwecke für eure Betriebsgruppe. <b>Tafel</b> = benötigt Etikett pro GK. <b>Verarbeitung</b> = kein Etikett.</div>
+    <div id="verw-list" style="margin-bottom:10px"></div>
+    <div style="display:flex;gap:6px;padding-top:8px;border-top:1px solid var(--bdr)">
+      <input id="verw-new-name" placeholder="Name (z.B. Moster Haiming)" style="flex:1;border:1px solid var(--bdr);border-radius:6px;padding:6px 9px;font-size:.82rem">
+      <select id="verw-new-typ" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 9px;font-size:.82rem;background:#fff">
+        <option value="tafel">🍎 Tafel</option>
+        <option value="verarbeitung">🏭 Verarbeitung</option>
+      </select>
+      <button class="btn btn-p btn-sm" onclick="addVerwendung()">+</button>
+    </div>
+    <div class="mod-ft">
+      <button class="btn btn-s" onclick="closeMod('mod-verw')">Schließen</button>
+    </div>
+  </div>
 </div>
 
 <!-- REFERENZ -->
@@ -1401,7 +1425,7 @@ const AC_SCHLAGE=[
 // ═══════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════
-let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{},ernte_ist:[]};
+let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{},ernte_ist:[],verwendungen:[]};
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5)}
 
@@ -1521,7 +1545,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.16.2";
+const APP_VERSION="v2.16.3";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2305,6 +2329,66 @@ const DEFAULT_SORTEN=[
   {name:'Wahl',typ:'birne',netto_kg:330},
   {name:'Williams',typ:'birne',netto_kg:330},
 ];
+
+// ── Verwendungen (Qualitäts-/Absatzziele) ─────────────────────────────────
+// typ: 'tafel' = Etikett benötigt · 'verarbeitung' = kein Etikett
+const DEFAULT_VERWENDUNGEN=[
+  {id:'gaimberg_1kl', name:'Gaimberg 1. Klasse', typ:'tafel'},
+  {id:'haiming_1kl',  name:'Haiming 1. Klasse',  typ:'tafel'},
+  {id:'schnaps',      name:'Schnaps',             typ:'verarbeitung'},
+  {id:'saft_kuenz',   name:'Saft Kuenz',          typ:'verarbeitung'},
+  {id:'moster_haim',  name:'Moster Haiming',      typ:'verarbeitung'},
+  {id:'sonstige',     name:'Sonstige',             typ:'tafel'},
+];
+
+function getVerwendungen(){
+  return(D.verwendungen&&D.verwendungen.length)?D.verwendungen:[...DEFAULT_VERWENDUNGEN];
+}
+
+function openVerwMod(){
+  renderVerwList();
+  openMod('mod-verw');
+}
+
+function renderVerwList(){
+  const el=document.getElementById('verw-list');if(!el)return;
+  const list=getVerwendungen();
+  if(!list.length){el.innerHTML='<div class="empty">Keine Verwendungen definiert.</div>';return;}
+  el.innerHTML=list.map((v,i)=>`
+    <div style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--bdr)">
+      <span style="flex:1;font-size:.85rem;font-weight:600">${v.name}</span>
+      <span style="font-size:.7rem;padding:2px 7px;border-radius:12px;${v.typ==='tafel'?'background:#e8f4ee;color:var(--p)':'background:#fef3ea;color:#a04000'}">
+        ${v.typ==='tafel'?'🍎 Tafel':'🏭 Verarbeitung'}</span>
+      <button class="btn btn-s btn-sm" onclick="moveVerw(${i},-1)" ${i===0?'disabled':''}>↑</button>
+      <button class="btn btn-s btn-sm" onclick="moveVerw(${i},1)"  ${i===list.length-1?'disabled':''}>↓</button>
+      <button class="btn btn-d btn-sm" onclick="delVerw(${i})">✕</button>
+    </div>`).join('');
+}
+
+function addVerwendung(){
+  const name=(document.getElementById('verw-new-name').value||'').trim();
+  const typ=document.getElementById('verw-new-typ').value||'tafel';
+  if(!name)return;
+  if(!D.verwendungen||!D.verwendungen.length) D.verwendungen=[...DEFAULT_VERWENDUNGEN];
+  const id='vw_'+Date.now();
+  D.verwendungen.push({id,name,typ});
+  document.getElementById('verw-new-name').value='';
+  scheduleSave();renderVerwList();renderErntePrognose();
+}
+
+function delVerw(i){
+  if(!D.verwendungen||!D.verwendungen.length) D.verwendungen=[...DEFAULT_VERWENDUNGEN];
+  D.verwendungen.splice(i,1);
+  scheduleSave();renderVerwList();renderErntePrognose();
+}
+
+function moveVerw(i,dir){
+  if(!D.verwendungen||!D.verwendungen.length) D.verwendungen=[...DEFAULT_VERWENDUNGEN];
+  const j=i+dir;
+  if(j<0||j>=D.verwendungen.length)return;
+  [D.verwendungen[i],D.verwendungen[j]]=[D.verwendungen[j],D.verwendungen[i]];
+  scheduleSave();renderVerwList();
+}
 
 function getSortenList(){
   // Primär aus Supabase-Cache, Fallback auf D.sorten oder DEFAULT_SORTEN
@@ -3186,14 +3270,29 @@ function fmtKg(v){if(!v&&v!==0)return'–';return v>=1000?(v/1000).toFixed(2).re
 function fmtKisten(v){if(!v&&v!==0)return'–';return v+' GK';}
 
 function calcProg(s,p){
-  // Baumzahl: manuell → sonst aus Reihenlänge ÷ Pflanzabstand Baum
   const baumzahl=s.baumzahl||(s.reihenlange&&s.pabst_baum?Math.round(s.reihenlange/s.pabst_baum):0);
   const bz=baumzahl*(1-(p.ausfall_prozent||0)/100);
   const gesamt=Math.round(bz*(p.kg_pro_baum||0));
-  const verarbeitung=Math.round(gesamt*(p.verarbeitung_prozent||0)/100);
-  const tafel=gesamt-verarbeitung;
   const gkk=getSorteNkg(s.sorte)||(s.grosskisten_kg)||330;
-  return{gesamt,tafel,verarbeitung,baumzahl,
+  // Verarbeitungsanteil: aus Verwendungen oder fallback auf verarbeitung_prozent
+  const verwendungen=getVerwendungen();
+  let verarbPct=p.verarbeitung_prozent||0;
+  const va=p.verwendung_anteile||{};
+  const hasVA=Object.keys(va).length>0;
+  if(hasVA){
+    verarbPct=verwendungen.filter(v=>v.typ==='verarbeitung').reduce((s,v)=>s+(va[v.id]||0),0);
+  }
+  const verarbeitung=Math.round(gesamt*verarbPct/100);
+  const tafel=gesamt-verarbeitung;
+  // Pro-Verwendung GK
+  const verwendungGK={};
+  if(hasVA&&gkk>0){
+    for(const v of verwendungen){
+      const kg=Math.round(gesamt*(va[v.id]||0)/100);
+      verwendungGK[v.id]=Math.ceil(kg/gkk)||0;
+    }
+  }
+  return{gesamt,tafel,verarbeitung,baumzahl,gkk,verwendungGK,
     tafel_kisten:gkk>0?Math.ceil(tafel/gkk):null,
     verarbeitung_kisten:gkk>0?Math.ceil(verarbeitung/gkk):null,
     gesamt_kisten:gkk>0?Math.ceil(gesamt/gkk):null};
@@ -3208,22 +3307,33 @@ function savePrognoseRow(sid){
   if(!D.prognosen[sid])D.prognosen[sid]={};
   const kpb=parseFloat(document.getElementById('ep-'+sid+'-kpb').value)||0;
   const af=parseFloat(document.getElementById('ep-'+sid+'-af').value)||0;
-  const vp=parseFloat(document.getElementById('ep-'+sid+'-vp').value)||0;
-  D.prognosen[sid][ernteJahr]={kg_pro_baum:kpb,ausfall_prozent:af,verarbeitung_prozent:vp};
+  // Verwendungs-Anteile lesen
+  const verwendungen=getVerwendungen();
+  const va={};
+  let pctSum=0;
+  for(const v of verwendungen){
+    const el=document.getElementById('ep-'+sid+'-vw-'+v.id);
+    const pct=el?(parseFloat(el.value)||0):0;
+    va[v.id]=pct; pctSum+=pct;
+  }
+  const verarbPct=verwendungen.filter(v=>v.typ==='verarbeitung').reduce((s,v)=>s+(va[v.id]||0),0);
+  D.prognosen[sid][ernteJahr]={
+    kg_pro_baum:kpb,ausfall_prozent:af,
+    verarbeitung_prozent:verarbPct,
+    verwendung_anteile:va
+  };
   scheduleSave();
-  // Ergebnis-Felder sofort aktualisieren ohne komplett neu zu rendern
-  const s=D.schlage.find(x=>x.id===sid);
-  if(!s)return;
+  // Ergebnis-Felder sofort aktualisieren
+  const s=D.schlage.find(x=>x.id===sid);if(!s)return;
   const c=calcProg(s,D.prognosen[sid][ernteJahr]);
-  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
-  set('ep-'+sid+'-tafel-kg', c.gesamt?fmtKg(c.tafel):'–');
-  set('ep-'+sid+'-tafel-gk', c.tafel_kisten!=null?fmtKisten(c.tafel_kisten):'');
-  set('ep-'+sid+'-verarbeitung-kg', c.gesamt?fmtKg(c.verarbeitung):'–');
-  set('ep-'+sid+'-verarbeitung-gk', c.verarbeitung_kisten!=null?fmtKisten(c.verarbeitung_kisten):'');
-  set('ep-'+sid+'-gesamt-kg', c.gesamt?fmtKg(c.gesamt):'–');
-  set('ep-'+sid+'-gesamt-gk', c.gesamt_kisten!=null?fmtKisten(c.gesamt_kisten):'');
-  // Zuteilungs-Card-Heading aktualisieren
-  renderZuteilungCard();
+  const upd=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  upd('ep-'+sid+'-gesamt-kg', c.gesamt?fmtKg(c.gesamt):'–');
+  upd('ep-'+sid+'-gesamt-gk', c.gesamt_kisten!=null?fmtKisten(c.gesamt_kisten):'');
+  // % Summen-Warnung
+  const wEl=document.getElementById('ep-'+sid+'-pct-warn');
+  if(wEl) wEl.textContent=Math.abs(pctSum-100)<1?'':'⚠ Summe: '+pctSum+'%';
+  // Etiketten sofort updaten
+  renderEtiketten();
 }
 
 function saveZuteilungCell(sid,lagId){
@@ -3263,106 +3373,142 @@ function renderErntePrognose(){
   renderZuteilungCardTo('ernte-zut-wrap2');
 }
 
-function renderPrognoseCardTo(wrapId){
-  return renderPrognoseCard(wrapId);
-}
+function renderPrognoseCardTo(wrapId){ return renderPrognoseCard(wrapId); }
+
 function renderPrognoseCard(wrapId){
-  const el=document.getElementById(wrapId||'ernte-prog-wrap2');
-  if(!el)return;
-  if(!D.schlage.length){el.innerHTML='<div class="card"><div class="card-hdr">\u{1F4CA} Ernteprognose '+ernteJahr+'</div><div class="empty">Noch keine Schläge angelegt.</div></div>';return;}
+  const el=document.getElementById(wrapId||'ernte-prog-wrap2');if(!el)return;
+  if(!D.schlage.length){el.innerHTML='<div class="empty">Noch keine Schläge angelegt.</div>';return;}
 
-  const TYPEN=[{key:'apfel',label:'\u{1F34E} Äpfel'},{key:'birne',label:'\u{1F350} Birnen'},{key:'_sonstige',label:'Sonstige'}];
-  function getTyp(s){return ['apfel','birne'].includes(s.typ||'')?s.typ:'_sonstige';}
+  const verwendungen=getVerwendungen();
+  const allBetriebe=[..._eoBetriebe,..._gruppenBetriebe];
 
-  let allHtml='';
-  let sumT=0,sumV=0,sumG=0;
+  // ── Betrieb-Gruppierung (gleiche Logik wie Schläge-Tab) ──
+  const byBetrieb={};
+  for(const s of D.schlage){
+    const b=s.betrieb||'';
+    if(!byBetrieb[b])byBetrieb[b]=[];
+    byBetrieb[b].push(s);
+  }
+  const betriebeOrder=[
+    ...Object.keys(byBetrieb).filter(b=>b).sort((a,b)=>_betriebSortKey(a).localeCompare(_betriebSortKey(b),'de')),
+    ...(byBetrieb['']?['']:[])
+  ];
 
-  for(const typ of TYPEN){
-    const gruppe=D.schlage.filter(s=>getTyp(s)===typ.key);
-    if(!gruppe.length) continue;
+  let sumG=0, allHtml='';
 
-    let grpT=0,grpV=0,grpG=0;
-    const grpRows=gruppe.map(s=>{
-      const p=getP(s.id,ernteJahr);
-      const c=calcProg(s,p);
-      grpT+=c.tafel; grpV+=c.verarbeitung; grpG+=c.gesamt;
-      const histJahre=Object.keys(D.prognosen[s.id]||{}).map(Number).filter(y=>y!==ernteJahr).sort((a,b)=>b-a);
-      const histHtml=histJahre.length?`
-        <div style="margin-top:8px;border-top:1px solid var(--bdr);padding-top:6px">
-          <div style="font-size:.7rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Vorjahre</div>
-          <table style="width:100%;font-size:.75rem;border-collapse:collapse">
-            <thead><tr style="color:var(--txl)"><th style="text-align:left;padding:2px 6px">Jahr</th><th style="text-align:right;padding:2px 6px">kg/Baum</th><th style="text-align:right;padding:2px 6px">Leere B.</th><th style="text-align:right;padding:2px 6px">Verarbeitung</th><th style="text-align:right;padding:2px 6px">Tafel</th><th style="text-align:right;padding:2px 6px">Gesamt</th></tr></thead>
-            <tbody>${histJahre.map(y=>{
-              const hp=D.prognosen[s.id][y];
-              const hc=calcProg(s,hp);
+  for(const betrieb of betriebeOrder){
+    const schlage=byBetrieb[betrieb]||[];
+    const betriebLabel=betrieb||'Kein Betrieb';
+    const bclr=betriebFarbe(betrieb);
+    const accId='pacc-'+betrieb.replace(/[^a-z0-9]/gi,'_');
+    let betriebG=0;
+
+    // Feldstück-Gruppierung
+    const byFs={};
+    for(const s of schlage){const fs=s.feldstuck||'';if(!byFs[fs])byFs[fs]=[];byFs[fs].push(s);}
+
+    let fsHtml='';
+    for(const fs of Object.keys(byFs).sort(feldSort)){
+      const fsList=byFs[fs];
+      let fsG=0;
+      const schlageHtml=fsList.map(s=>{
+        const p=getP(s.id,ernteJahr);
+        const c=calcProg(s,p);
+        betriebG+=c.gesamt; fsG+=c.gesamt; sumG+=c.gesamt;
+        const va=p.verwendung_anteile||{};
+        const hasVA=Object.keys(va).length>0;
+        const pctSum=verwendungen.reduce((t,v)=>t+(va[v.id]||0),0);
+        const pctOk=Math.abs(pctSum-100)<1||pctSum===0;
+
+        // Verwendungs-Inputs
+        const verwInputs=verwendungen.map(v=>{
+          const gk=c.verwendungGK[v.id]||0;
+          const isTafel=v.typ==='tafel';
+          return`<div style="display:flex;flex-direction:column;gap:2px">
+            <label style="font-size:.65rem;font-weight:700;color:${isTafel?'var(--p)':'#a04000'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${v.name}">
+              ${isTafel?'🍎':'🏭'} ${v.name}</label>
+            <div style="display:flex;align-items:center;gap:3px">
+              <input type="number" id="ep-${s.id}-vw-${v.id}" step="1" min="0" max="100"
+                value="${va[v.id]||''}" placeholder="0"
+                oninput="savePrognoseRow('${s.id}')"
+                style="width:52px;border:1px solid ${isTafel?'var(--bdr)':'#f4c999'};border-radius:5px;padding:4px 5px;font-size:.8rem;text-align:right;background:#fff">
+              <span style="font-size:.68rem;color:var(--txl)">%</span>
+            </div>
+            ${hasVA&&gk>0?`<div style="font-size:.68rem;color:var(--pd);font-weight:700">${gk} GK${isTafel?'<span style="color:var(--s)"> 🏷</span>':''}</div>`:''}
+          </div>`;
+        }).join('');
+
+        const histJahre=Object.keys(D.prognosen[s.id]||{}).map(Number).filter(y=>y!==ernteJahr).sort((a,b)=>b-a);
+        const histHtml=histJahre.length?`<details style="margin-top:8px"><summary style="font-size:.72rem;color:var(--txl);cursor:pointer">Vorjahre (${histJahre.join(', ')})</summary>
+          <table style="width:100%;font-size:.73rem;border-collapse:collapse;margin-top:4px">
+            <thead><tr style="color:var(--txl)"><th style="text-align:left;padding:2px 5px">Jahr</th><th style="text-align:right;padding:2px 5px">kg/Baum</th><th style="text-align:right;padding:2px 5px">Leer%</th><th style="text-align:right;padding:2px 5px">Tafel</th><th style="text-align:right;padding:2px 5px">Gesamt</th></tr></thead>
+            <tbody>${histJahre.map(y=>{const hp=D.prognosen[s.id][y];const hc=calcProg(s,hp);
               return`<tr style="border-top:1px solid var(--bdr)">
-                <td style="padding:3px 6px;font-weight:700">${y}</td>
-                <td style="padding:3px 6px;text-align:right">${hp.kg_pro_baum||'–'}</td>
-                <td style="padding:3px 6px;text-align:right">${hp.ausfall_prozent||0}%</td>
-                <td style="padding:3px 6px;text-align:right">${hp.verarbeitung_prozent||0}%</td>
-                <td style="padding:3px 6px;text-align:right">${fmtKg(hc.tafel)}</td>
-                <td style="padding:3px 6px;text-align:right;font-weight:700">${fmtKg(hc.gesamt)}</td>
-              </tr>`;
-            }).join('')}</tbody>
-          </table>
-        </div>`:''
-      return`<div class="card" style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-          <div>
-            <div style="font-weight:700;color:var(--pd);font-size:.9rem">${s.name}</div>
-            <div style="font-size:.72rem;color:var(--txl)">${s.feldstuck||''} · ${s.sorte||''} · ${(s.baumzahl||(s.reihenlange&&s.pabst_baum?Math.round(s.reihenlange/s.pabst_baum):null))||'?'} Bäume · ${getSorteNkg(s.sorte)} kg/GK</div>
-          </div>
-        </div>
-        <!-- Eingaben -->
-        <div class="fg2" style="grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
-          <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">kg pro Baum</label>
-            <input type="number" id="ep-${s.id}-kpb" step="0.1" value="${p.kg_pro_baum||''}" placeholder="z.B. 15" oninput="savePrognoseRow('${s.id}')"
-              style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-          <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Leere Bäume %</label>
-            <input type="number" id="ep-${s.id}-af" step="1" min="0" max="100" value="${p.ausfall_prozent||''}" placeholder="0" oninput="savePrognoseRow('${s.id}')"
-              style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-          <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Verarbeitung %</label>
-            <input type="number" id="ep-${s.id}-vp" step="1" min="0" max="100" value="${p.verarbeitung_prozent||''}" placeholder="0" oninput="savePrognoseRow('${s.id}')"
-              style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-        </div>
-        <!-- Ergebnisse -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
-            <div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">\u{1F34E} Tafelobst</div>
-            <div id="ep-${s.id}-tafel-kg" style="font-size:1rem;font-weight:700;color:var(--pd);margin-top:2px">${c.gesamt?fmtKg(c.tafel):'–'}</div>
-            <div id="ep-${s.id}-tafel-gk" style="font-size:.72rem;color:var(--txl)">${c.tafel_kisten!=null?fmtKisten(c.tafel_kisten):''}</div>
-          </div>
-          <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
-            <div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">\u{1F3ED} Verarbeitung</div>
-            <div id="ep-${s.id}-verarbeitung-kg" style="font-size:1rem;font-weight:700;color:var(--pd);margin-top:2px">${c.gesamt?fmtKg(c.verarbeitung):'–'}</div>
-            <div id="ep-${s.id}-verarbeitung-gk" style="font-size:.72rem;color:var(--txl)">${c.verarbeitung_kisten!=null?fmtKisten(c.verarbeitung_kisten):''}</div>
-          </div>
-          <div style="background:var(--pd);border-radius:8px;padding:8px 10px">
-            <div style="font-size:.68rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.04em">\u{1F4E6} Gesamt</div>
-            <div id="ep-${s.id}-gesamt-kg" style="font-size:1rem;font-weight:700;color:#fff;margin-top:2px">${c.gesamt?fmtKg(c.gesamt):'–'}</div>
-            <div id="ep-${s.id}-gesamt-gk" style="font-size:.72rem;color:rgba(255,255,255,.7)">${c.gesamt_kisten!=null?fmtKisten(c.gesamt_kisten):''}</div>
-          </div>
-        </div>
-        ${histHtml}
-      </div>`;
-    }).join('');
+                <td style="padding:2px 5px;font-weight:700">${y}</td>
+                <td style="padding:2px 5px;text-align:right">${hp.kg_pro_baum||'–'}</td>
+                <td style="padding:2px 5px;text-align:right">${hp.ausfall_prozent||0}%</td>
+                <td style="padding:2px 5px;text-align:right">${fmtKg(hc.tafel)}</td>
+                <td style="padding:2px 5px;text-align:right;font-weight:700">${fmtKg(hc.gesamt)}</td>
+              </tr>`;}).join('')}</tbody>
+          </table></details>`:'';
 
-    sumT+=grpT; sumV+=grpV; sumG+=grpG;
+        return`<div style="background:var(--card);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+          <div style="font-weight:700;color:var(--pd);font-size:.88rem;margin-bottom:2px">
+            ${s.typ==='birne'?'🍐':'🍎'} ${s.name}
+            ${s.los_nr?`<span style="background:#e8f4ee;color:var(--p);font-size:.68rem;padding:1px 6px;border-radius:10px;font-weight:600;margin-left:4px">Los ${s.los_nr}</span>`:''}
+          </div>
+          <div style="font-size:.7rem;color:var(--txl);margin-bottom:8px">${s.sorte||''} · ${(s.baumzahl||(s.reihenlange&&s.pabst_baum?Math.round(s.reihenlange/s.pabst_baum):null))||'?'} Bäume · ${getSorteNkg(s.sorte)} kg/GK</div>
+          <!-- Basiseingaben -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <div class="fg" style="flex:1;min-width:80px">
+              <label style="font-size:.7rem;font-weight:700;color:var(--txl)">kg pro Baum</label>
+              <input type="number" id="ep-${s.id}-kpb" step="0.1" value="${p.kg_pro_baum||''}" placeholder="z.B. 15" oninput="savePrognoseRow('${s.id}')"
+                style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%">
+            </div>
+            <div class="fg" style="flex:1;min-width:80px">
+              <label style="font-size:.7rem;font-weight:700;color:var(--txl)">Leere Bäume %</label>
+              <input type="number" id="ep-${s.id}-af" step="1" min="0" max="100" value="${p.ausfall_prozent||''}" placeholder="0" oninput="savePrognoseRow('${s.id}')"
+                style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%">
+            </div>
+            <div style="background:var(--pd);border-radius:8px;padding:8px 12px;min-width:90px;flex-shrink:0">
+              <div style="font-size:.65rem;color:rgba(255,255,255,.7);text-transform:uppercase">📦 Gesamt</div>
+              <div id="ep-${s.id}-gesamt-kg" style="font-size:.95rem;font-weight:700;color:#fff">${c.gesamt?fmtKg(c.gesamt):'–'}</div>
+              <div id="ep-${s.id}-gesamt-gk" style="font-size:.7rem;color:rgba(255,255,255,.7)">${c.gesamt_kisten!=null?fmtKisten(c.gesamt_kisten):''}</div>
+            </div>
+          </div>
+          <!-- Verwendungs-Verteilung -->
+          <div style="border-top:1px dashed var(--bdr);padding-top:8px">
+            <div style="font-size:.68rem;font-weight:800;color:var(--p);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">
+              Verwendung (% von Gesamt)
+              <span id="ep-${s.id}-pct-warn" style="color:var(--warn);font-weight:600;margin-left:6px">${!pctOk?'⚠ Summe: '+pctSum+'%':''}</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">${verwInputs}</div>
+          </div>
+          ${histHtml}
+        </div>`;
+      }).join('');
 
-    allHtml+=`
-      <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--bdr)">
-        <div style="font-size:.92rem;font-weight:700;color:var(--pd)">${typ.label}</div>
-        <div style="font-size:.78rem;color:var(--txl)">Gesamt: <b>${fmtKg(grpG)}</b> · Tafel: ${fmtKg(grpT)} · Verarbeitung: ${fmtKg(grpV)}</div>
+      fsHtml+=`<div style="font-size:.72rem;font-weight:800;color:var(--p);padding:6px 0 3px;border-bottom:1px solid var(--bdr);margin-bottom:6px">
+        📍 ${getFeldDisplay(fs)} <span style="color:var(--txl);font-weight:400">${fsG?'— '+fmtKg(fsG):''}</span></div>
+        ${schlageHtml}`;
+    }
+
+    allHtml+=`<div style="margin-bottom:14px">
+      <div onclick="(function(el,arr){el.style.display=el.style.display==='none'?'':'none';arr.textContent=el.style.display==='none'?'▶':'▼'})(document.getElementById('${accId}'),this.querySelector('.b-arr'))"
+        style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${bclr};color:#fff;border-radius:8px;cursor:pointer;margin-bottom:6px">
+        <span style="font-weight:700">👤 ${betriebLabel} <span style="opacity:.7;font-weight:400;font-size:.78rem">${betriebG?'— '+fmtKg(betriebG):''}</span></span>
+        <span class="b-arr" style="font-size:.8rem;opacity:.75">▼</span>
       </div>
-      ${grpRows}`;
+      <div id="${accId}">${fsHtml}</div>
+    </div>`;
   }
 
-  el.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-      <div style="font-size:1rem;font-weight:700;color:var(--pd)">\u{1F4CA} Ernteprognose ${ernteJahr}</div>
-      <div style="font-size:.78rem;color:var(--txl)">Gesamt: <b>${fmtKg(sumG)}</b> · Tafel: ${fmtKg(sumT)} · Verarbeitung: ${fmtKg(sumV)}</div>
-    </div>
-    ${allHtml}`;
+  el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="font-size:1rem;font-weight:700;color:var(--pd)">📊 Ernteprognose ${ernteJahr}</div>
+    <div style="font-size:.78rem;color:var(--txl)">Gesamt: <b>${fmtKg(sumG)}</b></div>
+  </div>${allHtml}`;
+  // Etiketten-Übersicht aktualisieren
+  renderEtiketten();
 }
 
 function renderZuteilungCardTo(wrapId){
@@ -3468,6 +3614,146 @@ function renderZuteilungCard(wrapId){
   </div>`;
 }
 
+
+// ── Großkistenübersicht Lager (Etiketten) ─────
+function renderEtiketten(){
+  const el=document.getElementById('ernte-etiketten-wrap');
+  if(!el) return;
+
+  const verwendungen=getVerwendungen();
+  const allBetriebe=[..._eoBetriebe,..._gruppenBetriebe];
+
+  // Collect all Schläge with a prognose for ernteJahr
+  const schlMitProg=D.schlage.filter(s=>{
+    const p=getP(s.id,ernteJahr);
+    return (p.kg_pro_baum||0)>0;
+  });
+
+  if(!schlMitProg.length){
+    el.innerHTML='';
+    return;
+  }
+
+  // Helper: Betrieb-Anzeigename
+  function bLabel(betrieb){
+    if(!betrieb) return '–';
+    const bObj=allBetriebe.find(b=>b.id===betrieb||b.name===betrieb);
+    if(bObj){
+      if(bObj.nachname&&bObj.vorname) return bObj.nachname+', '+bObj.vorname;
+      if(bObj.nachname) return bObj.nachname;
+      return bObj.name||betrieb;
+    }
+    const parts=(betrieb||'').trim().split(' ');
+    if(parts.length>1) return parts[parts.length-1]+', '+parts.slice(0,-1).join(' ');
+    return betrieb;
+  }
+
+  // Sort Schläge same as renderPrognoseCard (Betrieb A-Z, then Schlag)
+  schlMitProg.sort((a,b)=>{
+    const bk=_betriebSortKey(a.betrieb||'').localeCompare(_betriebSortKey(b.betrieb||''),'de');
+    if(bk!==0) return bk;
+    return (a.name||'').localeCompare(b.name||'','de');
+  });
+
+  // Compute GK per Verwendung per Schlag
+  // Structure: verwendungData[vid] = {verwendung, rows:[], totalGK}
+  const verwendungData={};
+  for(const v of verwendungen){
+    verwendungData[v.id]={verwendung:v, rows:[], totalGK:0};
+  }
+
+  let grandTotal=0;
+  for(const s of schlMitProg){
+    const p=getP(s.id,ernteJahr);
+    const c=calcProg(s,p);
+    const va=p.verwendung_anteile||{};
+    const hasVA=Object.keys(va).length>0;
+    for(const v of verwendungen){
+      let gk=0;
+      if(hasVA){
+        gk=c.verwendungGK[v.id]||0;
+      } else {
+        // Fallback: split tafel/verarbeitung evenly if no VA configured
+        if(v.typ==='tafel' && c.tafel_kisten){
+          const tafelVerwendungen=verwendungen.filter(x=>x.typ==='tafel');
+          gk=tafelVerwendungen.length>0?Math.ceil((c.tafel_kisten||0)/tafelVerwendungen.length):0;
+        }
+      }
+      if(gk>0){
+        verwendungData[v.id].rows.push({s,gk,betriebLabel:bLabel(s.betrieb)});
+        verwendungData[v.id].totalGK+=gk;
+        grandTotal+=gk;
+      }
+    }
+  }
+
+  // Filter to verwendungen that have any data
+  const activeVW=verwendungen.filter(v=>verwendungData[v.id].totalGK>0);
+
+  if(!activeVW.length){
+    el.innerHTML='<div class="card" style="margin-top:4px"><div style="font-size:.82rem;color:var(--txl)">📦 Großkistenübersicht: Bitte Verwendungs-Anteile (%) in der Prognose eintragen.</div></div>';
+    return;
+  }
+
+  // Build sections per Verwendung
+  const sectionsHtml=activeVW.map(v=>{
+    const vd=verwendungData[v.id];
+    const isTafel=v.typ==='tafel';
+    const vcolor=isTafel?'var(--p)':'#a04000';
+    const vbg=isTafel?'#e8f4ee':'#fef3ea';
+
+    const rowsHtml=vd.rows.map(({s,gk,betriebLabel})=>`
+      <tr style="border-bottom:1px solid var(--bdr)">
+        <td style="padding:6px 9px;font-size:.78rem;color:var(--txl);white-space:nowrap">${betriebLabel}</td>
+        <td style="padding:6px 9px;font-size:.82rem;font-weight:700;color:var(--pd);white-space:nowrap">
+          ${s.typ==='birne'?'🍐':'🍎'} ${s.name}
+        </td>
+        <td style="padding:6px 9px;font-size:.78rem;color:var(--txl);white-space:nowrap">${s.sorte||'–'}</td>
+        <td style="padding:6px 9px;font-size:.78rem;white-space:nowrap">
+          ${s.los_nr?`<span style="background:#e8f4ee;color:var(--p);font-size:.7rem;padding:1px 7px;border-radius:10px;font-weight:600">Los ${s.los_nr}</span>`:'<span style="color:var(--txl);font-size:.72rem">–</span>'}
+        </td>
+        <td style="padding:6px 9px;font-size:.88rem;font-weight:700;text-align:right;white-space:nowrap">${gk}</td>
+        <td style="padding:6px 9px;font-size:.78rem;text-align:right;white-space:nowrap">${isTafel?`<span style="color:var(--s);font-weight:700">${gk} 🏷</span>`:'<span style="color:var(--txl)">–</span>'}</td>
+      </tr>`).join('');
+
+    return`<div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;background:${vbg};border-left:4px solid ${vcolor};padding:7px 12px;border-radius:0 6px 6px 0;margin-bottom:4px">
+        <span style="font-weight:700;font-size:.85rem;color:${vcolor}">${isTafel?'🍎':'🏭'} ${v.name}</span>
+        <span style="font-size:.82rem;font-weight:700;color:${vcolor}">${vd.totalGK} GK${isTafel?` = <span style="color:var(--s)">${vd.totalGK} 🏷 Etiketten</span>`:''}</span>
+      </div>
+      <div class="twrap"><table style="border-collapse:collapse;width:100%;min-width:460px">
+        <thead><tr style="background:var(--bg)">
+          <th style="padding:5px 9px;font-size:.7rem;font-weight:700;color:var(--txl);text-align:left;border-bottom:2px solid var(--bdr)">Betrieb</th>
+          <th style="padding:5px 9px;font-size:.7rem;font-weight:700;color:var(--txl);text-align:left;border-bottom:2px solid var(--bdr)">Schlag</th>
+          <th style="padding:5px 9px;font-size:.7rem;font-weight:700;color:var(--txl);text-align:left;border-bottom:2px solid var(--bdr)">Sorte</th>
+          <th style="padding:5px 9px;font-size:.7rem;font-weight:700;color:var(--txl);text-align:left;border-bottom:2px solid var(--bdr)">Los</th>
+          <th style="padding:5px 9px;font-size:.7rem;font-weight:700;color:var(--txl);text-align:right;border-bottom:2px solid var(--bdr)">GK</th>
+          <th style="padding:5px 9px;font-size:.7rem;font-weight:700;color:var(--txl);text-align:right;border-bottom:2px solid var(--bdr)">Etiketten</th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot><tr style="background:${vbg};font-weight:700">
+          <td colspan="4" style="padding:6px 9px;font-size:.78rem;color:${vcolor}">Gesamt ${v.name}</td>
+          <td style="padding:6px 9px;font-size:.85rem;font-weight:700;text-align:right;color:${vcolor}">${vd.totalGK}</td>
+          <td style="padding:6px 9px;font-size:.85rem;font-weight:700;text-align:right;color:${isTafel?'var(--s)':vcolor}">${isTafel?vd.totalGK+' 🏷':'–'}</td>
+        </tr></tfoot>
+      </table></div>
+    </div>`;
+  }).join('');
+
+  const tafelTotal=activeVW.filter(v=>v.typ==='tafel').reduce((t,v)=>t+verwendungData[v.id].totalGK,0);
+
+  el.innerHTML=`<div class="card" style="margin-top:4px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+      <div style="font-size:1rem;font-weight:700;color:var(--pd)">📦 Großkistenübersicht Lager — ${ernteJahr}</div>
+      <div style="font-size:.78rem;color:var(--txl)">Gesamt: <b>${grandTotal} GK</b>${tafelTotal?` · 🏷 <b>${tafelTotal} Etiketten</b>`:''}  <span style="opacity:.6">(Prognose)</span></div>
+    </div>
+    ${sectionsHtml}
+    <div style="background:var(--pd);color:#fff;border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+      <span style="font-size:.82rem;font-weight:700">Gesamt alle Verwendungen</span>
+      <span style="font-size:.9rem;font-weight:700">${grandTotal} GK${tafelTotal?' · '+tafelTotal+' 🏷':''}</span>
+    </div>
+  </div>`;
+}
 
 // ── Lagerorte ─────────────────────────────────
 function openLagerMod(){
