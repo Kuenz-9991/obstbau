@@ -181,22 +181,23 @@ tr:hover td{background:#f9fcfa}
 <div class="sbar" id="sbar">
   <div class="sbar-dot warn" id="sbar-dot"></div>
   <span id="sbar-txt">Nicht angemeldet</span>
-  <span style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap">v 2026-08-19 · 07:52</span>
+  <span style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap">v 2026-08-19 · 10:15</span>
 </div>
 
 <nav class="nav">
-  <div class="ntab active" onclick="goSec('dashboard',this)">📊 Dashboard</div>
-  <div class="ntab" onclick="goSec('schlage',this)">🌳 Schläge</div>
-  <div class="ntab" onclick="goSec('massnahmen',this)">📝 Maßnahmen</div>
-  <div class="ntab" onclick="goSec('betriebsmittel',this)">🧪 Arbeiten</div>
+  <div class="ntab active" onclick="goSec('schlage',this)">🌳 Schläge</div>
   <div class="ntab" onclick="goSec('ernte',this)">🍏 Ernte</div>
-  <div class="ntab" onclick="goSec('referenz',this)">📋 Referenz</div>
+  <div class="ntab" onclick="goSec('ernteprognose',this)">📊 Prognose</div>
+  <div class="ntab" onclick="goSec('massnahmen',this)">📝 Maßn.</div>
+  <div class="ntab" onclick="goSec('betriebsmittel',this)">🧪 Arbeit</div>
+  <div class="ntab" onclick="goSec('referenz',this)">📋 Ref.</div>
+  <div class="ntab" onclick="goSec('dashboard',this)">📈 Dash</div>
 </nav>
 
 <div class="main">
 
 <!-- DASHBOARD -->
-<div id="sec-dashboard" class="sec active">
+<div id="sec-dashboard" class="sec">
   <div class="g2">
     <div>
       <div class="card">
@@ -218,7 +219,7 @@ tr:hover td{background:#f9fcfa}
 </div>
 
 <!-- SCHLÄGE -->
-<div id="sec-schlage" class="sec">
+<div id="sec-schlage" class="sec active">
   <div class="btn-row">
     <button class="btn btn-p" onclick="openSchlagMod()">+ Schlag anlegen</button>
     <button class="btn btn-s" onclick="openFelderMgmt()">⚙️ Feldstücke</button>
@@ -281,12 +282,10 @@ tr:hover td{background:#f9fcfa}
 <div id="sec-ernte" class="sec">
   <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:10px">
     <span style="font-weight:700;color:var(--pd);font-size:.88rem">Erntejahr:</span>
-    <select id="ernte-jahr-sel" onchange="ernteJahr=parseInt(this.value);renderErnte()" style="border:1px solid var(--bdr);border-radius:6px;padding:5px 8px;font-size:.85rem;background:#fff;color:var(--txt)"></select>
-    <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="openLagerMod()">🏪 Lagerorte verwalten</button>
+    <select id="ernte-jahr-sel" onchange="ernteJahr=parseInt(this.value);renderErnteIst()" style="border:1px solid var(--bdr);border-radius:6px;padding:5px 8px;font-size:.85rem;background:#fff;color:var(--txt)"></select>
+    <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="openLagerMod()">🏪 Lagerorte</button>
   </div>
-  <div id="ernte-prog-wrap"></div>
-  <div id="ernte-zut-wrap" style="margin-top:12px"></div>
-  <div id="ernte-ist-wrap" style="margin-top:16px"></div>
+  <div id="ernte-ist-wrap"></div>
 </div>
 
 
@@ -297,14 +296,15 @@ tr:hover td{background:#f9fcfa}
       <div class="mod-title" id="ernte-buch-title">🌿 Buchung erfassen</div>
       <button class="mod-x" onclick="closeMod('mod-ernte-buchung')">✕</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px">
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
       <button id="buch-typ-ernte" class="btn btn-p btn-sm" onclick="setBuchTyp('ernte')">🌿 Ernte</button>
       <button id="buch-typ-transport" class="btn btn-s btn-sm" onclick="setBuchTyp('transport')">🚛 Transport</button>
+      <button id="buch-typ-leergut" class="btn btn-s btn-sm" onclick="setBuchTyp('leergut')">📦 Leergut</button>
     </div>
     <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Datum</label>
         <input type="date" id="buch-datum" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
-      <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Schlag</label>
+      <div class="fg" id="buch-schlag-wrap"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Schlag</label>
         <select id="buch-schlag" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;width:100%"></select></div>
     </div>
     <!-- Lager-Buchungen -->
@@ -348,6 +348,17 @@ tr:hover td{background:#f9fcfa}
       </div>
     </div>
   </div>
+</div>
+
+<!-- ERNTEPROGNOSE -->
+<div id="sec-ernteprognose" class="sec">
+  <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:10px">
+    <span style="font-weight:700;color:var(--pd);font-size:.88rem">Erntejahr:</span>
+    <select id="prognose-jahr-sel" onchange="ernteJahr=parseInt(this.value);renderErntePrognose()" style="border:1px solid var(--bdr);border-radius:6px;padding:5px 8px;font-size:.85rem;background:#fff;color:var(--txt)"></select>
+    <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="openLagerMod()">🏪 Lagerorte</button>
+  </div>
+  <div id="ernte-prog-wrap2"></div>
+  <div id="ernte-zut-wrap2" style="margin-top:12px"></div>
 </div>
 
 <!-- REFERENZ -->
@@ -1583,8 +1594,18 @@ function goSec(id,tab){
   if(id==='schlage') renderSchlage();
   if(id==='massnahmen') renderM();
   if(id==='betriebsmittel') renderBm();
-  if(id==='ernte') renderErnte();
+  if(id==='ernte'){fillJahrSel('ernte-jahr-sel',()=>renderErnteIst());}
+  if(id==='ernteprognose'){fillJahrSel('prognose-jahr-sel',()=>renderErntePrognose());}
   if(id==='referenz') renderRef();
+}
+function fillJahrSel(selId,cb){
+  const sel=document.getElementById(selId);if(!sel)return;
+  const cy=new Date().getFullYear();
+  const opts=[];
+  for(let y=cy+1;y>=cy-5;y--) opts.push('<option value="'+y+'"'+(y===ernteJahr?' selected':'')+'>'+y+'</option>');
+  sel.innerHTML=opts.join('');
+  sel.onchange=function(){ernteJahr=parseInt(this.value);cb();};
+  cb();
 }
 
 function renderAll(){
@@ -1672,13 +1693,15 @@ function renderRecent(){
 // ═══════════════════════════════════════════════════
 // SCHLÄGE
 // ═══════════════════════════════════════════════════
+// ── Kompakte Schläge-Startseite ─────────────────
 function renderSchlage(){
   const el=document.getElementById('sg-grid');
   if(!D.schlage.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🌳</div>Keine Schläge vorhanden.</div>';return;}
   const grp={};
   for(const s of D.schlage){if(!grp[s.feldstuck])grp[s.feldstuck]=[];grp[s.feldstuck].push(s);}
   let html='';
-  for(const fs of Object.keys(grp).sort(feldSort)){const list=grp[fs];
+  for(const fs of Object.keys(grp).sort(feldSort)){
+    const list=grp[fs];
     html+=`<div class="fs-hdr" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <span>${getFeldDisplay(fs)}</span>
       <div style="display:flex;gap:5px;flex-shrink:0">
@@ -1687,36 +1710,48 @@ function renderSchlage(){
       </div>
     </div>`;
     for(const s of list){
-      const st=D.bbch[s.id];const b=st?st.bbch:null;
       const sid=s.id.replace(/[^a-z0-9]/gi,'_');
-      html+=`<div class="scard" onclick="openMassnahmenForSchlag('${s.id}')" style="cursor:pointer;position:relative">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
-          <div class="scard-nm">${s.name}</div>
-          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-            <span style="font-size:.85rem">${s.typ==='birne'?'🍐':'🍎'}</span>
-            <button class="btn btn-s btn-sm" style="padding:3px 8px;font-size:1rem;line-height:1" onclick="event.stopPropagation();toggleSchlagMenu('${s.id}')" title="Optionen">⋮</button>
+      const sorteInfo=[s.sorte,s.pflanzjahr?'PJ '+s.pflanzjahr:''].filter(Boolean).join(' · ');
+      html+=`<div class="scard" style="position:relative">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px">
+          <div>
+            <span style="font-size:.88rem;font-weight:700;color:var(--pd)">${s.typ==='birne'?'🍐':'🍎'} ${s.name}</span>
+            ${sorteInfo?`<span style="font-size:.72rem;color:var(--txl);margin-left:6px">${sorteInfo}</span>`:''}
           </div>
+          <button class="btn btn-s btn-sm" style="padding:3px 8px;font-size:1rem" onclick="event.stopPropagation();toggleSchlagMenu('${s.id}')" title="Mehr">⋮</button>
         </div>
-        <div id="smenu-${sid}" style="display:none;position:absolute;right:10px;top:38px;background:#fff;border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:60;min-width:160px;overflow:hidden">
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn btn-p btn-sm" style="flex:1;min-width:120px;font-size:.8rem;padding:7px 10px"
+            onclick="quickErnte('${s.id}')">🌿 Ernte erfassen</button>
+          <button class="btn btn-s btn-sm" style="flex:1;min-width:120px;font-size:.8rem;padding:7px 10px"
+            onclick="quickMassnahme('${s.id}')">📝 Maßnahme</button>
+        </div>
+        <div id="smenu-${sid}" style="display:none;position:absolute;right:10px;top:44px;background:#fff;border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:60;min-width:160px;overflow:hidden">
           <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openBbchMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📍 BBCH setzen</div>
-          <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openSchlagMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-top:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">✏️ Bearbeiten</div>
-          <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openFotochronik('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-top:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📷 Fotochronik</div>
+          <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openSchlagMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">✏️ Bearbeiten</div>
+          <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openMassnahmenForSchlag('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📋 Alle Maßnahmen</div>
+          <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openFotochronik('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📷 Fotochronik</div>
         </div>
-        <div class="scard-meta">${s.sorte||'–'}${s.klon?' · '+s.klon:''}${s.ha_netto?' · '+s.ha_netto+' ha netto':''}${s.pflanzjahr?' · PJ '+s.pflanzjahr:''}</div>
-        ${(s.baumzahl||s.reihenlange)?`<div class="scard-meta">${s.baumzahl?s.baumzahl+' Bäume':''}${s.reihenlange?' · '+s.reihenlange+'m Reihenlänge':''}${s.pabst_baum&&s.reihenlange&&s.reihenanzahl?' · theor. '+Math.round(s.reihenlange/s.pabst_baum)*s.reihenanzahl+' Bäume':''}${s.pabst_reihe?' · '+s.pabst_reihe+'m × '+(s.pabst_baum||'?')+'m':''}</div>`:''}
-        ${s.unterlage?`<div class="scard-meta">Unterlage: ${s.unterlage}</div>`:''}
-        <div style="margin-top:7px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          ${b!==null?`<span class="bdg bdg-g">BBCH ${b}</span><span class="txl" style="font-size:.7rem">${bbchName(b)}</span>`:'<span class="bdg bdg-n" style="font-size:.7rem">kein BBCH-Status</span>'}
-        </div>
-        <div style="margin-top:6px;font-size:.72rem;color:var(--txl);display:flex;align-items:center;gap:4px">
-          <span>📋</span><span>${(D.massnahmen||[]).filter(m=>m.schlag_id===s.id).length} Maßnahmen</span>
-        </div>
-        ${s.notiz?`<div class="txl" style="margin-top:5px;font-style:italic;font-size:.76rem">${s.notiz}</div>`:''}
-        ${s.hagelnetz||s.bewasserung?`<div style="margin-top:4px">${s.hagelnetz?'<span class="chip tag-pi">🕸 Hagelnetz</span>':''} ${s.bewasserung?'<span class="chip tag-pi">💧 Bewässerung</span>':''}</div>`:''}
       </div>`;
     }
   }
   el.innerHTML=html;
+}
+
+let _preopenSchlagId=null;
+function quickErnte(schlagId){
+  _preopenSchlagId=schlagId;
+  const tabs=document.querySelectorAll('.ntab');
+  let erneTab=null;
+  tabs.forEach(t=>{if(t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'ernte'"))erneTab=t;});
+  if(erneTab) goSec('ernte',erneTab);
+  setTimeout(()=>openErnteBuchungMod(),150);
+}
+
+function quickMassnahme(schlagId){
+  const tab=document.querySelector('.ntab[onclick*="massnahmen"]');
+  if(tab) goSec('massnahmen',tab);
+  setTimeout(()=>openMMod(schlagId),100);
 }
 
 let _openSchlagMenu=null;
@@ -2609,21 +2644,22 @@ function renderZuteilungSummary(sid){
 }
 
 function renderErnte(){
-  // Jahr-Selector befüllen
-  const curYear=new Date().getFullYear();
-  const jSel=document.getElementById('ernte-jahr-sel');
-  if(jSel){
-    const opts=[];
-    for(let y=curYear+1;y>=curYear-5;y--) opts.push(`<option value="${y}"${y===ernteJahr?' selected':''}>${y}</option>`);
-    jSel.innerHTML=opts.join('');
-  }
-  renderPrognoseCard();
-  renderZuteilungCard();
-  renderErnteIst();
+  fillJahrSel('ernte-jahr-sel',()=>renderErnteIst());
+}
+function renderErntePrognose(){
+  const el1=document.getElementById('ernte-prog-wrap2');
+  const el2=document.getElementById('ernte-zut-wrap2');
+  if(!el1&&!el2)return;
+  // reuse existing render functions but target the new IDs
+  renderPrognoseCardTo('ernte-prog-wrap2');
+  renderZuteilungCardTo('ernte-zut-wrap2');
 }
 
-function renderPrognoseCard(){
-  const el=document.getElementById('ernte-prog-wrap');
+function renderPrognoseCardTo(wrapId){
+  return renderPrognoseCard(wrapId);
+}
+function renderPrognoseCard(wrapId){
+  const el=document.getElementById(wrapId||'ernte-prog-wrap2');
   if(!el)return;
   if(!D.schlage.length){el.innerHTML='<div class="card"><div class="card-hdr">\u{1F4CA} Ernteprognose '+ernteJahr+'</div><div class="empty">Noch keine Schläge angelegt.</div></div>';return;}
 
@@ -2721,8 +2757,11 @@ function renderPrognoseCard(){
     ${allHtml}`;
 }
 
-function renderZuteilungCard(){
-  const el=document.getElementById('ernte-zut-wrap');
+function renderZuteilungCardTo(wrapId){
+  return renderZuteilungCard(wrapId);
+}
+function renderZuteilungCard(wrapId){
+  const el=document.getElementById(wrapId||'ernte-zut-wrap2');
   if(!el)return;
 
   const TYPEN=[{key:'apfel',label:'\u{1F34E} Äpfel'},{key:'birne',label:'\u{1F350} Birnen'},{key:'_sonstige',label:'Sonstige'}];
@@ -2871,7 +2910,12 @@ function setBuchTyp(typ){
   _buchTyp=typ;
   document.getElementById('buch-typ-ernte').className='btn btn-sm '+(typ==='ernte'?'btn-p':'btn-s');
   document.getElementById('buch-typ-transport').className='btn btn-sm '+(typ==='transport'?'btn-p':'btn-s');
+  document.getElementById('buch-typ-leergut').className='btn btn-sm '+(typ==='leergut'?'btn-p':'btn-s');
   document.getElementById('buch-haccp-wrap').style.display=typ==='ernte'?'':'none';
+  const sw=document.getElementById('buch-schlag-wrap');
+  if(sw) sw.style.display=typ==='leergut'?'none':'';
+  const lr=document.getElementById('buch-lager-rows').parentElement;
+  if(lr) lr.style.display=typ==='leergut'?'none':'';
 }
 
 function openErnteBuchungMod(editId){
@@ -2892,6 +2936,7 @@ function openErnteBuchungMod(editId){
   const sel=document.getElementById('buch-schlag');
   sel.innerHTML=D.schlage.map(s=>`<option value="${s.id}">${s.name}${s.sorte?' · '+s.sorte:''}</option>`).join('');
   renderBuchLagerRows({});
+  if(typeof _preopenSchlagId!=='undefined'&&_preopenSchlagId){sel.value=_preopenSchlagId;_preopenSchlagId=null;}
   if(editId){
     const entry=D.ernte_ist.find(e=>e.id===editId);
     if(entry){
@@ -2934,7 +2979,7 @@ function renderBuchLagerRows(buchMap){
         <span style="font-weight:700;color:var(--pd)">${l.name}</span>
         <span style="font-size:.7rem;color:var(--txl);margin-left:4px">${isZwl?'ZWL':''}</span>
       </div>
-      <input type="number" id="bl-${l.id}" value="${val}" placeholder="${isZwl?'+ / −':'+'}"
+      <input type="number" id="bl-${l.id}" value="${val}" placeholder="+ / −"
         style="width:85px;border:1px solid ${isZwl?'var(--s)':'var(--bdr)'};border-radius:6px;padding:5px 7px;font-size:.85rem;text-align:right;background:${isZwl?'#f0faf5':'#fff'}">
       <span style="font-size:.72rem;color:var(--txl);width:18px">GK</span>
     </div>`;
@@ -2944,13 +2989,15 @@ function renderBuchLagerRows(buchMap){
 function saveErnteBuchung(){
   const datum=document.getElementById('buch-datum').value;
   const schlagId=document.getElementById('buch-schlag').value;
-  if(!datum||!schlagId){alert('Bitte Datum und Schlag auswählen');return;}
+  if(!datum){alert('Bitte Datum eingeben');return;}
   const buchungen=[];
   D.lagerorte.forEach(l=>{
     const v=parseFloat(document.getElementById('bl-'+l.id)?.value||'');
     if(!isNaN(v)&&v!==0) buchungen.push({lager_id:l.id,gk:v});
   });
+  const isLeergut=_buchTyp==='leergut';
   const isErnte=_buchTyp==='ernte';
+  if(!isLeergut&&!schlagId){alert('Bitte Schlag auswählen');return;}
   const entry={
     id:document.getElementById('buch-edit-id').value||uid(),
     datum,schlag_id:schlagId,buchungen,
@@ -3010,6 +3057,8 @@ function renderErnteIst(){
   if(!el)return;
   const zwlLager=D.lagerorte.filter(l=>l.typ==='zwischen');
   const LKW_GK=60;
+
+  // ZWL Bestand cards
   let zwlHtml='';
   if(zwlLager.length){
     const cards=zwlLager.map(l=>{
@@ -3018,77 +3067,90 @@ function renderErnteIst(){
       const fillColor=pct>=100?'var(--crit)':pct>=80?'var(--warn)':pct>=50?'#f4d35e':'var(--s)';
       const kgPerGK=(D.schlage.find(s=>s.grosskisten_kg)||{grosskisten_kg:340}).grosskisten_kg||340;
       const kg=bestand*kgPerGK;
-      return`<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:12px;flex:1;min-width:180px">
-        <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">📦 ${l.name}</div>
-        <div style="font-size:1.4rem;font-weight:800;color:${bestand>0?'var(--pd)':'var(--txl)'};line-height:1.1">${bestand} GK</div>
-        <div style="font-size:.75rem;color:var(--txl);margin-bottom:8px">${bestand>0?'≈ '+fmtKg(kg):''}</div>
+      const fehlend=LKW_GK-bestand;
+      return`<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:12px;flex:1;min-width:150px">
+        <div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">📦 ${l.name}</div>
+        <div style="font-size:1.5rem;font-weight:800;color:${bestand>0?'var(--pd)':'var(--txl)'};line-height:1.1">${bestand} GK</div>
+        <div style="font-size:.72rem;color:var(--txl);margin-bottom:8px">${bestand>0?'≈ '+fmtKg(kg):''}</div>
         <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
           <div style="height:100%;width:${pct}%;background:${fillColor};border-radius:4px;transition:width .3s"></div>
         </div>
-        <div style="font-size:.7rem;color:var(--txl);margin-top:3px">LKW: ${pct}% · ${LKW_GK-bestand>0?LKW_GK-bestand+' GK fehlen':'VOLL!'}</div>
+        <div style="font-size:.68rem;color:var(--txl);margin-top:3px">${fehlend>0?fehlend+' GK bis LKW voll':'✅ LKW VOLL ('+LKW_GK+' GK)'}</div>
       </div>`;
     }).join('');
-    zwlHtml=`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">${cards}</div>`;
+    zwlHtml=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${cards}</div>`;
   }
+
+  // Leergut Saldo
   const lgGK=calcLeergutBestand('grosskisten');
   const lgEP=calcLeergutBestand('europaletten');
   const lgSK=calcLeergutBestand('saftkisten');
   const leergutHtml=(lgGK||lgEP||lgSK)?`
-    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:14px">
-      <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">📦 Leergut-Saldo (+ bei Haiming · − bei uns)</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap">
-        ${lgGK?`<span style="font-size:.85rem"><b>${lgGK>0?'+'+lgGK:lgGK}</b> Großkisten</span>`:''}
-        ${lgEP?`<span style="font-size:.85rem"><b>${lgEP>0?'+'+lgEP:lgEP}</b> Europaletten</span>`:''}
-        ${lgSK?`<span style="font-size:.85rem"><b>${lgSK>0?'+'+lgSK:lgSK}</b> Saftkisten</span>`:''}
-      </div>
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:16px;align-items:center">
+      <span style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">📦 Leergut-Saldo</span>
+      ${lgGK?`<span style="font-size:.85rem"><b>${lgGK>0?'+'+lgGK:lgGK}</b> Großkisten</span>`:''}
+      ${lgEP?`<span style="font-size:.85rem"><b>${lgEP>0?'+'+lgEP:lgEP}</b> Europaletten</span>`:''}
+      ${lgSK?`<span style="font-size:.85rem"><b>${lgSK>0?'+'+lgSK:lgSK}</b> Saftkisten</span>`:''}
     </div>`:''
+
+  // Journal mit Spalten pro Lager
   const entries=[...D.ernte_ist].reverse();
   let journalHtml='';
   if(entries.length){
+    // Column headers: Datum | Schlag | je Lager eine Spalte | HACCP | Leergut | Edit
+    const lagerCols=D.lagerorte.map(l=>`<th style="text-align:right;padding:4px 6px;color:var(--txl);font-size:.7rem;font-weight:700;white-space:nowrap;min-width:70px">${l.name}</th>`).join('');
+    const rows=entries.map(e=>{
+      const s=D.schlage.find(x=>x.id===e.schlag_id);
+      const schlagName=e.schlag_id?( s?s.name:'?'):'–';
+      const lagerCells=D.lagerorte.map(l=>{
+        const b=(e.buchungen||[]).find(x=>x.lager_id===l.id);
+        const v=b?b.gk:null;
+        const isZwl=l.typ==='zwischen';
+        const color=v===null?'':v>0?'color:var(--pl)':'color:var(--crit)';
+        return`<td style="padding:5px 6px;text-align:right;font-size:.8rem;${color}">${v!==null?(v>0?'+'+v:v):''}</td>`;
+      }).join('');
+      const haccp=e.haccp;
+      const haccpText=haccp?[haccp.grosskisten,haccp.erntegeraet,haccp.tieflader,haccp.kuehlung].map(v=>v?'✅':'❌').join(''):e.ernte?'':'–';
+      const lg=e.leergut||{};
+      const lgParts=[lg.grosskisten&&lg.grosskisten!==0?(lg.grosskisten>0?'+':'')+lg.grosskisten+'GK':'',lg.europaletten&&lg.europaletten!==0?(lg.europaletten>0?'+':'')+lg.europaletten+'EP':'',lg.saftkisten&&lg.saftkisten!==0?(lg.saftkisten>0?'+':'')+lg.saftkisten+'SK':''].filter(Boolean);
+      const losHtml=e.los_nr?` <span style="font-size:.65rem;color:var(--txl)">Los ${e.los_nr}</span>`:'';
+      const notizHtml=e.notiz?`<div style="font-size:.68rem;color:var(--txl)">${e.notiz}</div>`:'';
+      return`<tr style="border-bottom:1px solid var(--bdr)">
+        <td style="padding:5px 8px;white-space:nowrap"><b>${e.datum}</b>${losHtml}</td>
+        <td style="padding:5px 8px;font-size:.8rem;white-space:nowrap">${e.ernte?'🌿':e._buchTyp==='leergut'?'📦':'🚛'} ${schlagName}${notizHtml}</td>
+        ${lagerCells}
+        <td style="padding:5px 8px;text-align:center;white-space:nowrap;font-size:.8rem">${haccpText}</td>
+        <td style="padding:5px 8px;text-align:right;white-space:nowrap;font-size:.72rem;color:var(--txl)">${lgParts.join(' ')}</td>
+        <td style="padding:5px 6px"><button class="btn btn-s btn-sm" onclick="openErnteBuchungMod('${e.id}')" style="padding:3px 7px">✏️</button></td>
+      </tr>`;
+    }).join('');
     journalHtml=`<div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem">
-      <thead><tr style="border-bottom:2px solid var(--bdr)">
-        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">Datum</th>
-        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">Schlag</th>
-        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">Buchungen (GK)</th>
-        <th style="text-align:center;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">HACCP</th>
-        <th style="text-align:right;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">Leergut</th>
-        <th style="padding:5px 8px"></th>
+      <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
+        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.7rem;font-weight:700;white-space:nowrap">Datum</th>
+        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.7rem;font-weight:700;white-space:nowrap">Schlag</th>
+        ${lagerCols}
+        <th style="text-align:center;padding:5px 8px;color:var(--txl);font-size:.7rem;font-weight:700">HACCP</th>
+        <th style="text-align:right;padding:5px 8px;color:var(--txl);font-size:.7rem;font-weight:700;white-space:nowrap">Leergut</th>
+        <th></th>
       </tr></thead>
-      <tbody>${entries.map(e=>{
-        const s=D.schlage.find(x=>x.id===e.schlag_id);
-        const schlagName=s?s.name:'–';
-        const buchText=(e.buchungen||[]).map(b=>{
-          const lag=D.lagerorte.find(l=>l.id===b.lager_id);
-          return`${b.gk>0?'+':''}${b.gk} ${lag?lag.name:b.lager_id}`;
-        }).join(', ')||'–';
-        const haccp=e.haccp;
-        const haccpText=haccp?[haccp.grosskisten,haccp.erntegeraet,haccp.tieflader,haccp.kuehlung].map(v=>v?'✅':'❌').join(''):e.ernte?'':'–';
-        const lg=e.leergut||{};
-        const lgParts=[lg.grosskisten&&lg.grosskisten!==0?lg.grosskisten+'GK':'',lg.europaletten&&lg.europaletten!==0?lg.europaletten+'EP':'',lg.saftkisten&&lg.saftkisten!==0?lg.saftkisten+'SK':''].filter(Boolean);
-        const lgText=lgParts.join(' ')||'';
-        const notizHtml=e.notiz?`<div style="font-size:.7rem;color:var(--txl);margin-top:2px">${e.notiz}</div>`:'';
-        const losHtml=e.los_nr?` <span style="font-size:.7rem;color:var(--txl)">Los ${e.los_nr}</span>`:'';
-        return`<tr style="border-bottom:1px solid var(--bdr)">
-          <td style="padding:6px 8px;white-space:nowrap"><span style="font-weight:700">${e.datum}</span>${losHtml}</td>
-          <td style="padding:6px 8px;white-space:nowrap">${e.ernte?'🌿':'🚛'} ${schlagName}</td>
-          <td style="padding:6px 8px">${buchText}${notizHtml}</td>
-          <td style="padding:6px 8px;text-align:center;white-space:nowrap;font-size:.85rem">${haccpText}</td>
-          <td style="padding:6px 8px;text-align:right;white-space:nowrap;font-size:.75rem;color:var(--txl)">${lgText}</td>
-          <td style="padding:6px 8px;text-align:right"><button class="btn btn-s btn-sm" onclick="openErnteBuchungMod('${e.id}')">✏️</button></td>
-        </tr>`;
-      }).join('')}</tbody>
+      <tbody>${rows}</tbody>
     </table></div>`;
   } else {
     journalHtml='<div style="font-size:.82rem;color:var(--txl)">Noch keine Buchungen — klicke auf "+ Buchung".</div>';
   }
+
   el.innerHTML=`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div style="font-size:1rem;font-weight:700;color:var(--pd)">🌾 Ernte Ist ${ernteJahr}</div>
-      <button class="btn btn-p btn-sm" onclick="openErnteBuchungMod()">+ Buchung</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-s btn-sm" onclick="setBuchTyp('leergut');openErnteBuchungMod()">📦 Leergut</button>
+        <button class="btn btn-p btn-sm" onclick="openErnteBuchungMod()">+ Buchung</button>
+      </div>
     </div>
     ${zwlHtml}${leergutHtml}${journalHtml}
   </div>`;
 }
+
 
 
 
