@@ -270,68 +270,90 @@ tr:hover td{background:#f9fcfa}
 </div>
 
 
-<!-- MODAL: Ernte-Buchung -->
+<!-- MODAL: Ernte-Buchung (Alle-in-einer-Ansicht) -->
 <div class="mov" id="mod-ernte-buchung">
-  <div class="mod" style="max-width:500px">
+  <div class="mod" style="max-width:520px">
     <div class="mod-hdr">
       <div class="mod-title" id="ernte-buch-title">Buchung erfassen</div>
       <button class="mod-x" onclick="closeMod('mod-ernte-buchung')">✕</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-      <button id="buch-typ-ernte" class="btn btn-p btn-sm" onclick="setBuchTyp('ernte')">🌿 Ernte</button>
-      <button id="buch-typ-transport" class="btn btn-s btn-sm" onclick="setBuchTyp('transport')">🚛 Transport</button>
-      <button id="buch-typ-leergut" class="btn btn-s btn-sm" onclick="setBuchTyp('leergut')">📦 Leergut zurück</button>
+    <!-- Datum (geteilt) -->
+    <div class="fg" style="margin-bottom:14px">
+      <label style="font-size:.75rem;font-weight:700;color:var(--txl)">Datum</label>
+      <input type="date" id="buch-datum" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;max-width:200px;display:block">
     </div>
-    <!-- Datum + Schlag -->
-    <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Datum</label>
-        <input type="date" id="buch-datum" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
-      <div class="fg" id="buch-schlag-wrap"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Schlag</label>
-        <select id="buch-schlag" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;width:100%"></select></div>
-    </div>
-    <!-- ERNTE: GK + opt. Sofortstandort -->
-    <div id="buch-ernte-sect">
-      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">GK 1. Klasse</label>
-          <input type="number" id="buch-gk-1kl" min="0" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
-        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">GK Verarbeitung</label>
-          <input type="number" id="buch-gk-ver" min="0" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+
+    <!-- ─── ERNTE ─────────────────────────────────────── -->
+    <div id="buch-ernte-sect" style="border-left:4px solid #43a047;background:#f1faf1;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:.82rem;font-weight:800;color:#2e7d32;letter-spacing:.01em">🌿 Ernte</span>
+        <span id="buch-ernte-edit-badge" style="display:none;font-size:.68rem;background:#2e7d32;color:#fff;border-radius:4px;padding:2px 7px">✏️ wird bearbeitet</span>
       </div>
-      <div style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-          <label style="font-size:.75rem;font-weight:700;color:var(--txl)">📍 Direkt an Standort?</label>
+      <div class="fg" style="margin-bottom:8px">
+        <label style="font-size:.72rem;font-weight:700;color:#388e3c">Schlag</label>
+        <select id="buch-schlag" style="border:1px solid #a5d6a7;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select>
+      </div>
+      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#388e3c">GK 1. Klasse</label>
+          <input type="number" id="buch-gk-1kl" min="0" placeholder="0" style="border:1px solid #a5d6a7;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#388e3c">GK Verarbeitung</label>
+          <input type="number" id="buch-gk-ver" min="0" placeholder="0" style="border:1px solid #a5d6a7;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:.72rem;font-weight:700;color:#388e3c">📍 Direkt an Standort?</span>
           <button type="button" id="buch-sofort-toggle" onclick="toggleBuchSofort()"
-            style="padding:3px 10px;border-radius:12px;border:1px solid var(--bdr);background:#fff;font-size:.75rem;cursor:pointer;color:var(--txl)">Nein</button>
+            style="padding:3px 10px;border-radius:12px;border:1px solid #a5d6a7;background:#fff;font-size:.72rem;cursor:pointer;color:#388e3c;font-weight:600">Nein</button>
         </div>
-        <div id="buch-standort-wrap" style="display:none">
+        <div id="buch-standort-wrap" style="display:none;margin-top:8px">
           <div id="buch-standort-sel" style="display:flex;flex-wrap:wrap;gap:6px"></div>
         </div>
       </div>
     </div>
-    <!-- TRANSPORT: Von + Verwendung + GK-Split -->
-    <div id="buch-transport-sect" style="display:none">
-      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Von Standort</label>
-          <select id="buch-von-standort" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;width:100%"></select></div>
-        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Verwendung / Ziel</label>
-          <select id="buch-verwendung" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;width:100%"></select></div>
+
+    <!-- ─── TRANSPORT ─────────────────────────────────── -->
+    <div id="buch-transport-sect" style="border-left:4px solid #fb8c00;background:#fff8f0;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:.82rem;font-weight:800;color:#e65100;letter-spacing:.01em">🚛 Transport</span>
+        <span id="buch-transport-edit-badge" style="display:none;font-size:.68rem;background:#e65100;color:#fff;border-radius:4px;padding:2px 7px">✏️ wird bearbeitet</span>
       </div>
-      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">🍎 GK 1. Klasse</label>
-          <input type="number" id="buch-transport-1kl" min="0" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
-        <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">🐛 GK Verarbeitung</label>
-          <input type="number" id="buch-transport-ver" min="0" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+      <div class="fg" style="margin-bottom:8px">
+        <label style="font-size:.72rem;font-weight:700;color:#e65100">Schlag</label>
+        <select id="buch-transport-schlag" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select>
+      </div>
+      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">Von Standort</label>
+          <select id="buch-von-standort" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select></div>
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">Verwendung / Ziel</label>
+          <select id="buch-verwendung" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select></div>
+      </div>
+      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px">
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">🍎 GK 1. Klasse</label>
+          <input type="number" id="buch-transport-1kl" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">🐛 GK Verarbeitung</label>
+          <input type="number" id="buch-transport-ver" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
       </div>
     </div>
-    <!-- LEERGUT: GK zurück -->
-    <div id="buch-leergut-sect" style="display:none">
-      <div class="fg" style="margin-bottom:12px"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">GK zurück (von Haiming)</label>
-        <input type="number" id="buch-leergut-gk" min="0" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+
+    <!-- ─── LEERGUT ───────────────────────────────────── -->
+    <div id="buch-leergut-sect" style="border-left:4px solid #90a4ae;background:#f5f7f8;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span style="font-size:.82rem;font-weight:800;color:#546e7a;letter-spacing:.01em">📦 Leergut zurück</span>
+        <span id="buch-leergut-edit-badge" style="display:none;font-size:.68rem;background:#546e7a;color:#fff;border-radius:4px;padding:2px 7px">✏️ wird bearbeitet</span>
+      </div>
+      <div class="fg">
+        <label style="font-size:.72rem;font-weight:700;color:#546e7a">GK zurück (von Haiming)</label>
+        <input type="number" id="buch-leergut-gk" min="0" placeholder="0" style="border:1px solid #b0bec5;border-radius:6px;padding:6px 8px;font-size:.85rem;max-width:140px;display:block">
+      </div>
     </div>
+
     <!-- Notiz -->
-    <div class="fg" style="margin-bottom:14px"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Notiz</label>
-      <input type="text" id="buch-notiz" placeholder="Bemerkung" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+    <div class="fg" style="margin-bottom:14px">
+      <label style="font-size:.75rem;font-weight:700;color:var(--txl)">Notiz (gemeinsam)</label>
+      <input type="text" id="buch-notiz" placeholder="Bemerkung" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%">
+    </div>
     <input type="hidden" id="buch-edit-id">
+    <input type="hidden" id="buch-edit-typ">
     <div class="mod-ft" style="display:flex;justify-content:space-between;align-items:center">
       <button class="btn btn-d btn-sm" id="buch-del-btn" onclick="deleteErnteBuchung()" style="display:none">Löschen</button>
       <div style="display:flex;gap:8px;margin-left:auto">
@@ -1555,7 +1577,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.16.6";
+const APP_VERSION="v2.16.7";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -3821,21 +3843,8 @@ function getEntryTyp(e){
 }
 
 function setBuchTyp(typ){
+  // Alle Sektionen immer sichtbar — nur _buchTyp merken (für Compat)
   _buchTyp=typ;
-  ['ernte','transport','leergut'].forEach(t=>{
-    const btn=document.getElementById('buch-typ-'+t);
-    if(btn) btn.className='btn btn-sm '+(typ===t?'btn-p':'btn-s');
-  });
-  const sw=document.getElementById('buch-schlag-wrap');
-  if(sw) sw.style.display=typ==='leergut'?'none':'';
-  const es=document.getElementById('buch-ernte-sect');
-  if(es) es.style.display=typ==='ernte'?'':'none';
-  const ts=document.getElementById('buch-transport-sect');
-  if(ts) ts.style.display=typ==='transport'?'':'none';
-  const ls=document.getElementById('buch-leergut-sect');
-  if(ls) ls.style.display=typ==='leergut'?'':'none';
-  // reset sofort-toggle when switching type
-  if(typ!=='ernte'){_buchSofort=false;}
 }
 
 let _buchSofort=false;
@@ -3877,30 +3886,37 @@ function selectBuchStandort(id){
 
 function openErnteBuchungMod(editId){
   const today=new Date().toISOString().slice(0,10);
+  // Reset
   document.getElementById('buch-datum').value=today;
   document.getElementById('buch-notiz').value='';
   document.getElementById('buch-edit-id').value='';
+  document.getElementById('buch-edit-typ').value='';
   document.getElementById('buch-del-btn').style.display='none';
   document.getElementById('ernte-buch-title').textContent='Buchung erfassen';
-  // Schlag-Dropdown
-  const sel=document.getElementById('buch-schlag');
-  sel.innerHTML='<option value="">– Schlag wählen –</option>'+
+  // Edit badges ausblenden
+  ['ernte','transport','leergut'].forEach(t=>{
+    const b=document.getElementById('buch-'+t+'-edit-badge');
+    if(b) b.style.display='none';
+  });
+  // Schlag-Dropdowns befüllen
+  const schlagOpts='<option value="">– Schlag wählen –</option>'+
     D.schlage.map(s=>`<option value="${s.id}">${s.betrieb?'['+s.betrieb.split(' ').pop()+'] ':''} ${s.name}${s.sorte?' · '+s.sorte:''}</option>`).join('');
-  // Standort-Auswahl initialisieren
-  renderBuchStandortSel(null);
-  // Von-Standort & Verwendung für Transport
+  document.getElementById('buch-schlag').innerHTML=schlagOpts;
+  document.getElementById('buch-transport-schlag').innerHTML=schlagOpts;
+  // Von-Standort & Verwendung
   const vonSel=document.getElementById('buch-von-standort');
   vonSel.innerHTML=D.lagerorte.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
   const vwSel=document.getElementById('buch-verwendung');
   vwSel.innerHTML=getVerwendungen().map(v=>`<option value="${v.id}">${v.typ==='tafel'?'🍎':'🏭'} ${v.name}</option>`).join('');
-  // GK-Inputs leeren
+  // Alle GK-Inputs leeren
   ['buch-gk-1kl','buch-gk-ver','buch-transport-1kl','buch-transport-ver','buch-leergut-gk'].forEach(id=>{
     const el=document.getElementById(id);if(el) el.value='';
   });
   _resetSofortToggle();
-  setBuchTyp(_buchTyp||'ernte');
+  // Pre-open Schlag
   if(typeof _preopenSchlagId!=='undefined'&&_preopenSchlagId){
-    sel.value=_preopenSchlagId;_preopenSchlagId=null;
+    document.getElementById('buch-schlag').value=_preopenSchlagId;
+    _preopenSchlagId=null;
   }
   if(editId){
     const entry=D.ernte_ist.find(e=>e.id===editId);
@@ -3911,30 +3927,31 @@ function openErnteBuchungMod(editId){
       document.getElementById('buch-del-btn').style.display='';
       document.getElementById('ernte-buch-title').textContent='✏️ Buchung bearbeiten';
       const typ=getEntryTyp(entry);
-      setBuchTyp(typ);
+      document.getElementById('buch-edit-typ').value=typ;
+      // Edit-Badge anzeigen
+      const badge=document.getElementById('buch-'+typ+'-edit-badge');
+      if(badge) badge.style.display='';
+      // Felder befüllen
       if(typ==='ernte'){
         document.getElementById('buch-schlag').value=entry.schlag_id||'';
         document.getElementById('buch-gk-1kl').value=entry.gk_1kl||'';
         document.getElementById('buch-gk-ver').value=entry.gk_verarbeitung||'';
-        renderBuchStandortSel(entry.standort_id||null);
+        if(entry.standort_id){
+          _buchSofort=true;
+          const btn=document.getElementById('buch-sofort-toggle');
+          const wrap=document.getElementById('buch-standort-wrap');
+          if(btn){btn.textContent='Ja';btn.style.background='var(--p)';btn.style.color='#fff';}
+          if(wrap) wrap.style.display='';
+          renderBuchStandortSel(entry.standort_id);
+        }
       } else if(typ==='transport'){
-        document.getElementById('buch-schlag').value=entry.schlag_id||'';
+        document.getElementById('buch-transport-schlag').value=entry.schlag_id||'';
         document.getElementById('buch-von-standort').value=entry.von_standort_id||'';
         document.getElementById('buch-verwendung').value=entry.verwendung_id||'';
-        // neue GK-Split-Felder; alte Einträge hatten gk_anzahl
         document.getElementById('buch-transport-1kl').value=entry.gk_1kl||entry.gk_anzahl||'';
         document.getElementById('buch-transport-ver').value=entry.gk_verarbeitung||'';
       } else {
         document.getElementById('buch-leergut-gk').value=entry.gk_anzahl||(entry.leergut?.grosskisten)||'';
-      }
-      // Sofort-Standort wiederherstellen (ernte mit standort_id)
-      if(typ==='ernte'&&entry.standort_id){
-        _buchSofort=true;
-        const btn=document.getElementById('buch-sofort-toggle');
-        const wrap=document.getElementById('buch-standort-wrap');
-        if(btn){btn.textContent='Ja';btn.style.background='var(--p)';btn.style.color='#fff';}
-        if(wrap) wrap.style.display='';
-        renderBuchStandortSel(entry.standort_id);
       }
     }
   }
@@ -3948,42 +3965,55 @@ function renderBuchLagerRows(buchMap){
 function saveErnteBuchung(){
   const datum=document.getElementById('buch-datum').value;
   if(!datum){alert('Bitte Datum eingeben');return;}
-  const editId=document.getElementById('buch-edit-id').value;
   const notiz=document.getElementById('buch-notiz')?.value.trim()||'';
-  let entry;
-  if(_buchTyp==='ernte'){
-    const schlagId=document.getElementById('buch-schlag').value;
-    if(!schlagId){alert('Bitte Schlag auswählen');return;}
-    const gk1kl=parseFloat(document.getElementById('buch-gk-1kl')?.value||'')||0;
-    const gkVer=parseFloat(document.getElementById('buch-gk-ver')?.value||'')||0;
-    if(!gk1kl&&!gkVer){alert('Bitte mindestens einen GK-Wert eingeben');return;}
-    const standortId=_buchSofort?_buchStandortId:null;
-    if(_buchSofort&&!standortId){alert('Bitte Standort auswählen');return;}
-    entry={id:editId||uid(),typ:'ernte',datum,schlag_id:schlagId,gk_1kl:gk1kl,gk_verarbeitung:gkVer,notiz};
-    if(standortId) entry.standort_id=standortId;
-  } else if(_buchTyp==='transport'){
-    const schlagId=document.getElementById('buch-schlag').value;
-    if(!schlagId){alert('Bitte Schlag auswählen');return;}
-    const vonStandortId=document.getElementById('buch-von-standort')?.value||'';
-    if(!vonStandortId){alert('Bitte Von-Standort auswählen');return;}
-    const verwendungId=document.getElementById('buch-verwendung')?.value||'';
-    if(!verwendungId){alert('Bitte Verwendung auswählen');return;}
-    const gk1kl=parseFloat(document.getElementById('buch-transport-1kl')?.value||'')||0;
-    const gkVer=parseFloat(document.getElementById('buch-transport-ver')?.value||'')||0;
-    if(!gk1kl&&!gkVer){alert('Bitte mindestens einen GK-Wert eingeben');return;}
-    entry={id:editId||uid(),typ:'transport',datum,schlag_id:schlagId,gk_1kl:gk1kl,gk_verarbeitung:gkVer,verwendung_id:verwendungId,von_standort_id:vonStandortId,notiz};
-  } else {
-    // leergut
-    const gkAnzahl=parseFloat(document.getElementById('buch-leergut-gk')?.value||'')||0;
-    if(!gkAnzahl){alert('Bitte Anzahl GK eingeben');return;}
-    entry={id:editId||uid(),typ:'leergut',datum,gk_anzahl:gkAnzahl,notiz};
+  const editId=document.getElementById('buch-edit-id').value;
+  const editTyp=document.getElementById('buch-edit-typ').value; // welcher Typ wird bearbeitet
+  const newEntries=[];
+
+  // ── Ernte-Sektion auslesen ──────────────────────────
+  const eSchlag=document.getElementById('buch-schlag')?.value||'';
+  const eKl1=parseFloat(document.getElementById('buch-gk-1kl')?.value||'')||0;
+  const eVer=parseFloat(document.getElementById('buch-gk-ver')?.value||'')||0;
+  const ernteFilled=eKl1||eVer;
+  if(ernteFilled){
+    if(!eSchlag){alert('🌿 Ernte: Bitte Schlag auswählen');return;}
+    if(_buchSofort&&!_buchStandortId){alert('🌿 Ernte: Bitte Standort auswählen');return;}
+    const entry={id:(editTyp==='ernte'?editId:null)||uid(),typ:'ernte',datum,schlag_id:eSchlag,gk_1kl:eKl1,gk_verarbeitung:eVer,notiz};
+    if(_buchSofort&&_buchStandortId) entry.standort_id=_buchStandortId;
+    newEntries.push(entry);
   }
-  if(editId){
-    const idx=D.ernte_ist.findIndex(e=>e.id===editId);
+
+  // ── Transport-Sektion auslesen ──────────────────────
+  const tSchlag=document.getElementById('buch-transport-schlag')?.value||'';
+  const tVon=document.getElementById('buch-von-standort')?.value||'';
+  const tVerw=document.getElementById('buch-verwendung')?.value||'';
+  const tKl1=parseFloat(document.getElementById('buch-transport-1kl')?.value||'')||0;
+  const tVer=parseFloat(document.getElementById('buch-transport-ver')?.value||'')||0;
+  const transportFilled=tKl1||tVer;
+  if(transportFilled){
+    if(!tSchlag){alert('🚛 Transport: Bitte Schlag auswählen');return;}
+    if(!tVon){alert('🚛 Transport: Bitte Von-Standort auswählen');return;}
+    if(!tVerw){alert('🚛 Transport: Bitte Verwendung auswählen');return;}
+    newEntries.push({id:(editTyp==='transport'?editId:null)||uid(),typ:'transport',datum,schlag_id:tSchlag,gk_1kl:tKl1,gk_verarbeitung:tVer,von_standort_id:tVon,verwendung_id:tVerw,notiz});
+  }
+
+  // ── Leergut-Sektion auslesen ────────────────────────
+  const lgGK=parseFloat(document.getElementById('buch-leergut-gk')?.value||'')||0;
+  if(lgGK){
+    newEntries.push({id:(editTyp==='leergut'?editId:null)||uid(),typ:'leergut',datum,gk_anzahl:lgGK,notiz});
+  }
+
+  if(!newEntries.length){alert('Bitte mindestens einen Bereich ausfüllen');return;}
+
+  // Beim Bearbeiten: alten Eintrag entfernen (wird durch newEntries ersetzt)
+  if(editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==editId);
+
+  // Neue Einträge einfügen (oder bestehende aktualisieren)
+  newEntries.forEach(entry=>{
+    const idx=D.ernte_ist.findIndex(e=>e.id===entry.id);
     if(idx>=0) D.ernte_ist[idx]=entry; else D.ernte_ist.push(entry);
-  } else {
-    D.ernte_ist.push(entry);
-  }
+  });
+
   D.ernte_ist.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
   scheduleSave();
   closeMod('mod-ernte-buchung');
@@ -4328,9 +4358,7 @@ function renderErnteIst(){
       <div style="font-size:1rem;font-weight:700;color:var(--pd)">🌾 Ernte ${ernteJahr}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-s btn-sm" onclick="openLagerMod()">⚙️ Standorte</button>
-        <button class="btn btn-s btn-sm" onclick="setBuchTyp('leergut');openErnteBuchungMod()">📦 Leergut zurück</button>
-        <button class="btn btn-s btn-sm" onclick="setBuchTyp('transport');openErnteBuchungMod()">🚛 Transport</button>
-        <button class="btn btn-p btn-sm" onclick="setBuchTyp('ernte');openErnteBuchungMod()">🌿 + Ernte</button>
+        <button class="btn btn-p btn-sm" onclick="openErnteBuchungMod()">+ Buchung erfassen</button>
       </div>
     </div>
     ${bestandHtml}${sortenHtml}${ernteJournalHtml}${transportJournalHtml}
