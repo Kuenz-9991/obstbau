@@ -1751,6 +1751,21 @@ async function cloudLoad(){
     }
     // Schläge immer direkt aus schlage-Tabelle laden
     await loadSchlage();
+    // Fallback: wenn schlage-Tabelle leer → aus localStorage retten
+    if(!D.schlage||D.schlage.length===0){
+      try{
+        const lsRaw=localStorage.getItem('obs_v2');
+        if(lsRaw){
+          const lsD=JSON.parse(lsRaw);
+          if(lsD.schlage&&lsD.schlage.length>0){
+            console.log('Rescue: '+lsD.schlage.length+' Schläge aus localStorage');
+            toast('🔄 Schläge werden wiederhergestellt…');
+            await migrateSchlagToSupabase(lsD.schlage);
+            await loadSchlage();
+          }
+        }
+      }catch(e){console.warn('Rescue fehlgeschlagen:',e.message);}
+    }
     const t=new Date().toLocaleTimeString('de-AT',{hour:'2-digit',minute:'2-digit'});
     updateSbar('ok','☁️ Geladen · '+t);
     renderAll();
