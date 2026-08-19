@@ -1437,7 +1437,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.1 · 19.08.2026 11:03";
+const APP_VERSION="v2.2 · 19.08.2026 13:45";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1989,14 +1989,20 @@ function renderSchlage(){
   if(!D.schlage.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🌳</div>Keine Schläge vorhanden.</div>';return;}
 
   // Group by Betrieb first, then by Feldstück
-  const betriebeOrder=['Johannes Kuenz','Florian Kuenz','Johanna Kuenz',''];
+  const prefOrder=['Johannes Kuenz','Florian Kuenz','Johanna Kuenz'];
   const byBetrieb={};
-  for(const b of betriebeOrder) byBetrieb[b]=[];
   for(const s of D.schlage){
     const b=s.betrieb||'';
     if(!byBetrieb[b]) byBetrieb[b]=[];
     byBetrieb[b].push(s);
   }
+  // Build dynamic order: preferred names first, then any others, then ''
+  const allB=Object.keys(byBetrieb);
+  const betriebeOrder=[
+    ...prefOrder.filter(b=>allB.includes(b)),
+    ...allB.filter(b=>b&&!prefOrder.includes(b)),
+    ...(allB.includes('')?['']:[])
+  ];
 
   let html='';
   for(const betrieb of betriebeOrder){
