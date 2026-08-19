@@ -758,9 +758,12 @@ tr:hover td{background:#f9fcfa}
         </select>
       </div>
     </div>
-    <div style="display:flex;gap:8px;margin-top:14px">
-      <button class="btn btn-p" style="flex:1" onclick="saveNeueSorte()">✓ Speichern</button>
-      <button class="btn btn-s" onclick="closeMod('mod-sorte')">Abbrechen</button>
+    <div style="display:flex;gap:8px;margin-top:14px;justify-content:space-between;align-items:center">
+      <button id="sorte-del-btn" class="btn btn-d btn-sm" onclick="deleteEOSorte()" style="display:none">🗑 Löschen</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-s" onclick="closeMod('mod-sorte')">Abbrechen</button>
+        <button class="btn btn-p" onclick="saveNeueSorte()">✓ Speichern</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1578,7 +1581,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.17.1";
+const APP_VERSION="v2.17.2";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -3232,8 +3235,9 @@ function renderSortenRef(){
       <td style="padding:6px 10px;font-size:.83rem;font-weight:600">${s.name}</td>
       <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.typ==='birne'?'🍐 Birne':'🍎 Apfel'}</td>
       <td style="padding:6px 10px;font-size:.78rem">${s.aktiv===false?'<span style="color:var(--crit)">❌ inaktiv</span>':'<span style="color:var(--p)">✅ aktiv</span>'}</td>
-      <td style="padding:4px 6px;text-align:right">
-        ${s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false})">✏️</button>`:''}
+      <td style="padding:4px 6px;text-align:right;white-space:nowrap">
+        ${s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false})">✏️</button>
+        <button class="btn btn-d btn-sm" onclick="deleteSorteById('${s.id}','${s.name.replace(/'/g,"\\'")}')">🗑</button>`:''}
       </td>
     </tr>`).join('');
   el.innerHTML=`<div class="twrap"><table style="width:100%">
@@ -4103,10 +4107,15 @@ function openTransportMod(editId){
       sorteGrp[sorte].sort((a,b)=>(a.betrieb||'').localeCompare(b.betrieb||'','de')).map(s=>`<option value="${s.id}">${s.name}${s.betrieb?' — '+s.betrieb:''}${s.pflanzjahr?' ('+s.pflanzjahr+')':''}</option>`).join('')
     }</optgroup>`).join('');
   document.getElementById('transp-schlag').innerHTML=schlagOpts;
-  // Von-Standort: Bestand je Standort anzeigen
+  // Von-Standort: Bestand je Standort anzeigen (mit 1.Kl / Verarb. Aufschlüsselung)
   document.getElementById('transp-von-standort').innerHTML=D.lagerorte.map(l=>{
     const b=calcStandortBestand(l.id);
-    const bestandStr=b.total>0?` [${b.total} GK]`:'';
+    let bestandStr='';
+    if(b.total>0){
+      if(b.gk1kl>0&&b.gkVer>0) bestandStr=` [${b.gk1kl} 1.Kl + ${b.gkVer} V = ${b.total} GK]`;
+      else if(b.gk1kl>0) bestandStr=` [${b.gk1kl} GK 1.Kl]`;
+      else bestandStr=` [${b.gkVer} GK Verarb.]`;
+    }
     return`<option value="${l.id}">${l.name}${bestandStr}</option>`;
   }).join('');
   // Standard-Standort vorauswählen (nur neuer Eintrag)
@@ -4808,6 +4817,7 @@ function openEONeueSorte(){
   document.getElementById('ns-aktiv').value='1';
   window._editSorteId=null;
   document.querySelector('#mod-sorte .mod-title').textContent='Sorte anlegen';
+  const db=document.getElementById('sorte-del-btn');if(db) db.style.display='none';
   openMod('mod-sorte');
 }
 
@@ -4818,6 +4828,7 @@ function openEOEditSorte(id,name,typ,aktiv,nkg){
   document.getElementById('ns-aktiv').value=aktiv!==false?'1':'0';
   window._editSorteId=id;
   document.querySelector('#mod-sorte .mod-title').textContent='Sorte bearbeiten';
+  const db=document.getElementById('sorte-del-btn');if(db) db.style.display='';
   openMod('mod-sorte');
 }
 
@@ -4848,6 +4859,38 @@ async function saveNeueSorte(){
     closeMod('mod-sorte');
     await loadSortenCache();
     renderEOSorten();
+  }catch(e){toast('⚠ '+e.message);}
+}
+
+async function deleteSorteById(id,name){
+  if(!confirm(`"${name}" wirklich löschen?`))return;
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/sorten?id=eq.'+id,{
+      method:'DELETE',headers:{...supaHeaders(),'Prefer':'return=minimal'}
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    toast('✓ Sorte "'+name+'" gelöscht');
+    await loadSortenCache();
+    renderEOSorten();
+    renderSortenRef();
+  }catch(e){toast('⚠ '+e.message);}
+}
+
+async function deleteEOSorte(){
+  const id=window._editSorteId;
+  if(!id){return;}
+  const name=document.getElementById('ns-name').value||'diese Sorte';
+  if(!confirm(`"${name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`))return;
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/sorten?id=eq.'+id,{
+      method:'DELETE',headers:{...supaHeaders(),'Prefer':'return=minimal'}
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    toast('✓ Sorte "'+name+'" gelöscht');
+    closeMod('mod-sorte');
+    await loadSortenCache();
+    renderEOSorten();
+    renderSortenRef();
   }catch(e){toast('⚠ '+e.message);}
 }
 
