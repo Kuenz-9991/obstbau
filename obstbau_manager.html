@@ -181,7 +181,7 @@ tr:hover td{background:#f9fcfa}
 <div class="sbar" id="sbar">
   <div class="sbar-dot warn" id="sbar-dot"></div>
   <span id="sbar-txt">Nicht angemeldet</span>
-  <span style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap">v 2026-08-13 · 19:12</span>
+  <span style="margin-left:auto;opacity:.55;font-size:.67rem;white-space:nowrap">v 2026-08-19 · 07:52</span>
 </div>
 
 <nav class="nav">
@@ -286,6 +286,68 @@ tr:hover td{background:#f9fcfa}
   </div>
   <div id="ernte-prog-wrap"></div>
   <div id="ernte-zut-wrap" style="margin-top:12px"></div>
+  <div id="ernte-ist-wrap" style="margin-top:16px"></div>
+</div>
+
+
+<!-- MODAL: Ernte-Buchung -->
+<div class="mov" id="mod-ernte-buchung">
+  <div class="mod" style="max-width:540px">
+    <div class="mod-hdr">
+      <div class="mod-title" id="ernte-buch-title">🌿 Buchung erfassen</div>
+      <button class="mod-x" onclick="closeMod('mod-ernte-buchung')">✕</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button id="buch-typ-ernte" class="btn btn-p btn-sm" onclick="setBuchTyp('ernte')">🌿 Ernte</button>
+      <button id="buch-typ-transport" class="btn btn-s btn-sm" onclick="setBuchTyp('transport')">🚛 Transport</button>
+    </div>
+    <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Datum</label>
+        <input type="date" id="buch-datum" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+      <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Schlag</label>
+        <select id="buch-schlag" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;width:100%"></select></div>
+    </div>
+    <!-- Lager-Buchungen -->
+    <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Großkisten pro Lager <span style="font-weight:400;font-size:.7rem">(+ einlagern · − auslagern/liefern)</span></div>
+    <div id="buch-lager-rows" style="margin-bottom:12px"></div>
+    <!-- HACCP -->
+    <div id="buch-haccp-wrap" style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:12px;border:1px solid var(--bdr)">
+      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">HACCP Kontrolle</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-gk" style="width:15px;height:15px"> Großkisten gereinigt</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-eg" style="width:15px;height:15px"> Erntegerät gereinigt</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-tl" style="width:15px;height:15px"> Tieflader gereinigt</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-kl" style="width:15px;height:15px"> Kühlung gereinigt</label>
+      </div>
+    </div>
+    <!-- Zusatz -->
+    <div class="fg2" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Los-Nr.</label>
+        <input type="text" id="buch-los" placeholder="z.B. 1" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+      <div class="fg"><label style="font-size:.75rem;font-weight:700;color:var(--txl)">Notiz</label>
+        <input type="text" id="buch-notiz" placeholder="Bemerkung" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%"></div>
+    </div>
+    <!-- Leergut -->
+    <div style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:14px;border:1px solid var(--bdr)">
+      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Leergut <span style="font-weight:400;font-size:.7rem">(+ nach Haiming · − von Haiming zurück)</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Großkisten</label>
+          <input type="number" id="lg-gk" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Europaletten</label>
+          <input type="number" id="lg-epal" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Saftkisten</label>
+          <input type="number" id="lg-saft" placeholder="0" style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+      </div>
+    </div>
+    <input type="hidden" id="buch-edit-id">
+    <div class="mod-ft" style="display:flex;justify-content:space-between;align-items:center">
+      <button class="btn btn-d btn-sm" id="buch-del-btn" onclick="deleteErnteBuchung()" style="display:none">Löschen</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-s" onclick="closeMod('mod-ernte-buchung')">Abbrechen</button>
+        <button class="btn btn-p" onclick="saveErnteBuchung()">💾 Speichern</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- REFERENZ -->
@@ -1199,7 +1261,7 @@ const AC_SCHLAGE=[
 // ═══════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════
-let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{}};
+let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{},ernte_ist:[]};
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5)}
 
@@ -1220,6 +1282,7 @@ function migrateD(){
   if(!D.lagerorte) D.lagerorte=[];
   if(!D.prognosen) D.prognosen={};
   if(!D.zuteilungen) D.zuteilungen={};
+  if(!D.ernte_ist) D.ernte_ist=[];
 }
 
 function mergeNewSchlage(){
@@ -2556,98 +2619,118 @@ function renderErnte(){
   }
   renderPrognoseCard();
   renderZuteilungCard();
+  renderErnteIst();
 }
 
 function renderPrognoseCard(){
   const el=document.getElementById('ernte-prog-wrap');
   if(!el)return;
-  if(!D.schlage.length){el.innerHTML='<div class="card"><div class="card-hdr">📊 Ernteprognose '+ernteJahr+'</div><div class="empty">Noch keine Schläge angelegt.</div></div>';return;}
+  if(!D.schlage.length){el.innerHTML='<div class="card"><div class="card-hdr">\u{1F4CA} Ernteprognose '+ernteJahr+'</div><div class="empty">Noch keine Schläge angelegt.</div></div>';return;}
 
-  const rows=D.schlage.map(s=>{
-    const p=getP(s.id,ernteJahr);
-    const c=calcProg(s,p);
-    // Historik
-    const histJahre=Object.keys(D.prognosen[s.id]||{}).map(Number).filter(y=>y!==ernteJahr).sort((a,b)=>b-a);
-    const histHtml=histJahre.length?`
-      <div style="margin-top:8px;border-top:1px solid var(--bdr);padding-top:6px">
-        <div style="font-size:.7rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Vorjahre</div>
-        <table style="width:100%;font-size:.75rem;border-collapse:collapse">
-          <thead><tr style="color:var(--txl)"><th style="text-align:left;padding:2px 6px">Jahr</th><th style="text-align:right;padding:2px 6px">kg/Baum</th><th style="text-align:right;padding:2px 6px">Leere B.</th><th style="text-align:right;padding:2px 6px">Verarbeitung</th><th style="text-align:right;padding:2px 6px">Tafel</th><th style="text-align:right;padding:2px 6px">Gesamt</th></tr></thead>
-          <tbody>${histJahre.map(y=>{
-            const hp=D.prognosen[s.id][y];
-            const hc=calcProg(s,hp);
-            return`<tr style="border-top:1px solid var(--bdr)">
-              <td style="padding:3px 6px;font-weight:700">${y}</td>
-              <td style="padding:3px 6px;text-align:right">${hp.kg_pro_baum||'–'}</td>
-              <td style="padding:3px 6px;text-align:right">${hp.ausfall_prozent||0}%</td>
-              <td style="padding:3px 6px;text-align:right">${hp.verarbeitung_prozent||0}%</td>
-              <td style="padding:3px 6px;text-align:right">${fmtKg(hc.tafel)}</td>
-              <td style="padding:3px 6px;text-align:right;font-weight:700">${fmtKg(hc.gesamt)}</td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table>
-      </div>`:''
+  const TYPEN=[{key:'apfel',label:'\u{1F34E} Äpfel'},{key:'birne',label:'\u{1F350} Birnen'},{key:'_sonstige',label:'Sonstige'}];
+  function getTyp(s){return ['apfel','birne'].includes(s.typ||'')?s.typ:'_sonstige';}
 
-    return`<div class="card" style="margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
-        <div>
-          <div style="font-weight:700;color:var(--pd);font-size:.9rem">${s.name}</div>
-          <div style="font-size:.72rem;color:var(--txl)">${s.feldstuck||''} · ${s.sorte||''} · ${(s.baumzahl||(s.reihenlange&&s.pabst_baum?Math.round(s.reihenlange/s.pabst_baum):null))||'?'} Bäume${s.grosskisten_kg?' · '+s.grosskisten_kg+' kg/GK':' · <span style="color:var(--warn)">kg/GK fehlt</span>'}</div>
-        </div>
-      </div>
-      <!-- Eingaben -->
-      <div class="fg2" style="grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">kg pro Baum</label>
-          <input type="number" id="ep-${s.id}-kpb" step="0.1" value="${p.kg_pro_baum||''}" placeholder="z.B. 15" oninput="savePrognoseRow('${s.id}')"
-            style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Leere Bäume %</label>
-          <input type="number" id="ep-${s.id}-af" step="1" min="0" max="100" value="${p.ausfall_prozent||''}" placeholder="0" oninput="savePrognoseRow('${s.id}')"
-            style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Verarbeitung %</label>
-          <input type="number" id="ep-${s.id}-vp" step="1" min="0" max="100" value="${p.verarbeitung_prozent||''}" placeholder="0" oninput="savePrognoseRow('${s.id}')"
-            style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-      </div>
-      <!-- Ergebnisse -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
-          <div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">🍎 Tafelobst</div>
-          <div id="ep-${s.id}-tafel-kg" style="font-size:1rem;font-weight:700;color:var(--pd);margin-top:2px">${c.gesamt?fmtKg(c.tafel):'–'}</div>
-          <div id="ep-${s.id}-tafel-gk" style="font-size:.72rem;color:var(--txl)">${c.tafel_kisten!=null?fmtKisten(c.tafel_kisten):''}</div>
-        </div>
-        <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
-          <div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">🏭 Verarbeitung</div>
-          <div id="ep-${s.id}-verarbeitung-kg" style="font-size:1rem;font-weight:700;color:var(--pd);margin-top:2px">${c.gesamt?fmtKg(c.verarbeitung):'–'}</div>
-          <div id="ep-${s.id}-verarbeitung-gk" style="font-size:.72rem;color:var(--txl)">${c.verarbeitung_kisten!=null?fmtKisten(c.verarbeitung_kisten):''}</div>
-        </div>
-        <div style="background:var(--pd);border-radius:8px;padding:8px 10px">
-          <div style="font-size:.68rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.04em">📦 Gesamt</div>
-          <div id="ep-${s.id}-gesamt-kg" style="font-size:1rem;font-weight:700;color:#fff;margin-top:2px">${c.gesamt?fmtKg(c.gesamt):'–'}</div>
-          <div id="ep-${s.id}-gesamt-gk" style="font-size:.72rem;color:rgba(255,255,255,.7)">${c.gesamt_kisten!=null?fmtKisten(c.gesamt_kisten):''}</div>
-        </div>
-      </div>
-      ${histHtml}
-    </div>`;
-  }).join('');
-
-  // Gesamtsumme
+  let allHtml='';
   let sumT=0,sumV=0,sumG=0;
-  D.schlage.forEach(s=>{const c=calcProg(s,getP(s.id,ernteJahr));sumT+=c.tafel;sumV+=c.verarbeitung;sumG+=c.gesamt;});
+
+  for(const typ of TYPEN){
+    const gruppe=D.schlage.filter(s=>getTyp(s)===typ.key);
+    if(!gruppe.length) continue;
+
+    let grpT=0,grpV=0,grpG=0;
+    const grpRows=gruppe.map(s=>{
+      const p=getP(s.id,ernteJahr);
+      const c=calcProg(s,p);
+      grpT+=c.tafel; grpV+=c.verarbeitung; grpG+=c.gesamt;
+      const histJahre=Object.keys(D.prognosen[s.id]||{}).map(Number).filter(y=>y!==ernteJahr).sort((a,b)=>b-a);
+      const histHtml=histJahre.length?`
+        <div style="margin-top:8px;border-top:1px solid var(--bdr);padding-top:6px">
+          <div style="font-size:.7rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Vorjahre</div>
+          <table style="width:100%;font-size:.75rem;border-collapse:collapse">
+            <thead><tr style="color:var(--txl)"><th style="text-align:left;padding:2px 6px">Jahr</th><th style="text-align:right;padding:2px 6px">kg/Baum</th><th style="text-align:right;padding:2px 6px">Leere B.</th><th style="text-align:right;padding:2px 6px">Verarbeitung</th><th style="text-align:right;padding:2px 6px">Tafel</th><th style="text-align:right;padding:2px 6px">Gesamt</th></tr></thead>
+            <tbody>${histJahre.map(y=>{
+              const hp=D.prognosen[s.id][y];
+              const hc=calcProg(s,hp);
+              return`<tr style="border-top:1px solid var(--bdr)">
+                <td style="padding:3px 6px;font-weight:700">${y}</td>
+                <td style="padding:3px 6px;text-align:right">${hp.kg_pro_baum||'–'}</td>
+                <td style="padding:3px 6px;text-align:right">${hp.ausfall_prozent||0}%</td>
+                <td style="padding:3px 6px;text-align:right">${hp.verarbeitung_prozent||0}%</td>
+                <td style="padding:3px 6px;text-align:right">${fmtKg(hc.tafel)}</td>
+                <td style="padding:3px 6px;text-align:right;font-weight:700">${fmtKg(hc.gesamt)}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>`:''
+      return`<div class="card" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+          <div>
+            <div style="font-weight:700;color:var(--pd);font-size:.9rem">${s.name}</div>
+            <div style="font-size:.72rem;color:var(--txl)">${s.feldstuck||''} · ${s.sorte||''} · ${(s.baumzahl||(s.reihenlange&&s.pabst_baum?Math.round(s.reihenlange/s.pabst_baum):null))||'?'} Bäume${s.grosskisten_kg?' · '+s.grosskisten_kg+' kg/GK':' · <span style="color:var(--warn)">kg/GK fehlt</span>'}</div>
+          </div>
+        </div>
+        <!-- Eingaben -->
+        <div class="fg2" style="grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+          <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">kg pro Baum</label>
+            <input type="number" id="ep-${s.id}-kpb" step="0.1" value="${p.kg_pro_baum||''}" placeholder="z.B. 15" oninput="savePrognoseRow('${s.id}')"
+              style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+          <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Leere Bäume %</label>
+            <input type="number" id="ep-${s.id}-af" step="1" min="0" max="100" value="${p.ausfall_prozent||''}" placeholder="0" oninput="savePrognoseRow('${s.id}')"
+              style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+          <div class="fg"><label style="font-size:.72rem;font-weight:700;color:var(--txl)">Verarbeitung %</label>
+            <input type="number" id="ep-${s.id}-vp" step="1" min="0" max="100" value="${p.verarbeitung_prozent||''}" placeholder="0" oninput="savePrognoseRow('${s.id}')"
+              style="border:1px solid var(--bdr);border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
+        </div>
+        <!-- Ergebnisse -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+          <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
+            <div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">\u{1F34E} Tafelobst</div>
+            <div id="ep-${s.id}-tafel-kg" style="font-size:1rem;font-weight:700;color:var(--pd);margin-top:2px">${c.gesamt?fmtKg(c.tafel):'–'}</div>
+            <div id="ep-${s.id}-tafel-gk" style="font-size:.72rem;color:var(--txl)">${c.tafel_kisten!=null?fmtKisten(c.tafel_kisten):''}</div>
+          </div>
+          <div style="background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
+            <div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">\u{1F3ED} Verarbeitung</div>
+            <div id="ep-${s.id}-verarbeitung-kg" style="font-size:1rem;font-weight:700;color:var(--pd);margin-top:2px">${c.gesamt?fmtKg(c.verarbeitung):'–'}</div>
+            <div id="ep-${s.id}-verarbeitung-gk" style="font-size:.72rem;color:var(--txl)">${c.verarbeitung_kisten!=null?fmtKisten(c.verarbeitung_kisten):''}</div>
+          </div>
+          <div style="background:var(--pd);border-radius:8px;padding:8px 10px">
+            <div style="font-size:.68rem;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.04em">\u{1F4E6} Gesamt</div>
+            <div id="ep-${s.id}-gesamt-kg" style="font-size:1rem;font-weight:700;color:#fff;margin-top:2px">${c.gesamt?fmtKg(c.gesamt):'–'}</div>
+            <div id="ep-${s.id}-gesamt-gk" style="font-size:.72rem;color:rgba(255,255,255,.7)">${c.gesamt_kisten!=null?fmtKisten(c.gesamt_kisten):''}</div>
+          </div>
+        </div>
+        ${histHtml}
+      </div>`;
+    }).join('');
+
+    sumT+=grpT; sumV+=grpV; sumG+=grpG;
+
+    allHtml+=`
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--bdr)">
+        <div style="font-size:.92rem;font-weight:700;color:var(--pd)">${typ.label}</div>
+        <div style="font-size:.78rem;color:var(--txl)">Gesamt: <b>${fmtKg(grpG)}</b> · Tafel: ${fmtKg(grpT)} · Verarbeitung: ${fmtKg(grpV)}</div>
+      </div>
+      ${grpRows}`;
+  }
 
   el.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div style="font-size:1rem;font-weight:700;color:var(--pd)">📊 Ernteprognose ${ernteJahr}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div style="font-size:1rem;font-weight:700;color:var(--pd)">\u{1F4CA} Ernteprognose ${ernteJahr}</div>
       <div style="font-size:.78rem;color:var(--txl)">Gesamt: <b>${fmtKg(sumG)}</b> · Tafel: ${fmtKg(sumT)} · Verarbeitung: ${fmtKg(sumV)}</div>
     </div>
-    ${rows}`;
+    ${allHtml}`;
 }
 
 function renderZuteilungCard(){
   const el=document.getElementById('ernte-zut-wrap');
   if(!el)return;
 
+  const TYPEN=[{key:'apfel',label:'\u{1F34E} Äpfel'},{key:'birne',label:'\u{1F350} Birnen'},{key:'_sonstige',label:'Sonstige'}];
+  function getTyp(s){return ['apfel','birne'].includes(s.typ||'')?s.typ:'_sonstige';}
+
   const schlMitProg=D.schlage.filter(s=>{const p=getP(s.id,ernteJahr);return p.kg_pro_baum>0;});
   if(!schlMitProg.length){
-    el.innerHTML='<div class="card" style="margin-top:12px"><div style="font-size:1rem;font-weight:700;color:var(--pd);margin-bottom:8px">📋 Übersicht & Zuteilung '+ernteJahr+'</div><div style="font-size:.82rem;color:var(--txl)">Bitte oben Prognose-Werte (kg/Baum) eintragen.</div></div>';
+    el.innerHTML='<div class="card" style="margin-top:12px"><div style="font-size:1rem;font-weight:700;color:var(--pd);margin-bottom:8px">\u{1F4CB} Übersicht & Zuteilung '+ernteJahr+'</div><div style="font-size:.82rem;color:var(--txl)">Bitte oben Prognose-Werte (kg/Baum) eintragen.</div></div>';
     return;
   }
 
@@ -2657,51 +2740,74 @@ function renderZuteilungCard(){
   const hasLager=D.lagerorte.length>0;
   const lagerHeadCols=hasLager?D.lagerorte.map(l=>`<th colspan="2" style="text-align:center;padding:4px 8px;background:var(--bg);border-bottom:2px solid var(--bdr);white-space:nowrap;font-size:.78rem">${l.name}</th>`).join(''):'';
   const lagerSubCols=hasLager?D.lagerorte.map(()=>'<th style="text-align:center;padding:2px 5px;font-size:.68rem;color:var(--txl);font-weight:500;background:var(--bg)">Tafel kg</th><th style="text-align:center;padding:2px 5px;font-size:.68rem;color:var(--txl);font-weight:500;background:var(--bg)">Verarb. kg</th>').join(''):'';
+  const colSpanTotal=4+(hasLager?D.lagerorte.length*2:0)+1;
 
-  const rows=schlMitProg.map(s=>{
-    const p=getP(s.id,ernteJahr);
-    const c=calcProg(s,p);
-    const allocs=(D.zuteilungen[ernteJahr]||{})[s.id]||{};
-    let totT=0,totV=0;
-    for(const l of D.lagerorte){const a=allocs[l.id]||{};totT+=(a.tafel_kg||0);totV+=(a.verarbeitung_kg||0);}
-    const offT=c.tafel-totT,offV=c.verarbeitung-totV;
-    const offColor=offT<-1||offV<-1?'var(--crit)':offT===0&&offV===0?'var(--s)':'var(--warn)';
-    const lagerInputCols=hasLager?D.lagerorte.map(l=>{
-      const a=allocs[l.id]||{};
-      return`<td style="padding:3px 4px;text-align:center"><input type="number" id="zt-${s.id}-${l.id}-t" value="${a.tafel_kg||''}" placeholder="0" oninput="saveZuteilungCell('${s.id}','${l.id}')" style="width:75px;border:1px solid var(--bdr);border-radius:5px;padding:4px 5px;font-size:.78rem;text-align:right;background:#fff"></td><td style="padding:3px 4px;text-align:center"><input type="number" id="zt-${s.id}-${l.id}-v" value="${a.verarbeitung_kg||''}" placeholder="0" oninput="saveZuteilungCell('${s.id}','${l.id}')" style="width:75px;border:1px solid var(--bdr);border-radius:5px;padding:4px 5px;font-size:.78rem;text-align:right;background:#fff"></td>`;
-    }).join(''):'';
-    return`<tr style="border-bottom:1px solid var(--bdr)">
-      <td style="padding:7px 8px;font-size:.82rem;font-weight:700;color:var(--pd);white-space:nowrap">${s.name}</td>
-      <td style="padding:7px 8px;font-size:.78rem;color:var(--txl);white-space:nowrap">${fmtKg(c.tafel)}<br><span style="font-size:.7rem">${c.tafel_kisten!=null?fmtKisten(c.tafel_kisten):''}</span></td>
-      <td style="padding:7px 8px;font-size:.78rem;color:var(--txl);white-space:nowrap">${fmtKg(c.verarbeitung)}<br><span style="font-size:.7rem">${c.verarbeitung_kisten!=null?fmtKisten(c.verarbeitung_kisten):''}</span></td>
-      <td style="padding:7px 8px;font-size:.82rem;font-weight:700;white-space:nowrap">${fmtKg(c.gesamt)}<br><span style="font-size:.7rem;color:var(--txl)">${c.gesamt_kisten!=null?fmtKisten(c.gesamt_kisten):''}</span></td>
-      ${lagerInputCols}
-      <td style="padding:7px 8px;font-size:.72rem;white-space:nowrap" id="zt-${s.id}-offen"><span style="color:${offColor}">T: ${fmtKg(offT)}<br>V: ${fmtKg(offV)}</span></td>
+  let bodyHtml='';
+  for(const typ of TYPEN){
+    const gruppe=schlMitProg.filter(s=>getTyp(s)===typ.key);
+    if(!gruppe.length) continue;
+
+    let grpT=0,grpV=0,grpG=0;
+
+    // Group header row
+    bodyHtml+=`<tr><td colspan="${colSpanTotal}" style="padding:6px 8px 3px;font-size:.82rem;font-weight:700;color:var(--pd);background:var(--bg);border-top:2px solid var(--bdr)">${typ.label}</td></tr>`;
+
+    gruppe.forEach(s=>{
+      const p=getP(s.id,ernteJahr);
+      const c=calcProg(s,p);
+      grpT+=c.tafel; grpV+=c.verarbeitung; grpG+=c.gesamt;
+      const allocs=(D.zuteilungen[ernteJahr]||{})[s.id]||{};
+      let totT=0,totV=0;
+      for(const l of D.lagerorte){const a=allocs[l.id]||{};totT+=(a.tafel_kg||0);totV+=(a.verarbeitung_kg||0);}
+      const offT=c.tafel-totT,offV=c.verarbeitung-totV;
+      const offColor=offT<-1||offV<-1?'var(--crit)':offT===0&&offV===0?'var(--s)':'var(--warn)';
+      const lagerInputCols=hasLager?D.lagerorte.map(l=>{
+        const a=allocs[l.id]||{};
+        return`<td style="padding:3px 4px;text-align:center"><input type="number" id="zt-${s.id}-${l.id}-t" value="${a.tafel_kg||''}" placeholder="0" oninput="saveZuteilungCell('${s.id}','${l.id}')" style="width:75px;border:1px solid var(--bdr);border-radius:5px;padding:4px 5px;font-size:.78rem;text-align:right;background:#fff"></td><td style="padding:3px 4px;text-align:center"><input type="number" id="zt-${s.id}-${l.id}-v" value="${a.verarbeitung_kg||''}" placeholder="0" oninput="saveZuteilungCell('${s.id}','${l.id}')" style="width:75px;border:1px solid var(--bdr);border-radius:5px;padding:4px 5px;font-size:.78rem;text-align:right;background:#fff"></td>`;
+      }).join(''):'';
+      bodyHtml+=`<tr style="border-bottom:1px solid var(--bdr)">
+        <td style="padding:7px 8px;font-size:.82rem;font-weight:700;color:var(--pd);white-space:nowrap">${s.name}</td>
+        <td style="padding:7px 8px;font-size:.78rem;color:var(--txl);white-space:nowrap">${fmtKg(c.tafel)}<br><span style="font-size:.7rem">${c.tafel_kisten!=null?fmtKisten(c.tafel_kisten):''}</span></td>
+        <td style="padding:7px 8px;font-size:.78rem;color:var(--txl);white-space:nowrap">${fmtKg(c.verarbeitung)}<br><span style="font-size:.7rem">${c.verarbeitung_kisten!=null?fmtKisten(c.verarbeitung_kisten):''}</span></td>
+        <td style="padding:7px 8px;font-size:.82rem;font-weight:700;white-space:nowrap">${fmtKg(c.gesamt)}<br><span style="font-size:.7rem;color:var(--txl)">${c.gesamt_kisten!=null?fmtKisten(c.gesamt_kisten):''}</span></td>
+        ${lagerInputCols}
+        <td style="padding:7px 8px;font-size:.72rem;white-space:nowrap" id="zt-${s.id}-offen"><span style="color:${offColor}">T: ${fmtKg(offT)}<br>V: ${fmtKg(offV)}</span></td>
+      </tr>`;
+    });
+
+    // Group subtotal row
+    bodyHtml+=`<tr style="background:#e8f4ee;font-weight:700;font-size:.78rem">
+      <td style="padding:5px 8px;color:var(--pd)">Summe ${typ.label}</td>
+      <td style="padding:5px 8px">${fmtKg(grpT)}</td>
+      <td style="padding:5px 8px">${fmtKg(grpV)}</td>
+      <td style="padding:5px 8px">${fmtKg(grpG)}</td>
+      ${hasLager?D.lagerorte.map(()=>'<td colspan="2"></td>').join(''):''}
+      <td></td>
     </tr>`;
-  }).join('');
+  }
 
-  const noLagerHint=!hasLager?'<div style="font-size:.78rem;color:var(--txl);margin-top:8px;padding:6px 10px;background:var(--bg);border-radius:6px">💡 <a href="#" onclick="event.preventDefault();openLagerMod()" style="color:var(--p)">Lagerorte anlegen</a> um Zuteilung zu aktivieren</div>':'';
+  const noLagerHint=!hasLager?'<div style="font-size:.78rem;color:var(--txl);margin-top:8px;padding:6px 10px;background:var(--bg);border-radius:6px">\u{1F4A1} <a href="#" onclick="event.preventDefault();openLagerMod()" style="color:var(--p)">Lagerorte anlegen</a> um Zuteilung zu aktivieren</div>':'';
 
   el.innerHTML=`<div class="card" style="margin-top:12px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-      <div style="font-size:1rem;font-weight:700;color:var(--pd)">📋 Übersicht & Zuteilung ${ernteJahr}</div>
+      <div style="font-size:1rem;font-weight:700;color:var(--pd)">\u{1F4CB} Übersicht & Zuteilung ${ernteJahr}</div>
       <div style="font-size:.78rem;color:var(--txl)">Gesamt: <b>${fmtKg(sumG)}</b> · Tafel: ${fmtKg(sumT)} · Verarbeitung: ${fmtKg(sumV)}</div>
     </div>
     <div class="twrap"><table style="border-collapse:collapse;width:100%">
       <thead>
         <tr>
           <th style="text-align:left;padding:4px 8px;font-size:.75rem;color:var(--txl);font-weight:700;border-bottom:2px solid var(--bdr)">Schlag</th>
-          <th style="text-align:left;padding:4px 8px;font-size:.75rem;color:var(--txl);font-weight:700;border-bottom:2px solid var(--bdr)">🍎 Tafel</th>
-          <th style="text-align:left;padding:4px 8px;font-size:.75rem;color:var(--txl);font-weight:700;border-bottom:2px solid var(--bdr)">🏭 Verarbeitung</th>
-          <th style="text-align:left;padding:4px 8px;font-size:.75rem;color:var(--txl);font-weight:700;border-bottom:2px solid var(--bdr)">📦 Gesamt</th>
+          <th style="text-align:left;padding:4px 8px;font-size:.75rem;color:var(--txl);font-weight:700;border-bottom:2px solid var(--bdr)">\u{1F34E} Tafel</th>
+          <th style="text-align:left;padding:4px 8px;font-size:.75rem;color:var(--txl);font-weight:700;border-bottom:2px solid var(--bdr)">\u{1F3ED} Verarbeitung</th>
+          <th style="text-align:left;padding:4px 8px;font-size:.75rem;color:var(--txl);font-weight:700;border-bottom:2px solid var(--bdr)">\u{1F4E6} Gesamt</th>
           ${lagerHeadCols}
           <th style="padding:4px 8px;font-size:.75rem;color:var(--txl);font-weight:700;border-bottom:2px solid var(--bdr)">Offen</th>
         </tr>
         ${hasLager?`<tr><th></th><th></th><th></th><th></th>${lagerSubCols}<th></th></tr>`:''}
       </thead>
-      <tbody>${rows}</tbody>
+      <tbody>${bodyHtml}</tbody>
       <tfoot>
-        <tr style="background:var(--bg);font-weight:700">
+        <tr style="background:var(--pd);color:#fff;font-weight:700">
           <td style="padding:6px 8px;font-size:.8rem">Gesamt</td>
           <td style="padding:6px 8px;font-size:.8rem">${fmtKg(sumT)}</td>
           <td style="padding:6px 8px;font-size:.8rem">${fmtKg(sumV)}</td>
@@ -2757,6 +2863,234 @@ function deleteLager(id){
   renderLagerMod();
   renderZuteilungCard();
 }
+
+// ── Ernte Ist ──────────────────────────────────────
+let _buchTyp='ernte';
+
+function setBuchTyp(typ){
+  _buchTyp=typ;
+  document.getElementById('buch-typ-ernte').className='btn btn-sm '+(typ==='ernte'?'btn-p':'btn-s');
+  document.getElementById('buch-typ-transport').className='btn btn-sm '+(typ==='transport'?'btn-p':'btn-s');
+  document.getElementById('buch-haccp-wrap').style.display=typ==='ernte'?'':'none';
+}
+
+function openErnteBuchungMod(editId){
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('buch-datum').value=today;
+  document.getElementById('buch-los').value='';
+  document.getElementById('buch-notiz').value='';
+  document.getElementById('lg-gk').value='';
+  document.getElementById('lg-epal').value='';
+  document.getElementById('lg-saft').value='';
+  document.getElementById('buch-edit-id').value='';
+  document.getElementById('buch-del-btn').style.display='none';
+  document.getElementById('ernte-buch-title').textContent='🌿 Buchung erfassen';
+  ['haccp-gk','haccp-eg','haccp-tl','haccp-kl'].forEach(id=>{
+    document.getElementById(id).checked=true;
+  });
+  setBuchTyp('ernte');
+  const sel=document.getElementById('buch-schlag');
+  sel.innerHTML=D.schlage.map(s=>`<option value="${s.id}">${s.name}${s.sorte?' · '+s.sorte:''}</option>`).join('');
+  renderBuchLagerRows({});
+  if(editId){
+    const entry=D.ernte_ist.find(e=>e.id===editId);
+    if(entry){
+      document.getElementById('buch-datum').value=entry.datum;
+      document.getElementById('buch-schlag').value=entry.schlag_id;
+      document.getElementById('buch-los').value=entry.los_nr||'';
+      document.getElementById('buch-notiz').value=entry.notiz||'';
+      document.getElementById('lg-gk').value=entry.leergut?.grosskisten||'';
+      document.getElementById('lg-epal').value=entry.leergut?.europaletten||'';
+      document.getElementById('lg-saft').value=entry.leergut?.saftkisten||'';
+      document.getElementById('buch-edit-id').value=editId;
+      document.getElementById('buch-del-btn').style.display='';
+      document.getElementById('ernte-buch-title').textContent='✏️ Buchung bearbeiten';
+      setBuchTyp(entry.ernte?'ernte':'transport');
+      if(entry.haccp){
+        document.getElementById('haccp-gk').checked=!!entry.haccp.grosskisten;
+        document.getElementById('haccp-eg').checked=!!entry.haccp.erntegeraet;
+        document.getElementById('haccp-tl').checked=!!entry.haccp.tieflader;
+        document.getElementById('haccp-kl').checked=!!entry.haccp.kuehlung;
+      }
+      const buchMap={};
+      (entry.buchungen||[]).forEach(b=>{buchMap[b.lager_id]=b.gk;});
+      renderBuchLagerRows(buchMap);
+    }
+  }
+  openMod('mod-ernte-buchung');
+}
+
+function renderBuchLagerRows(buchMap){
+  const el=document.getElementById('buch-lager-rows');
+  if(!D.lagerorte.length){
+    el.innerHTML='<div style="font-size:.82rem;color:var(--txl);padding:4px 0">💡 <a href="#" onclick="event.preventDefault();closeMod(\'mod-ernte-buchung\');openLagerMod()" style="color:var(--p)">Zuerst Lagerorte anlegen</a></div>';
+    return;
+  }
+  el.innerHTML=D.lagerorte.map(l=>{
+    const isZwl=l.typ==='zwischen';
+    const val=buchMap[l.id]!==undefined?buchMap[l.id]:'';
+    return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr)">
+      <div style="flex:1;font-size:.82rem">
+        <span style="font-weight:700;color:var(--pd)">${l.name}</span>
+        <span style="font-size:.7rem;color:var(--txl);margin-left:4px">${isZwl?'ZWL':''}</span>
+      </div>
+      <input type="number" id="bl-${l.id}" value="${val}" placeholder="${isZwl?'+ / −':'+'}"
+        style="width:85px;border:1px solid ${isZwl?'var(--s)':'var(--bdr)'};border-radius:6px;padding:5px 7px;font-size:.85rem;text-align:right;background:${isZwl?'#f0faf5':'#fff'}">
+      <span style="font-size:.72rem;color:var(--txl);width:18px">GK</span>
+    </div>`;
+  }).join('');
+}
+
+function saveErnteBuchung(){
+  const datum=document.getElementById('buch-datum').value;
+  const schlagId=document.getElementById('buch-schlag').value;
+  if(!datum||!schlagId){alert('Bitte Datum und Schlag auswählen');return;}
+  const buchungen=[];
+  D.lagerorte.forEach(l=>{
+    const v=parseFloat(document.getElementById('bl-'+l.id)?.value||'');
+    if(!isNaN(v)&&v!==0) buchungen.push({lager_id:l.id,gk:v});
+  });
+  const isErnte=_buchTyp==='ernte';
+  const entry={
+    id:document.getElementById('buch-edit-id').value||uid(),
+    datum,schlag_id:schlagId,buchungen,
+    ernte:isErnte,
+    haccp:isErnte?{
+      grosskisten:document.getElementById('haccp-gk').checked,
+      erntegeraet:document.getElementById('haccp-eg').checked,
+      tieflader:document.getElementById('haccp-tl').checked,
+      kuehlung:document.getElementById('haccp-kl').checked
+    }:null,
+    los_nr:document.getElementById('buch-los').value.trim(),
+    notiz:document.getElementById('buch-notiz').value.trim(),
+    leergut:{
+      grosskisten:parseFloat(document.getElementById('lg-gk').value)||0,
+      europaletten:parseFloat(document.getElementById('lg-epal').value)||0,
+      saftkisten:parseFloat(document.getElementById('lg-saft').value)||0
+    }
+  };
+  const editId=document.getElementById('buch-edit-id').value;
+  if(editId){
+    const idx=D.ernte_ist.findIndex(e=>e.id===editId);
+    if(idx>=0) D.ernte_ist[idx]=entry; else D.ernte_ist.push(entry);
+  } else {
+    D.ernte_ist.push(entry);
+  }
+  D.ernte_ist.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
+  scheduleSave();
+  closeMod('mod-ernte-buchung');
+  renderErnteIst();
+}
+
+function deleteErnteBuchung(){
+  const id=document.getElementById('buch-edit-id').value;
+  if(!id||!confirm('Buchung wirklich löschen?'))return;
+  D.ernte_ist=D.ernte_ist.filter(e=>e.id!==id);
+  scheduleSave();
+  closeMod('mod-ernte-buchung');
+  renderErnteIst();
+}
+
+function calcZwlBestand(lagerId){
+  let sum=0;
+  D.ernte_ist.forEach(e=>{
+    (e.buchungen||[]).forEach(b=>{if(b.lager_id===lagerId)sum+=b.gk;});
+  });
+  return sum;
+}
+
+function calcLeergutBestand(typ){
+  let sum=0;
+  D.ernte_ist.forEach(e=>{sum+=(e.leergut?.[typ]||0);});
+  return sum;
+}
+
+function renderErnteIst(){
+  const el=document.getElementById('ernte-ist-wrap');
+  if(!el)return;
+  const zwlLager=D.lagerorte.filter(l=>l.typ==='zwischen');
+  const LKW_GK=60;
+  let zwlHtml='';
+  if(zwlLager.length){
+    const cards=zwlLager.map(l=>{
+      const bestand=calcZwlBestand(l.id);
+      const pct=Math.min(100,Math.round(bestand/LKW_GK*100));
+      const fillColor=pct>=100?'var(--crit)':pct>=80?'var(--warn)':pct>=50?'#f4d35e':'var(--s)';
+      const kgPerGK=(D.schlage.find(s=>s.grosskisten_kg)||{grosskisten_kg:340}).grosskisten_kg||340;
+      const kg=bestand*kgPerGK;
+      return`<div style="background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:12px;flex:1;min-width:180px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">📦 ${l.name}</div>
+        <div style="font-size:1.4rem;font-weight:800;color:${bestand>0?'var(--pd)':'var(--txl)'};line-height:1.1">${bestand} GK</div>
+        <div style="font-size:.75rem;color:var(--txl);margin-bottom:8px">${bestand>0?'≈ '+fmtKg(kg):''}</div>
+        <div style="background:var(--bg);border-radius:4px;height:8px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${fillColor};border-radius:4px;transition:width .3s"></div>
+        </div>
+        <div style="font-size:.7rem;color:var(--txl);margin-top:3px">LKW: ${pct}% · ${LKW_GK-bestand>0?LKW_GK-bestand+' GK fehlen':'VOLL!'}</div>
+      </div>`;
+    }).join('');
+    zwlHtml=`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">${cards}</div>`;
+  }
+  const lgGK=calcLeergutBestand('grosskisten');
+  const lgEP=calcLeergutBestand('europaletten');
+  const lgSK=calcLeergutBestand('saftkisten');
+  const leergutHtml=(lgGK||lgEP||lgSK)?`
+    <div style="background:var(--bg);border:1px solid var(--bdr);border-radius:8px;padding:10px;margin-bottom:14px">
+      <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">📦 Leergut-Saldo (+ bei Haiming · − bei uns)</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        ${lgGK?`<span style="font-size:.85rem"><b>${lgGK>0?'+'+lgGK:lgGK}</b> Großkisten</span>`:''}
+        ${lgEP?`<span style="font-size:.85rem"><b>${lgEP>0?'+'+lgEP:lgEP}</b> Europaletten</span>`:''}
+        ${lgSK?`<span style="font-size:.85rem"><b>${lgSK>0?'+'+lgSK:lgSK}</b> Saftkisten</span>`:''}
+      </div>
+    </div>`:''
+  const entries=[...D.ernte_ist].reverse();
+  let journalHtml='';
+  if(entries.length){
+    journalHtml=`<div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem">
+      <thead><tr style="border-bottom:2px solid var(--bdr)">
+        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">Datum</th>
+        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">Schlag</th>
+        <th style="text-align:left;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">Buchungen (GK)</th>
+        <th style="text-align:center;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">HACCP</th>
+        <th style="text-align:right;padding:5px 8px;color:var(--txl);font-size:.72rem;font-weight:700">Leergut</th>
+        <th style="padding:5px 8px"></th>
+      </tr></thead>
+      <tbody>${entries.map(e=>{
+        const s=D.schlage.find(x=>x.id===e.schlag_id);
+        const schlagName=s?s.name:'–';
+        const buchText=(e.buchungen||[]).map(b=>{
+          const lag=D.lagerorte.find(l=>l.id===b.lager_id);
+          return`${b.gk>0?'+':''}${b.gk} ${lag?lag.name:b.lager_id}`;
+        }).join(', ')||'–';
+        const haccp=e.haccp;
+        const haccpText=haccp?[haccp.grosskisten,haccp.erntegeraet,haccp.tieflader,haccp.kuehlung].map(v=>v?'✅':'❌').join(''):e.ernte?'':'–';
+        const lg=e.leergut||{};
+        const lgParts=[lg.grosskisten&&lg.grosskisten!==0?lg.grosskisten+'GK':'',lg.europaletten&&lg.europaletten!==0?lg.europaletten+'EP':'',lg.saftkisten&&lg.saftkisten!==0?lg.saftkisten+'SK':''].filter(Boolean);
+        const lgText=lgParts.join(' ')||'';
+        const notizHtml=e.notiz?`<div style="font-size:.7rem;color:var(--txl);margin-top:2px">${e.notiz}</div>`:'';
+        const losHtml=e.los_nr?` <span style="font-size:.7rem;color:var(--txl)">Los ${e.los_nr}</span>`:'';
+        return`<tr style="border-bottom:1px solid var(--bdr)">
+          <td style="padding:6px 8px;white-space:nowrap"><span style="font-weight:700">${e.datum}</span>${losHtml}</td>
+          <td style="padding:6px 8px;white-space:nowrap">${e.ernte?'🌿':'🚛'} ${schlagName}</td>
+          <td style="padding:6px 8px">${buchText}${notizHtml}</td>
+          <td style="padding:6px 8px;text-align:center;white-space:nowrap;font-size:.85rem">${haccpText}</td>
+          <td style="padding:6px 8px;text-align:right;white-space:nowrap;font-size:.75rem;color:var(--txl)">${lgText}</td>
+          <td style="padding:6px 8px;text-align:right"><button class="btn btn-s btn-sm" onclick="openErnteBuchungMod('${e.id}')">✏️</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  } else {
+    journalHtml='<div style="font-size:.82rem;color:var(--txl)">Noch keine Buchungen — klicke auf "+ Buchung".</div>';
+  }
+  el.innerHTML=`<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:1rem;font-weight:700;color:var(--pd)">🌾 Ernte Ist ${ernteJahr}</div>
+      <button class="btn btn-p btn-sm" onclick="openErnteBuchungMod()">+ Buchung</button>
+    </div>
+    ${zwlHtml}${leergutHtml}${journalHtml}
+  </div>`;
+}
+
+
 
 // ═══════════════════════════════════════════════════
 // HELPERS
