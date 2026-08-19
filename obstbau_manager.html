@@ -391,6 +391,15 @@ tr:hover td{background:#f9fcfa}
     </div>
   </div>
 
+  <!-- Sorten-Stammdaten -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-hdr" style="display:flex;justify-content:space-between;align-items:center">
+      <span>🍎 Sorten-Stammdaten</span>
+      <button class="btn btn-p btn-sm" onclick="openEONeueSorte()">+ Neue Sorte</button>
+    </div>
+    <div id="eo-sorten-wrap"><div class="empty">Lade…</div></div>
+  </div>
+
   <!-- EO Ernte-Übersicht -->
   <div class="card" style="margin-top:12px">
     <div class="card-hdr" style="display:flex;justify-content:space-between;align-items:center">
@@ -1472,7 +1481,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.8 · 19.08.2026 16:00";
+const APP_VERSION="v2.9 · 19.08.2026 16:30";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1514,6 +1523,7 @@ async function doLogin(){
     document.getElementById('login-overlay').style.display='none';
     updateAuthUI();
     await cloudLoad();
+    await loadSortenCache();
     if(_meineRolle==='eo_admin') await _loadEOBetriebe();
     updateEOTabVisibility();
     toast('✓ Willkommen, '+_meinBetriebName+'!');
@@ -2214,8 +2224,10 @@ const DEFAULT_SORTEN=[
 ];
 
 function getSortenList(){
-  if(!D.sorten||!D.sorten.length) D.sorten=[...DEFAULT_SORTEN];
-  return D.sorten;
+  // Primär aus Supabase-Cache, Fallback auf D.sorten oder DEFAULT_SORTEN
+  if(_sortenCache&&_sortenCache.length) return _sortenCache;
+  if(D.sorten&&D.sorten.length) return D.sorten;
+  return DEFAULT_SORTEN;
 }
 
 function populateSorteDropdown(currentSorte, typFilter){
@@ -3023,29 +3035,8 @@ function renderSortenRef(){
   el.innerHTML=renderGrp(apfel,'🍎 Äpfel')+renderGrp(birne,'🍐 Birnen');
 }
 
-function openNeueSorte(){
-  document.getElementById('ns-name').value='';
-  document.getElementById('ns-typ').value='apfel';
-  openMod('mod-sorte');
-}
-
-function saveNeueSorte(){
-  const name=document.getElementById('ns-name').value.trim();
-  const typ=document.getElementById('ns-typ').value;
-  if(!name){alert('Bitte Sortenname eingeben');return;}
-  if(!D.sorten) D.sorten=[...DEFAULT_SORTEN];
-  if(D.sorten.find(s=>s.name.toLowerCase()===name.toLowerCase())){toast('Sorte bereits vorhanden');return;}
-  D.sorten.push({name,typ});
-  D.sorten.sort((a,b)=>a.name.localeCompare(b.name,'de'));
-  cloudSave();renderSortenRef();
-  closeMod('mod-sorte');toast('✓ Sorte "'+name+'" angelegt');
-}
-
-function deleteSorte(name){
-  if(!confirm('Sorte "'+name+'" löschen?')) return;
-  D.sorten=(D.sorten||[]).filter(s=>s.name!==name);
-  cloudSave();renderSortenRef();toast('Sorte gelöscht');
-}
+// Sorten-Modal öffnen (Ref-Tab Button leitet zum EO-Modal weiter)
+function openNeueSorte(){ openEONeueSorte(); }
 
 function renderRef(){
   renderSortenRef();
@@ -3820,12 +3811,14 @@ function renderErnteIst(){
 
 let _eoBetriebe=[];      // Liste aller Betriebe aus Supabase
 let _eoAllSchlage=[];   // Alle Schläge (EO-Ansicht)
+let _sortenCache=[];    // Sorten aus Supabase sorten-Tabelle
 let _eoEditId=null;   // aktuell bearbeiteter Betrieb
 
 async function renderEO(){
   if(_meineRolle!=='eo_admin'){document.getElementById('eo-betriebe-wrap').innerHTML='<div class="empty">Kein Zugriff.</div>';return;}
   await _loadEOBetriebe();
   _renderEOBetriebeListe();
+  renderEOSorten();
   _fillEOJahrSel();
   renderEOErnte();
   renderEOProg();
@@ -3841,6 +3834,14 @@ async function _loadEOBetriebe(){
     const r2=await _supaFetch(SUPA_URL+'/rest/v1/schlage?select=*,betriebe(name)&order=feldstuck,name',{headers:supaHeaders()});
     if(r2.ok) _eoAllSchlage=await r2.json();
   }catch(e){console.warn('EO Schläge:',e.message);}
+  await loadSortenCache();
+}
+
+async function loadSortenCache(){
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/sorten?order=typ,name&select=*',{headers:supaHeaders()});
+    if(r.ok) _sortenCache=await r.json();
+  }catch(e){console.warn('Sorten:',e.message);}
 }
 
 function _renderEOBetriebeListe(){
@@ -3921,6 +3922,71 @@ async function eoAssignSchlag(schlagId, betriebId){
     await _loadEOBetriebe();
     await loadSchlage();
     _renderEOBetriebeListe();
+  }catch(e){toast('⚠ '+e.message);}
+}
+
+function renderEOSorten(){
+  const el=document.getElementById('eo-sorten-wrap');if(!el)return;
+  if(!_sortenCache.length){el.innerHTML='<div class="empty">Keine Sorten angelegt.</div>';return;}
+  const apfel=_sortenCache.filter(s=>s.typ==='apfel');
+  const birne=_sortenCache.filter(s=>s.typ==='birne');
+  const renderGrp=(arr,label)=>!arr.length?'':
+    `<tr><td colspan="3" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
+    arr.map(s=>`<tr>
+      <td style="padding:6px 10px;font-size:.83rem;font-weight:600">${s.name}</td>
+      <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.typ==='birne'?'🍐 Birne':'🍎 Apfel'}</td>
+      <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.aktiv?'✅ aktiv':'❌ inaktiv'}</td>
+      <td style="padding:4px 6px;text-align:right">
+        <button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv})">✏️</button>
+      </td>
+    </tr>`).join('');
+  el.innerHTML=`<div class="twrap"><table style="width:100%">
+    <thead><tr><th>Name</th><th>Typ</th><th>Status</th><th></th></tr></thead>
+    <tbody>${renderGrp(apfel,'🍎 Äpfel')}${renderGrp(birne,'🍐 Birnen')}</tbody>
+  </table></div>`;
+}
+
+function openEONeueSorte(){
+  document.getElementById('ns-name').value='';
+  document.getElementById('ns-typ').value='apfel';
+  window._editSorteId=null;
+  document.querySelector('#mod-sorte .mod-title').textContent='Sorte anlegen';
+  openMod('mod-sorte');
+}
+
+function openEOEditSorte(id,name,typ,aktiv){
+  document.getElementById('ns-name').value=name;
+  document.getElementById('ns-typ').value=typ;
+  window._editSorteId=id;
+  document.querySelector('#mod-sorte .mod-title').textContent='Sorte bearbeiten';
+  openMod('mod-sorte');
+}
+
+async function saveNeueSorte(){
+  const name=document.getElementById('ns-name').value.trim();
+  const typ=document.getElementById('ns-typ').value;
+  if(!name){alert('Bitte Sortenname eingeben');return;}
+  try{
+    if(window._editSorteId){
+      // Update
+      const r=await _supaFetch(SUPA_URL+'/rest/v1/sorten?id=eq.'+window._editSorteId,{
+        method:'PATCH',headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({name,typ})
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      toast('✓ Sorte aktualisiert');
+    } else {
+      // Insert
+      const r=await _supaFetch(SUPA_URL+'/rest/v1/sorten',{
+        method:'POST',headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({name,typ,aktiv:true})
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      toast('✓ Sorte "'+name+'" angelegt');
+    }
+    closeMod('mod-sorte');
+    await loadSortenCache();
+    renderEOSorten();
   }catch(e){toast('⚠ '+e.message);}
 }
 
