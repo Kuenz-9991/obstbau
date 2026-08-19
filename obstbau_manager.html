@@ -303,30 +303,6 @@ tr:hover td{background:#f9fcfa}
       <div id="buch-verteilung-wrap"></div>
     </div>
 
-    <!-- ─── TRANSPORT ─────────────────────────────────── -->
-    <div id="buch-transport-sect" style="border-left:4px solid #fb8c00;background:#fff8f0;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <span style="font-size:.82rem;font-weight:800;color:#e65100;letter-spacing:.01em">🚛 Transport</span>
-        <span id="buch-transport-edit-badge" style="display:none;font-size:.68rem;background:#e65100;color:#fff;border-radius:4px;padding:2px 7px">✏️ wird bearbeitet</span>
-      </div>
-      <div class="fg" style="margin-bottom:8px">
-        <label style="font-size:.72rem;font-weight:700;color:#e65100">Schlag</label>
-        <select id="buch-transport-schlag" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select>
-      </div>
-      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">Von Standort</label>
-          <select id="buch-von-standort" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select></div>
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">Verwendung / Ziel</label>
-          <select id="buch-verwendung" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select></div>
-      </div>
-      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px">
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">🍎 GK 1. Klasse</label>
-          <input type="number" id="buch-transport-1kl" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">🐛 GK Verarbeitung</label>
-          <input type="number" id="buch-transport-ver" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.85rem;width:100%"></div>
-      </div>
-    </div>
-
     <!-- Notiz -->
     <div class="fg" style="margin-bottom:14px">
       <label style="font-size:.75rem;font-weight:700;color:var(--txl)">Notiz (gemeinsam)</label>
@@ -339,6 +315,50 @@ tr:hover td{background:#f9fcfa}
       <div style="display:flex;gap:8px;margin-left:auto">
         <button class="btn btn-s" onclick="closeMod('mod-ernte-buchung')">Abbrechen</button>
         <button class="btn btn-p" onclick="saveErnteBuchung()">💾 Speichern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Transport-Buchung -->
+<div class="mov" id="mod-transport-buchung">
+  <div class="mod" style="max-width:480px">
+    <div class="mod-hdr">
+      <div class="mod-title" id="transp-buch-title">🚛 Transport erfassen</div>
+      <button class="mod-x" onclick="closeMod('mod-transport-buchung')">✕</button>
+    </div>
+    <div style="border-left:4px solid #fb8c00;background:#fff8f0;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:12px">
+      <div class="fg" style="margin-bottom:8px">
+        <label style="font-size:.72rem;font-weight:700;color:#e65100">Datum</label>
+        <input type="date" id="transp-datum" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.88rem;width:100%">
+      </div>
+      <div class="fg" style="margin-bottom:8px">
+        <label style="font-size:.72rem;font-weight:700;color:#e65100">Schlag</label>
+        <select id="transp-schlag" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select>
+      </div>
+      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">Von Standort</label>
+          <select id="transp-von-standort" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select></div>
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">Verwendung / Ziel</label>
+          <select id="transp-verwendung" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select></div>
+      </div>
+      <div class="fg2" style="grid-template-columns:1fr 1fr;gap:8px">
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">🍎 GK 1. Klasse</label>
+          <input type="number" id="transp-gk-1kl" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.9rem;font-weight:700;width:100%"></div>
+        <div class="fg"><label style="font-size:.72rem;font-weight:700;color:#e65100">🐛 GK Verarbeitung</label>
+          <input type="number" id="transp-gk-ver" min="0" placeholder="0" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.9rem;font-weight:700;width:100%"></div>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:14px">
+      <label style="font-size:.75rem;font-weight:700;color:var(--txl)">Notiz</label>
+      <input type="text" id="transp-notiz" placeholder="Bemerkung" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%">
+    </div>
+    <input type="hidden" id="transp-edit-id">
+    <div class="mod-ft" style="display:flex;justify-content:space-between;align-items:center">
+      <button class="btn btn-d btn-sm" id="transp-del-btn" onclick="deleteTransportBuchung()" style="display:none">Löschen</button>
+      <div style="display:flex;gap:8px;margin-left:auto">
+        <button class="btn btn-s" onclick="closeMod('mod-transport-buchung')">Abbrechen</button>
+        <button class="btn btn-p" onclick="saveTransportBuchung()">💾 Speichern</button>
       </div>
     </div>
   </div>
@@ -1557,7 +1577,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.16.8";
+const APP_VERSION="v2.17.0";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2108,7 +2128,7 @@ function betriebFarbe(betrieb){
   const map={
     'Johannes Kuenz':'#2563eb',
     'Florian Kuenz':'#16a34a',
-    'Johanna Kuenz':'#9333ea',
+    'Johanna Kuenz':'#ca8a04',
   };
   return map[betrieb]||'#64748b';
 }
@@ -2116,7 +2136,7 @@ function betriebFarbeBg(betrieb){
   const map={
     'Johannes Kuenz':'#eff6ff',
     'Florian Kuenz':'#f0fdf4',
-    'Johanna Kuenz':'#faf5ff',
+    'Johanna Kuenz':'#fefce8',
   };
   return map[betrieb]||'#f8fafc';
 }
@@ -2199,11 +2219,11 @@ function renderSchlage(){
     const accId='bacc-'+betrieb.replace(/[^a-z0-9]/gi,'_');
     html+=`<div style="grid-column:1/-1;margin-top:10px">
       <div onclick="(function(el,arr){el.style.display=el.style.display==='none'?'':'none';arr.textContent=el.style.display==='none'?'▶':'▼'})(document.getElementById('${accId}'),this.querySelector('.b-arr'))"
-        style="padding:8px 12px;background:${bclr};color:#fff;border-radius:8px;font-size:.85rem;font-weight:700;border-left:5px solid rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none">
+        style="padding:12px 16px;background:${bclr};color:#fff;border-radius:8px;font-size:.88rem;font-weight:700;border-left:5px solid rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;min-height:52px">
         <span>👤 ${betriebLabel}</span>
-        <span class="b-arr" style="font-size:.8rem;opacity:.75">▼</span>
+        <span class="b-arr" style="font-size:.8rem;opacity:.75">▶</span>
       </div>
-      <div id="${accId}">`;
+      <div id="${accId}" style="display:none">`;
     const grp={};
     for(const s of schlage){if(!grp[s.feldstuck])grp[s.feldstuck]=[];grp[s.feldstuck].push(s);}
     for(const fs of Object.keys(grp).sort(feldSort)){
@@ -3934,24 +3954,18 @@ function openErnteBuchungMod(editId){
   document.getElementById('buch-edit-id').value='';
   document.getElementById('buch-edit-typ').value='';
   document.getElementById('buch-del-btn').style.display='none';
-  document.getElementById('ernte-buch-title').textContent='Buchung erfassen';
+  document.getElementById('ernte-buch-title').textContent='🌿 Ernte erfassen';
   // Edit badges ausblenden
-  ['ernte','transport','leergut'].forEach(t=>{
+  ['ernte','leergut'].forEach(t=>{
     const b=document.getElementById('buch-'+t+'-edit-badge');
     if(b) b.style.display='none';
   });
-  // Schlag-Dropdowns befüllen
+  // Schlag-Dropdown befüllen
   const schlagOpts='<option value="">– Schlag wählen –</option>'+
     D.schlage.map(s=>`<option value="${s.id}">${s.betrieb?'['+s.betrieb.split(' ').pop()+'] ':''} ${s.name}${s.sorte?' · '+s.sorte:''}</option>`).join('');
   document.getElementById('buch-schlag').innerHTML=schlagOpts;
-  document.getElementById('buch-transport-schlag').innerHTML=schlagOpts;
-  // Von-Standort & Verwendung
-  const vonSel=document.getElementById('buch-von-standort');
-  vonSel.innerHTML=D.lagerorte.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
-  const vwSel=document.getElementById('buch-verwendung');
-  vwSel.innerHTML=getVerwendungen().map(v=>`<option value="${v.id}">${v.typ==='tafel'?'🍎':'🏭'} ${v.name}</option>`).join('');
   // Alle GK-Inputs leeren
-  ['buch-gk-1kl','buch-gk-ver','buch-transport-1kl','buch-transport-ver'].forEach(id=>{
+  ['buch-gk-1kl','buch-gk-ver'].forEach(id=>{
     const el=document.getElementById(id);if(el) el.value='';
   });
   // Verteilungstabelle rendern (nach GK-Reset)
@@ -3964,12 +3978,14 @@ function openErnteBuchungMod(editId){
   if(editId){
     const entry=D.ernte_ist.find(e=>e.id===editId);
     if(entry){
+      const typ=getEntryTyp(entry);
+      // Transport-Einträge → separates Transport-Modal
+      if(typ==='transport'){openTransportMod(editId);return;}
       document.getElementById('buch-datum').value=entry.datum;
       document.getElementById('buch-notiz').value=entry.notiz||'';
       document.getElementById('buch-edit-id').value=editId;
       document.getElementById('buch-del-btn').style.display='';
-      document.getElementById('ernte-buch-title').textContent='✏️ Buchung bearbeiten';
-      const typ=getEntryTyp(entry);
+      document.getElementById('ernte-buch-title').textContent='✏️ Ernte bearbeiten';
       document.getElementById('buch-edit-typ').value=typ;
       // Edit-Badge anzeigen
       const badge=document.getElementById('buch-'+typ+'-edit-badge');
@@ -3994,14 +4010,9 @@ function openErnteBuchungMod(editId){
           if(eV) eV.value=entry.gk_verarbeitung||'';
         }
         updateErnteVerteilungTotals();
-      } else if(typ==='transport'){
-        document.getElementById('buch-transport-schlag').value=entry.schlag_id||'';
-        document.getElementById('buch-von-standort').value=entry.von_standort_id||'';
-        document.getElementById('buch-verwendung').value=entry.verwendung_id||'';
-        document.getElementById('buch-transport-1kl').value=entry.gk_1kl||entry.gk_anzahl||'';
-        document.getElementById('buch-transport-ver').value=entry.gk_verarbeitung||'';
       } else {
-        document.getElementById('buch-leergut-gk').value=entry.gk_anzahl||(entry.leergut?.grosskisten)||'';
+        const lgEl=document.getElementById('buch-leergut-gk');
+        if(lgEl) lgEl.value=entry.gk_anzahl||(entry.leergut?.grosskisten)||'';
       }
     }
   }
@@ -4044,21 +4055,7 @@ function saveErnteBuchung(){
     newEntries.push({id:(editTyp==='ernte'?editId:null)||uid(),typ:'ernte',datum,schlag_id:eSchlag,gk_1kl:eKl1,gk_verarbeitung:eVer,verteilung,notiz});
   }
 
-  // ── Transport-Sektion auslesen ──────────────────────
-  const tSchlag=document.getElementById('buch-transport-schlag')?.value||'';
-  const tVon=document.getElementById('buch-von-standort')?.value||'';
-  const tVerw=document.getElementById('buch-verwendung')?.value||'';
-  const tKl1=parseFloat(document.getElementById('buch-transport-1kl')?.value||'')||0;
-  const tVer=parseFloat(document.getElementById('buch-transport-ver')?.value||'')||0;
-  const transportFilled=tKl1||tVer;
-  if(transportFilled){
-    if(!tSchlag){alert('🚛 Transport: Bitte Schlag auswählen');return;}
-    if(!tVon){alert('🚛 Transport: Bitte Von-Standort auswählen');return;}
-    if(!tVerw){alert('🚛 Transport: Bitte Verwendung auswählen');return;}
-    newEntries.push({id:(editTyp==='transport'?editId:null)||uid(),typ:'transport',datum,schlag_id:tSchlag,gk_1kl:tKl1,gk_verarbeitung:tVer,von_standort_id:tVon,verwendung_id:tVerw,notiz});
-  }
-
-  if(!newEntries.length){alert('Bitte mindestens einen Bereich ausfüllen');return;}
+  if(!newEntries.length){alert('Bitte Ernte-Daten ausfüllen');return;}
 
   // Beim Bearbeiten: alten Eintrag entfernen (wird durch newEntries ersetzt)
   if(editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==editId);
@@ -4072,6 +4069,75 @@ function saveErnteBuchung(){
   D.ernte_ist.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
   scheduleSave();
   closeMod('mod-ernte-buchung');
+  renderErnteIst();
+}
+
+// ── Transport-Modal ──────────────────────────────────
+function openTransportMod(editId){
+  const today=new Date().toISOString().slice(0,10);
+  document.getElementById('transp-datum').value=today;
+  document.getElementById('transp-notiz').value='';
+  document.getElementById('transp-edit-id').value='';
+  document.getElementById('transp-del-btn').style.display='none';
+  document.getElementById('transp-buch-title').textContent='🚛 Transport erfassen';
+  // Schlag-Dropdown
+  const schlagOpts='<option value="">– Schlag wählen –</option>'+
+    D.schlage.map(s=>`<option value="${s.id}">${s.betrieb?'['+s.betrieb.split(' ').pop()+'] ':''} ${s.name}${s.sorte?' · '+s.sorte:''}</option>`).join('');
+  document.getElementById('transp-schlag').innerHTML=schlagOpts;
+  // Von-Standort & Verwendung
+  document.getElementById('transp-von-standort').innerHTML=D.lagerorte.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  document.getElementById('transp-verwendung').innerHTML=getVerwendungen().map(v=>`<option value="${v.id}">${v.typ==='tafel'?'🍎':'🏭'} ${v.name}</option>`).join('');
+  // GK leeren
+  document.getElementById('transp-gk-1kl').value='';
+  document.getElementById('transp-gk-ver').value='';
+  if(editId){
+    const entry=D.ernte_ist.find(e=>e.id===editId);
+    if(entry){
+      document.getElementById('transp-datum').value=entry.datum;
+      document.getElementById('transp-notiz').value=entry.notiz||'';
+      document.getElementById('transp-edit-id').value=editId;
+      document.getElementById('transp-del-btn').style.display='';
+      document.getElementById('transp-buch-title').textContent='✏️ Transport bearbeiten';
+      document.getElementById('transp-schlag').value=entry.schlag_id||'';
+      document.getElementById('transp-von-standort').value=entry.von_standort_id||'';
+      document.getElementById('transp-verwendung').value=entry.verwendung_id||'';
+      document.getElementById('transp-gk-1kl').value=entry.gk_1kl||entry.gk_anzahl||'';
+      document.getElementById('transp-gk-ver').value=entry.gk_verarbeitung||'';
+    }
+  }
+  openMod('mod-transport-buchung');
+}
+
+function saveTransportBuchung(){
+  const datum=document.getElementById('transp-datum').value;
+  if(!datum){alert('Bitte Datum eingeben');return;}
+  const schlag=document.getElementById('transp-schlag').value;
+  if(!schlag){alert('Bitte Schlag auswählen');return;}
+  const von=document.getElementById('transp-von-standort').value;
+  if(!von){alert('Bitte Von-Standort auswählen');return;}
+  const verw=document.getElementById('transp-verwendung').value;
+  if(!verw){alert('Bitte Verwendung auswählen');return;}
+  const kl1=parseFloat(document.getElementById('transp-gk-1kl').value||'')||0;
+  const ver=parseFloat(document.getElementById('transp-gk-ver').value||'')||0;
+  if(!kl1&&!ver){alert('Bitte GK-Menge eingeben');return;}
+  const notiz=document.getElementById('transp-notiz').value.trim();
+  const editId=document.getElementById('transp-edit-id').value;
+  const entry={id:editId||uid(),typ:'transport',datum,schlag_id:schlag,gk_1kl:kl1,gk_verarbeitung:ver,von_standort_id:von,verwendung_id:verw,notiz};
+  if(editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==editId);
+  const idx=D.ernte_ist.findIndex(e=>e.id===entry.id);
+  if(idx>=0) D.ernte_ist[idx]=entry; else D.ernte_ist.push(entry);
+  D.ernte_ist.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
+  scheduleSave();
+  closeMod('mod-transport-buchung');
+  renderErnteIst();
+}
+
+function deleteTransportBuchung(){
+  const id=document.getElementById('transp-edit-id').value;
+  if(!id||!confirm('Transport-Buchung wirklich löschen?'))return;
+  D.ernte_ist=D.ernte_ist.filter(e=>e.id!==id);
+  scheduleSave();
+  closeMod('mod-transport-buchung');
   renderErnteIst();
 }
 
@@ -4178,6 +4244,7 @@ function renderErnteIst(){
   }
 
   // ── Sortenübersicht (nur Ernte-Buchungen des aktuellen Jahres) ─
+  // sortenMap: sorte → { kl1, ver, schlage: { schlagId → { name, kl1, ver } } }
   const sortenMap={};
   D.ernte_ist.forEach(e=>{
     if(!e.datum||!e.datum.startsWith(String(ernteJahr))) return;
@@ -4185,17 +4252,16 @@ function renderErnteIst(){
     if(typ!=='ernte') return;
     const sc=D.schlage.find(x=>x.id===e.schlag_id);
     const sorte=(sc?.sorte||sc?.name||'Unbekannt');
-    if(!sortenMap[sorte]) sortenMap[sorte]={kl1:0,ver:0};
-    // neues Format
-    if(e.gk_1kl!==undefined||e.gk_verarbeitung!==undefined){
-      sortenMap[sorte].kl1+=(e.gk_1kl||0);
-      sortenMap[sorte].ver+=(e.gk_verarbeitung||0);
-    }
-    // altes Format
-    (e.buchungen||[]).forEach(b=>{
-      sortenMap[sorte].kl1+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));
-      sortenMap[sorte].ver+=(b.verarbeitung_gk||0);
-    });
+    const schlagName=sc?sc.name:(e.schlag_id||'?');
+    const schlagId=e.schlag_id||'_unbekannt';
+    if(!sortenMap[sorte]) sortenMap[sorte]={kl1:0,ver:0,schlage:{}};
+    const ekl1=(e.gk_1kl||0)+(e.buchungen||[]).reduce((s,b)=>s+(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0)),0);
+    const ever=(e.gk_verarbeitung||0)+(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
+    sortenMap[sorte].kl1+=ekl1;
+    sortenMap[sorte].ver+=ever;
+    if(!sortenMap[sorte].schlage[schlagId]) sortenMap[sorte].schlage[schlagId]={name:schlagName,kl1:0,ver:0};
+    sortenMap[sorte].schlage[schlagId].kl1+=ekl1;
+    sortenMap[sorte].schlage[schlagId].ver+=ever;
   });
   let sortenHtml='';
   const sortenKeys=Object.keys(sortenMap).sort();
@@ -4204,19 +4270,32 @@ function renderErnteIst(){
     const sRows=sortenKeys.map(sorte=>{
       const sd=sortenMap[sorte];
       totKl1+=sd.kl1;totVer+=sd.ver;
-      const gesamt=sd.kl1+sd.ver;
-      return`<tr style="border-bottom:1px solid var(--bdr)">
-        <td style="padding:5px 8px;font-size:.82rem;font-weight:600;color:var(--pd)">${sorte}</td>
+      const schlagIds=Object.keys(sd.schlage);
+      const multiSchlag=schlagIds.length>1;
+      // Sub-Zeilen pro Schlag
+      const subRows=schlagIds.sort((a,b)=>sd.schlage[a].name<sd.schlage[b].name?-1:1).map(sid=>{
+        const sv=sd.schlage[sid];
+        return`<tr style="border-bottom:1px solid var(--bdr)">
+          <td style="padding:3px 8px 3px 22px;font-size:.78rem;color:var(--txl)">↳ ${sv.name}</td>
+          <td style="padding:3px 8px;text-align:right;font-size:.78rem;color:var(--pl)">${sv.kl1||'–'}</td>
+          <td style="padding:3px 8px;text-align:right;font-size:.78rem;color:var(--info)">${sv.ver||'–'}</td>
+          <td style="padding:3px 8px;text-align:right;font-size:.78rem;color:var(--txl)">${sv.kl1+sv.ver}</td>
+        </tr>`;
+      }).join('');
+      // Sorte-Zeile (Summe)
+      const sorteRow=`<tr style="border-bottom:${multiSchlag?'2px':'1px'} solid var(--bdr);background:${multiSchlag?'var(--bg)':'transparent'}">
+        <td style="padding:5px 8px;font-size:.82rem;font-weight:700;color:var(--pd)">${sorte}${multiSchlag?' <span style="font-size:.7rem;font-weight:400;color:var(--txl)">Gesamt</span>':''}</td>
         <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--pl)"><b>${sd.kl1}</b></td>
         <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--info)"><b>${sd.ver}</b></td>
-        <td style="padding:5px 8px;text-align:right;font-size:.82rem;font-weight:700">${gesamt}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:.82rem;font-weight:700">${sd.kl1+sd.ver}</td>
       </tr>`;
+      return(multiSchlag?subRows:'')+sorteRow;
     }).join('');
     sortenHtml=`<div style="margin-bottom:14px">
       <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">🍎 Sortenübersicht ${ernteJahr}</div>
       <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem">
         <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
-          <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Sorte</th>
+          <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Sorte / Schlag</th>
           <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--pl);font-weight:700">🍎 1. Kl GK</th>
           <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--info);font-weight:700">🐛 Verarb. GK</th>
           <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Gesamt</th>
@@ -4383,7 +4462,15 @@ function renderErnteIst(){
   const transportEntries=D.ernte_ist.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='transport');
   const leergutEntries=D.ernte_ist.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='leergut');
   let transportJournalHtml='';
-  if(transportEntries.length||leergutEntries.length){
+  if(!transportEntries.length&&!leergutEntries.length){
+    transportJournalHtml=`<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">🚛 Transport-Journal ${ernteJahr}</div>
+        <button class="btn btn-sm" onclick="openTransportMod()" style="background:#fb8c00;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer">+ Transport</button>
+      </div>
+      <div style="font-size:.82rem;color:var(--txl);padding:8px 0">Noch keine Transport-Buchungen für ${ernteJahr}.</div>
+    </div>`;
+  } else {
     const tRows=[...transportEntries,...leergutEntries].sort((a,b)=>b.datum<a.datum?-1:b.datum>a.datum?1:0).map(e=>{
       const typ=getEntryTyp(e);
       const icon=typ==='transport'?'🚛':'📦';
@@ -4406,11 +4493,14 @@ function renderErnteIst(){
         <td style="padding:5px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
         <td style="padding:5px 8px;font-size:.85rem;white-space:nowrap">${icon} ${schlagTxt}</td>
         <td style="padding:5px 8px;font-size:.8rem">${detailHtml}${notizHtml}</td>
-        <td style="padding:5px 4px"><button class="btn btn-s btn-sm" onclick="openErnteBuchungMod('${e.id}')" style="padding:2px 6px">✏️</button></td>
+        <td style="padding:5px 4px"><button class="btn btn-s btn-sm" onclick="openTransportMod('${e.id}')" style="padding:2px 6px">✏️</button></td>
       </tr>`;
     }).join('');
     transportJournalHtml=`<div style="margin-bottom:16px">
-      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🚛 Transport-Journal ${ernteJahr}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">🚛 Transport-Journal ${ernteJahr}</div>
+        <button class="btn btn-sm" onclick="openTransportMod()" style="background:#fb8c00;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer">+ Transport</button>
+      </div>
       <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem;border:1px solid var(--bdr);border-radius:6px">
         <thead><tr style="background:var(--bg);border-bottom:2px solid var(--bdr)">
           <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700;white-space:nowrap">Datum</th>
