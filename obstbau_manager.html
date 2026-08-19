@@ -292,10 +292,8 @@ tr:hover td{background:#f9fcfa}
     <div id="buch-lager-rows" style="margin-bottom:12px"></div>
     <!-- HACCP -->
     <div id="buch-haccp-wrap" style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:12px;border:1px solid var(--bdr)">
-      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-bottom:8px">
-        <input type="checkbox" id="haccp-rd" style="width:15px;height:15px">
-        <span style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em">HACCP Kontrolle &mdash; Reinigung durchgeführt</span>
-      </label>
+      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">HACCP Kontrolle &mdash; Reinigung durchgeführt</div>
+      <input type="checkbox" id="haccp-rd" style="display:none">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
         <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-gk" style="width:15px;height:15px"> Großkisten gereinigt</label>
         <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;cursor:pointer"><input type="checkbox" id="haccp-eg" style="width:15px;height:15px"> Erntegerät gereinigt</label>
@@ -1484,7 +1482,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.14 · 19.08.2026 16:22";
+const APP_VERSION="v2.14.3";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2071,7 +2069,7 @@ function renderSchlage(){
   if(!D.schlage.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🌳</div>Keine Schläge vorhanden.</div>';return;}
 
   // Group by Betrieb first, then by Feldstück
-  const prefOrder=['Johannes Kuenz','Florian Kuenz','Johanna Kuenz'];
+  const prefOrder=['Kuenz Johannes','Johannes Kuenz','Kuenz Florian','Florian Kuenz','Kuenz Johanna','Johanna Kuenz'];
   const byBetrieb={};
   for(const s of D.schlage){
     const b=s.betrieb||'';
@@ -2090,10 +2088,17 @@ function renderSchlage(){
   for(const betrieb of betriebeOrder){
     const schlage=byBetrieb[betrieb]||[];
     if(!schlage.length) continue;
-    // Betrieb header
+    // Betrieb header — ausklappbar
     const betriebLabel=betrieb||'Kein Betrieb';
     const bclr=betriebFarbe(betrieb);
-    html+=`<div style="grid-column:1/-1;margin-top:10px;padding:8px 12px;background:${bclr};color:#fff;border-radius:8px;font-size:.85rem;font-weight:700;border-left:5px solid rgba(0,0,0,.2)">👤 ${betriebLabel}</div>`;
+    const accId='bacc-'+betrieb.replace(/[^a-z0-9]/gi,'_');
+    html+=`<div style="grid-column:1/-1;margin-top:10px">
+      <div onclick="(function(el){el.style.display=el.style.display==='none'?'':'none'})(document.getElementById('${accId}'))"
+        style="padding:8px 12px;background:${bclr};color:#fff;border-radius:8px;font-size:.85rem;font-weight:700;border-left:5px solid rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none">
+        <span>👤 ${betriebLabel}</span>
+        <span style="font-size:.8rem;opacity:.75">▼</span>
+      </div>
+      <div id="${accId}" style="display:''">`;
     // Group by Feldstück within Betrieb
     const grp={};
     for(const s of schlage){if(!grp[s.feldstuck])grp[s.feldstuck]=[];grp[s.feldstuck].push(s);}
@@ -2134,6 +2139,7 @@ function renderSchlage(){
         </div>`;
       }
     }
+    html+='</div></div>'; // close accId div + outer div
   }
   el.innerHTML=html;
 }
@@ -3940,20 +3946,23 @@ async function eoAssignSchlag(schlagId, betriebId){
 
 function renderEOSorten(){
   const el=document.getElementById('eo-sorten-wrap');if(!el)return;
-  if(!_sortenCache.length){el.innerHTML='<div class="empty">Keine Sorten angelegt.</div>';return;}
-  const apfel=_sortenCache.filter(s=>s.typ==='apfel');
-  const birne=_sortenCache.filter(s=>s.typ==='birne');
+  const list=getSortenList();
+  if(!list.length){el.innerHTML='<div class="empty">Keine Sorten angelegt.</div>';return;}
+  const fromDB=_sortenCache.length>0;
+  const apfel=list.filter(s=>s.typ==='apfel').sort((a,b)=>a.name.localeCompare(b.name,'de'));
+  const birne=list.filter(s=>s.typ==='birne').sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const renderGrp=(arr,label)=>!arr.length?'':
-    `<tr><td colspan="3" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
+    `<tr><td colspan="4" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
     arr.map(s=>`<tr>
       <td style="padding:6px 10px;font-size:.83rem;font-weight:600">${s.name}</td>
       <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.typ==='birne'?'🍐 Birne':'🍎 Apfel'}</td>
-      <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.aktiv?'✅ aktiv':'❌ inaktiv'}</td>
+      <td style="padding:6px 10px;font-size:.78rem">${s.aktiv===false?'<span style="color:var(--crit)">❌ inaktiv</span>':'<span style="color:var(--p)">✅ aktiv</span>'}</td>
       <td style="padding:4px 6px;text-align:right">
-        <button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv})">✏️</button>
+        ${fromDB&&s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false})">✏️</button>`:''}
       </td>
     </tr>`).join('');
-  el.innerHTML=`<div class="twrap"><table style="width:100%">
+  const hint=!fromDB?`<div style="font-size:.75rem;color:var(--warn);padding:6px 10px 2px">⚠ Sorten noch nicht in Supabase — Standardliste wird angezeigt. Bearbeiten nach SQL-Import möglich.</div>`:'';
+  el.innerHTML=hint+`<div class="twrap"><table style="width:100%">
     <thead><tr><th>Name</th><th>Typ</th><th>Status</th><th></th></tr></thead>
     <tbody>${renderGrp(apfel,'🍎 Äpfel')}${renderGrp(birne,'🍐 Birnen')}</tbody>
   </table></div>`;
