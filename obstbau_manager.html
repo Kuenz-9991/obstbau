@@ -1668,7 +1668,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.18.0";
+const APP_VERSION="v2.18.3";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -3912,15 +3912,33 @@ function renderLagerMod(){
   const el=document.getElementById('lager-list');
   if(!el)return;
   if(!D.lagerorte.length){el.innerHTML='<div style="font-size:.82rem;color:var(--txl);padding:4px 0">Noch keine Lagerorte.</div>';return;}
-  el.innerHTML=D.lagerorte.map(l=>{
+  el.innerHTML=D.lagerorte.map((l,i)=>{
     const isStd=D.standardLagerId===l.id;
-    return`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+    const isFirst=i===0,isLast=i===D.lagerorte.length-1;
+    return`<div style="display:flex;align-items:center;gap:6px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <button onclick="moveLager('${l.id}',-1)" ${isFirst?'disabled':''} style="background:none;border:none;cursor:pointer;font-size:.75rem;padding:0 3px;line-height:1.3;color:${isFirst?'var(--bdr)':'var(--txl)'}">▲</button>
+        <button onclick="moveLager('${l.id}',1)" ${isLast?'disabled':''} style="background:none;border:none;cursor:pointer;font-size:.75rem;padding:0 3px;line-height:1.3;color:${isLast?'var(--bdr)':'var(--txl)'}">▼</button>
+      </div>
+      <span style="font-size:.72rem;font-weight:700;color:var(--txl);min-width:16px;text-align:center">${i+1}</span>
       <button onclick="setStandardLager('${l.id}')" title="${isStd?'Standard-Abholstandort (klicken zum Entfernen)':'Als Standard-Abholstandort setzen'}"
         style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:0 2px;line-height:1">${isStd?'⭐':'☆'}</button>
       <span style="font-size:.85rem;flex:1"><b>${l.name}</b> <span style="color:var(--txl);font-size:.75rem">${LAGER_TYP_LABEL[l.typ]||l.typ}</span>${isStd?' <span style="font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px">Standard</span>':''}</span>
       <button class="btn btn-d btn-sm" onclick="deleteLager('${l.id}')">✕</button>
     </div>`;
   }).join('');
+}
+
+function moveLager(id,dir){
+  const idx=D.lagerorte.findIndex(l=>l.id===id);
+  if(idx<0) return;
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=D.lagerorte.length) return;
+  const tmp=D.lagerorte[idx];
+  D.lagerorte[idx]=D.lagerorte[newIdx];
+  D.lagerorte[newIdx]=tmp;
+  scheduleSave();
+  renderLagerMod();
 }
 
 function setStandardLager(id){
@@ -4990,13 +5008,13 @@ async function renderErnteIst(){
       const fillColor=lkwPct>=100?'var(--crit)':lkwPct>=80?'var(--warn)':lkwPct>=50?'#f4d35e':'var(--s)';
       const barHtml=total>0?`<div style="background:#e9ecef;border-radius:4px;height:5px;margin-top:6px">
         <div style="width:${lkwPct}%;height:5px;border-radius:4px;background:${fillColor}"></div></div>`:'';
-      const detail=b.gk1kl&&b.gkVer?`<div style="font-size:.65rem;color:var(--txl);margin-top:2px">🍎 ${b.gk1kl} 1.Kl · 🐛 ${b.gkVer} Verarb.</div>`
-                  :b.gk1kl?`<div style="font-size:.65rem;color:var(--txl);margin-top:2px">🍎 ${b.gk1kl} 1.Kl</div>`
-                  :b.gkVer?`<div style="font-size:.65rem;color:var(--txl);margin-top:2px">🐛 ${b.gkVer} Verarb.</div>`:'';
+      const kl1Html=b.gk1kl>0?`<div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:1.25rem;font-weight:800;color:var(--pd);line-height:1">${b.gk1kl}</span><span style="font-size:.62rem;font-weight:700;color:#2e7d32">🍎 1.Kl.</span></div>`:'';
+      const verHtml=b.gkVer>0?`<div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:1.25rem;font-weight:800;color:var(--pd);line-height:1">${b.gkVer}</span><span style="font-size:.62rem;font-weight:700;color:#e65100">🐛 Verarb.</span></div>`:'';
+      const emptyHtml=total===0?`<div style="font-size:1.25rem;font-weight:800;color:var(--txl);line-height:1">–</div>`:'';
       return`<div onclick="openLagerDrilldown('${l.id}')" style="background:var(--card);border:1px solid ${total>0?'var(--pd)':'var(--bdr)'};border-radius:10px;padding:10px 12px;flex:1;min-width:130px;cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'" onmouseleave="this.style.boxShadow=''">
         <div style="font-size:.65rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${l.name}</div>
-        <div style="font-size:1.4rem;font-weight:800;color:${total>0?'var(--pd)':'var(--txl)'};line-height:1">${total} GK</div>
-        ${detail}${barHtml}
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">${kl1Html}${verHtml}${emptyHtml}</div>
+        ${barHtml}
       </div>`;
     }).join('');
     // Leergut-Saldo neben den Bestand-Karten
@@ -5147,75 +5165,42 @@ async function renderErnteIst(){
     journalHtml=`<div style="font-size:.82rem;color:var(--txl);padding:8px 0">Noch keine Buchungen für ${ernteJahr}.</div>`;
   }
 
-  // ── Ernte-Journal grouped by Betriebsgruppe ─────────────────
-  // collect ernte entries for this year
+  // ── Ernte-Journal (flach, alle Betriebe) ─────────────────────
   const ernteEntries=_allEI.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='ernte');
-  // group by Betriebsgruppe-Name (from Schlag.betrieb or Schlag.betriebsgruppe)
-  const gruppenMap={}; // gruppenName → [{entry, schlag, sorte}]
-  ernteEntries.forEach(e=>{
-    const sc=D.schlage.find(x=>x.id===e.schlag_id);
-    const gruppe=(sc?.betriebsgruppe||sc?.betrieb||'Sonstige');
-    const sorte=(sc?.sorte||sc?.name||'–');
-    if(!gruppenMap[gruppe]) gruppenMap[gruppe]=[];
-    gruppenMap[gruppe].push({e,sc,sorte});
-  });
   let ernteJournalHtml='';
-  const gruppenKeys=Object.keys(gruppenMap).sort();
-  if(gruppenKeys.length){
-    const gruppenBlocks=gruppenKeys.map(gruppe=>{
-      const items=gruppenMap[gruppe];
-      // Summe pro Sorte innerhalb der Gruppe
-      const sorteSum={};
-      items.forEach(({e,sorte})=>{
-        if(!sorteSum[sorte]) sorteSum[sorte]={kl1:0,ver:0};
-        sorteSum[sorte].kl1+=(e.gk_1kl||0)+(e.buchungen||[]).reduce((s,b)=>s+(b.tafel_gk!==undefined?b.tafel_gk:b.gk||0),0);
-        sorteSum[sorte].ver+=(e.gk_verarbeitung||0)+(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
-      });
-      const totKl1=Object.values(sorteSum).reduce((s,v)=>s+v.kl1,0);
-      const totVer=Object.values(sorteSum).reduce((s,v)=>s+v.ver,0);
-      // Einzelzeilen
-      const rows=items.sort((a,b)=>a.e.datum<b.e.datum?-1:1).map(({e,sc,sorte})=>{
-        const kl1=e.gk_1kl||(e.buchungen||[]).reduce((s,b)=>s+(b.tafel_gk!==undefined?b.tafel_gk:b.gk||0),0);
-        const ver=e.gk_verarbeitung||(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
-        const standort=D.lagerorte.find(x=>x.id===e.standort_id);
-        const standortBadge=standort?`<span style="font-size:.68rem;background:var(--ps);color:var(--pd);border-radius:4px;padding:1px 6px;margin-left:4px">→ ${standort.name}</span>`:'';
-        const notizHtml=e.notiz?`<div style="font-size:.68rem;color:var(--txl)">${e.notiz}</div>`:'';
-        const schlagName=sc?sc.name:'?';
-        return`<tr style="border-bottom:1px solid var(--bdr)">
-          <td style="padding:5px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
-          <td style="padding:5px 8px;font-size:.8rem">${schlagName} <span style="font-size:.72rem;color:var(--txl)">${sorte}</span>${standortBadge}${notizHtml}</td>
-          <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--pl)"><b>${kl1||'–'}</b></td>
-          <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--info)"><b>${ver||'–'}</b></td>
-          <td style="padding:5px 8px;text-align:right;font-size:.82rem;font-weight:700">${kl1+ver}</td>
-          <td style="padding:5px 4px"><button class="btn btn-s btn-sm" onclick="openErnteWizard('${e.id}')" style="padding:2px 6px">✏️</button></td>
-        </tr>`;
-      }).join('');
-      const sorteRows=Object.entries(sorteSum).sort((a,b)=>a[0]<b[0]?-1:1).map(([sorte,v])=>
-        `<span style="font-size:.72rem;color:var(--txl)">${sorte}: <b style="color:var(--pl)">${v.kl1}</b>+<b style="color:var(--info)">${v.ver}</b></span>`).join(' · ');
-      return`<div style="margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--ps);border-radius:6px 6px 0 0;border:1px solid var(--bdr);border-bottom:none">
-          <span style="font-size:.78rem;font-weight:700;color:var(--pd)">${gruppe}</span>
-          <div style="display:flex;gap:12px;align-items:center">
-            <span style="font-size:.72rem;color:var(--txl)">${sorteRows}</span>
-            <span style="font-size:.82rem;font-weight:700;color:var(--pd)">${totKl1+totVer} GK</span>
-          </div>
-        </div>
-        <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem;border:1px solid var(--bdr);border-top:none">
-          <thead><tr style="background:var(--bg);border-bottom:1px solid var(--bdr)">
-            <th style="padding:4px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700;white-space:nowrap">Datum</th>
-            <th style="padding:4px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700">Schlag</th>
-            <th style="padding:4px 8px;text-align:right;font-size:.68rem;color:var(--pl);font-weight:700">1.Kl</th>
-            <th style="padding:4px 8px;text-align:right;font-size:.68rem;color:var(--info);font-weight:700">Verarb.</th>
-            <th style="padding:4px 8px;text-align:right;font-size:.68rem;color:var(--txl);font-weight:700">Ges.</th>
-            <th></th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table></div>
-      </div>`;
+  if(ernteEntries.length){
+    const isEigen=e=>D.ernte_ist.some(x=>x.id===e.id);
+    const sortedErnte=[...ernteEntries].sort((a,b)=>b.datum<a.datum?-1:b.datum>a.datum?1:0);
+    const eRows=sortedErnte.map(e=>{
+      const sc=D.schlage.find(x=>x.id===e.schlag_id);
+      const sorte=sc?.sorte||sc?.name||'–';
+      const schlagName=sc?sc.name:'?';
+      const kl1=e.gk_1kl||(e.buchungen||[]).reduce((s,b)=>s+(b.tafel_gk!==undefined?b.tafel_gk:b.gk||0),0);
+      const ver=e.gk_verarbeitung||(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
+      const notizHtml=e.notiz?`<div style="font-size:.67rem;color:var(--txl);margin-top:1px;font-style:italic">${e.notiz}</div>`:'';
+      const editBtn=isEigen(e)?`<button class="btn btn-s btn-sm" onclick="openErnteWizard('${e.id}')" style="padding:2px 6px">✏️</button>`:'';
+      return`<tr style="border-bottom:1px solid var(--bdr)">
+        <td style="padding:5px 8px;font-size:.8rem;white-space:nowrap;vertical-align:top"><b>${e.datum}</b></td>
+        <td style="padding:5px 8px;font-size:.8rem;vertical-align:top">${schlagName} <span style="font-size:.72rem;color:var(--txl)">${sorte}</span>${notizHtml}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:700;color:var(--pl);vertical-align:top">${kl1||'–'}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:700;color:var(--info);vertical-align:top">${ver||'–'}</td>
+        <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:800;vertical-align:top">${kl1+ver}</td>
+        <td style="padding:5px 4px;vertical-align:top">${editBtn}</td>
+      </tr>`;
     }).join('');
     ernteJournalHtml=`<div style="margin-bottom:16px">
       <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🌿 Ernte-Journal ${ernteJahr}</div>
-      ${gruppenBlocks}
+      <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem;border:1px solid var(--bdr);border-radius:8px;overflow:hidden">
+        <thead><tr style="background:var(--bg);border-bottom:2px solid var(--bdr)">
+          <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700;white-space:nowrap">Datum</th>
+          <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700">Schlag</th>
+          <th style="padding:5px 8px;text-align:right;font-size:.68rem;color:var(--pl);font-weight:700">1.Kl.</th>
+          <th style="padding:5px 8px;text-align:right;font-size:.68rem;color:var(--info);font-weight:700">Verarb.</th>
+          <th style="padding:5px 8px;text-align:right;font-size:.68rem;color:var(--txl);font-weight:700">Ges.</th>
+          <th></th>
+        </tr></thead>
+        <tbody>${eRows}</tbody>
+      </table></div>
     </div>`;
   } else {
     ernteJournalHtml=`<div style="font-size:.82rem;color:var(--txl);margin-bottom:16px;padding:10px;background:var(--bg);border-radius:6px;border:1px solid var(--bdr)">Noch keine Ernte-Buchungen für ${ernteJahr}.</div>`;
@@ -5227,10 +5212,7 @@ async function renderErnteIst(){
   let transportJournalHtml='';
   if(!transportEntries.length&&!leergutEntries.length){
     transportJournalHtml=`<div style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">🚛 Transport-Journal ${ernteJahr}</div>
-        <button class="btn btn-sm" onclick="openTransportMod()" style="background:#fb8c00;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer">+ Transport</button>
-      </div>
+      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🚛 Transport-Journal ${ernteJahr}</div>
       <div style="font-size:.82rem;color:var(--txl);padding:8px 0">Noch keine Transport-Buchungen für ${ernteJahr}.</div>
     </div>`;
   } else {
@@ -5276,10 +5258,7 @@ async function renderErnteIst(){
       </tr>`;
     }).join('');
     transportJournalHtml=`<div style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">🚛 Transport-Journal ${ernteJahr}</div>
-        <button class="btn btn-sm" onclick="openTransportMod()" style="background:#fb8c00;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:.75rem;font-weight:700;cursor:pointer">+ Transport</button>
-      </div>
+      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🚛 Transport-Journal ${ernteJahr}</div>
       <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem;border:1px solid var(--bdr);border-radius:6px">
         <thead><tr style="background:var(--bg);border-bottom:2px solid var(--bdr)">
           <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700;white-space:nowrap">Datum</th>
@@ -5294,9 +5273,10 @@ async function renderErnteIst(){
   el.innerHTML=`<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
       <div style="font-size:1rem;font-weight:700;color:var(--pd)">🌾 Ernte ${ernteJahr}</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-s btn-sm" onclick="openLagerMod()">⚙️ Standorte</button>
-        <button class="btn btn-p btn-sm" onclick="openErnteWizard()">+ Buchung erfassen</button>
+        <button onclick="openTransportMod()" style="padding:8px 14px;border-radius:8px;background:#fb8c00;color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">🚛 Transport</button>
+        <button onclick="openErnteWizard()" style="padding:8px 14px;border-radius:8px;background:var(--pd);color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">+ Buchung erfassen</button>
       </div>
     </div>
     ${bestandHtml}${sortenHtml}${ernteJournalHtml}${transportJournalHtml}
@@ -5936,10 +5916,36 @@ async function delBetrieb(){
 // ═══════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════
-function openMod(id){document.getElementById(id).classList.add('open')}
-function closeMod(id){document.getElementById(id).classList.remove('open')}
+function openMod(id){
+  document.getElementById(id).classList.add('open');
+  // Fake-History-Eintrag damit Android-Zurück das Modal schließt
+  if(window.history&&window.history.pushState) history.pushState({mod:id},'');
+}
+function closeMod(id){
+  document.getElementById(id).classList.remove('open');
+}
 document.querySelectorAll('.mov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 document.querySelectorAll('.mod').forEach(m=>m.addEventListener('click',e=>e.stopPropagation()));
+// Android-Zurück / Browser-Zurück
+window.addEventListener('popstate',function(e){
+  const openMods=document.querySelectorAll('.mov.open');
+  if(openMods.length){
+    // Modal schließen statt Navigation
+    openMods[openMods.length-1].classList.remove('open');
+  } else {
+    // Keine offenen Modals → App-Schließen bestätigen
+    const wantClose=confirm('Obstbau Manager schließen?');
+    if(wantClose){
+      // Wirklich zurück navigieren
+      history.back();
+    } else {
+      // Fake-Eintrag wieder einfügen damit nächster Zurück-Klick wieder hierher kommt
+      history.pushState(null,'');
+    }
+  }
+});
+// Initialen Fake-Eintrag setzen damit der erste popstate abgefangen wird
+if(window.history&&window.history.pushState) history.pushState(null,'');
 function fmtD(d){if(!d)return'–';return new Date(d+'T00:00:00').toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit',year:'numeric'})}
 function today(){return new Date().toISOString().slice(0,10)}
 function v(id){return(document.getElementById(id).value||'').trim()}
