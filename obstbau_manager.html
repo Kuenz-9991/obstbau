@@ -320,6 +320,17 @@ tr:hover td{background:#f9fcfa}
   </div>
 </div>
 
+<!-- MODAL: Lager Drill-Down -->
+<div class="mov" id="mod-lager-drill">
+  <div class="mod" style="max-width:460px;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:14px">
+    <div style="padding:14px 16px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--card);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:.95rem;font-weight:800;color:var(--pd)" id="lager-drill-title">Lager</div>
+      <button onclick="closeMod('mod-lager-drill')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1">✕</button>
+    </div>
+    <div id="lager-drill-body" style="flex:1;overflow-y:auto;padding:14px;-webkit-overflow-scrolling:touch"></div>
+  </div>
+</div>
+
 <!-- MODAL: Ernte-Wizard (Mobile-optimiert) -->
 <div class="mov" id="mod-ernte-wizard">
   <div class="mod" style="max-width:480px;max-height:95vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:16px">
@@ -774,7 +785,6 @@ tr:hover td{background:#f9fcfa}
     </div>
     <div class="fg2">
       <div class="fg fw"><label>Sortenname</label><input id="ns-name" placeholder="z.B. Braeburn"></div>
-      <div class="fg fw"><label>Klon / Stammklon</label><input id="ns-klon" placeholder="z.B. Baigent, RKD, Mariri Red"></div>
       <div class="fg fw"><label>Obstart</label>
         <select id="ns-typ" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff;color:var(--txt);width:100%">
           <option value="apfel">🍎 Apfel</option>
@@ -1617,13 +1627,14 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.17.5";
+const APP_VERSION="v2.17.6";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
 let _meinBetriebName=null;   // Anzeigename
 let _meineGruppeId=null;     // UUID der Betriebsgruppe (z.B. Familie Kuenz)
 let _gruppenBetriebe=[];     // [{id, name, kuerzel}] aller Betriebe in meiner Gruppe
+let _gruppenErnteIst=null;   // null=nicht geladen, []=geladen (ernte_ist anderer Betriebe)
 let _cloudSaveTimer=null;
 let _cloudDirty=false;
 
@@ -1750,6 +1761,26 @@ async function _loadGruppeBetriebe(){
   }catch(e){console.warn('Gruppe laden:',e.message);}
 }
 
+async function _loadGruppenErnte(force=false){
+  if(!_gruppenBetriebe.length) return;
+  if(_gruppenErnteIst!==null&&!force) return; // bereits geladen
+  const fremdeIds=_gruppenBetriebe.filter(b=>b.id!==_meinBetriebId).map(b=>b.id);
+  if(!fremdeIds.length){_gruppenErnteIst=[];return;}
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data?betrieb_id=in.('+fremdeIds.join(',')+')'+'&select=betrieb_id,data',{
+      headers:supaHeaders()
+    });
+    if(!r.ok){_gruppenErnteIst=[];return;}
+    const rows=await r.json();
+    _gruppenErnteIst=rows.flatMap(row=>(row.data?.ernte_ist||[]));
+  }catch(e){console.warn('Gruppen-Ernte laden:',e.message);_gruppenErnteIst=[];}
+}
+
+function _getAllErnteIst(){
+  if(!_gruppenBetriebe.length||_gruppenErnteIst===null) return D.ernte_ist;
+  return [...D.ernte_ist,..._gruppenErnteIst];
+}
+
 function isLoggedIn(){return !!_supaSession;}
 
 function openAuthMod(){
@@ -1781,6 +1812,7 @@ function updateEOTabVisibility(){
 
 // ── Cloud Save / Load ────────────────────────────────
 function scheduleSave(){
+  _gruppenErnteIst=null; // Gruppen-Cache invalidieren nach eigenem Save
   lsSave();_cloudDirty=true;
   updateSbar('warn','💾 Ungespeicherte Änderungen…');
   clearTimeout(_cloudSaveTimer);
@@ -3266,19 +3298,18 @@ function renderSortenRef(){
   const birne=list.filter(s=>s.typ==='birne').sort((a,b)=>a.name.localeCompare(b.name,'de'));
   if(!list.length){el.innerHTML='<div class="empty">Keine Sorten angelegt.</div>';return;}
   const renderGrp=(arr,label)=>!arr.length?'':
-    `<tr><td colspan="5" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
-    arr.map(s=>{const klonEsc=(s.klon||'').replace(/'/g,"\\'");return`<tr>
+    `<tr><td colspan="4" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
+    arr.map(s=>`<tr>
       <td style="padding:6px 10px;font-size:.83rem;font-weight:600">${s.name}</td>
-      <td style="padding:6px 10px;font-size:.78rem;color:var(--txl);font-style:italic">${s.klon||'–'}</td>
       <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.typ==='birne'?'🍐 Birne':'🍎 Apfel'}</td>
       <td style="padding:6px 10px;font-size:.78rem">${s.aktiv===false?'<span style="color:var(--crit)">❌ inaktiv</span>':'<span style="color:var(--p)">✅ aktiv</span>'}</td>
       <td style="padding:4px 6px;text-align:right;white-space:nowrap">
-        ${s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false},${s.netto_kg||getSorteNkg(s.name)||330},'${klonEsc}')">✏️</button>
+        ${s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false},${s.netto_kg||getSorteNkg(s.name)||330})">✏️</button>
         <button class="btn btn-d btn-sm" onclick="deleteSorteById('${s.id}','${s.name.replace(/'/g,"\\'")}')">🗑</button>`:''}
       </td>
-    </tr>`}).join('');
+    </tr>`).join('');
   el.innerHTML=`<div class="twrap"><table style="width:100%">
-    <thead><tr><th>Name</th><th>Klon</th><th>Typ</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Typ</th><th>Status</th><th></th></tr></thead>
     <tbody>${renderGrp(apfel,'🍎 Äpfel')}${renderGrp(birne,'🍐 Birnen')}</tbody>
   </table></div>`;
 }
@@ -4705,10 +4736,112 @@ function deleteErnteBuchung(){
 }
 
 // Neues Berechnungsmodell: Ernte/Transport/Leergut
+// ── Lager Drill-Down ─────────────────────────────────────────
+function openLagerDrilldown(lagerId){
+  const l=D.lagerorte.find(x=>x.id===lagerId);
+  if(!l) return;
+  const b=calcStandortBestand(lagerId);
+  document.getElementById('lager-drill-title').textContent='🏪 '+l.name+' · '+b.total+' GK';
+
+  // Ernte-Einträge dieses Lagerorts nach Sorte gruppieren
+  const sortenMap={}; // sorte → {kl1, ver, eintraege:[{e,schlag}]}
+  const allEI=_getAllErnteIst();
+  allEI.forEach(e=>{
+    if(!e.datum||!e.datum.startsWith(String(ernteJahr))) return;
+    const typ=getEntryTyp(e);
+    if(typ!=='ernte') return;
+    const sc=D.schlage.find(x=>x.id===e.schlag_id);
+    const sorte=sc?.sorte||sc?.name||'Unbekannt';
+    let kl1=0,ver=0;
+    if(e.verteilung){
+      const v=e.verteilung.find(v=>v.standort_id===lagerId);
+      if(v){kl1=(v.gk_1kl||0);ver=(v.gk_verarbeitung||0);}
+    } else if(e.standort_id===lagerId){
+      kl1=(e.gk_1kl||0);ver=(e.gk_verarbeitung||0);
+    }
+    (e.buchungen||[]).forEach(b=>{if(b.lager_id===lagerId){kl1+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));ver+=(b.verarbeitung_gk||0);}});
+    if(kl1+ver===0) return;
+    if(!sortenMap[sorte]) sortenMap[sorte]={kl1:0,ver:0,eintraege:[]};
+    sortenMap[sorte].kl1+=kl1;sortenMap[sorte].ver+=ver;
+    sortenMap[sorte].eintraege.push({e,schlag:sc,kl1,ver});
+  });
+
+  const keys=Object.keys(sortenMap).sort();
+  if(!keys.length){
+    document.getElementById('lager-drill-body').innerHTML=`<div style="color:var(--txl);font-size:.85rem;padding:8px 0">Keine Ernte-Buchungen für ${ernteJahr} in diesem Lager.</div>`;
+    openMod('mod-lager-drill');return;
+  }
+
+  let html=`<div style="margin-bottom:10px;font-size:.72rem;color:var(--txl)">Tippe auf eine Sorte für die Einzelbuchungen.</div>`;
+  html+=`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
+      <th style="text-align:left;padding:5px 8px;font-size:.72rem;color:var(--txl);font-weight:700">Sorte</th>
+      <th style="text-align:right;padding:5px 10px;font-size:.78rem;color:var(--pl);font-weight:800">1.Kl.</th>
+      <th style="text-align:right;padding:5px 10px;font-size:.78rem;color:var(--info);font-weight:800">Verarb.</th>
+    </tr></thead><tbody>`;
+  keys.forEach(sorte=>{
+    const sd=sortenMap[sorte];
+    const sorteKey=encodeURIComponent(sorte);
+    html+=`<tr onclick="openLagerSorteDrilldown('${lagerId}','${sorte.replace(/'/g,"\\'")}')" style="border-bottom:1px solid var(--bdr);cursor:pointer;transition:background .12s" onmouseenter="this.style.background='var(--ps)'" onmouseleave="this.style.background=''">
+      <td style="padding:8px 8px;font-size:.88rem;font-weight:700;color:var(--pd)">${sorte} <span style="font-size:.7rem;color:var(--txl);font-weight:400">›</span></td>
+      <td style="padding:8px 10px;text-align:right;font-size:1rem;font-weight:800;color:var(--pl)">${sd.kl1||'–'}</td>
+      <td style="padding:8px 10px;text-align:right;font-size:1rem;font-weight:800;color:var(--info)">${sd.ver||'–'}</td>
+    </tr>`;
+  });
+  html+=`</tbody><tfoot><tr style="border-top:2px solid var(--bdr);background:var(--bg)">
+    <td style="padding:6px 8px;font-size:.82rem;font-weight:700">Gesamt</td>
+    <td style="padding:6px 10px;text-align:right;font-size:1rem;font-weight:800;color:var(--pl)">${b.gk1kl}</td>
+    <td style="padding:6px 10px;text-align:right;font-size:1rem;font-weight:800;color:var(--info)">${b.gkVer}</td>
+  </tr></tfoot></table>`;
+
+  // Lagerort-ID für Rücksprung merken
+  window._drillLagerId=lagerId;
+  window._drillSortenMap=sortenMap;
+  document.getElementById('lager-drill-body').innerHTML=html;
+  openMod('mod-lager-drill');
+}
+
+function openLagerSorteDrilldown(lagerId,sorte){
+  const l=D.lagerorte.find(x=>x.id===lagerId);
+  const sd=(window._drillSortenMap||{})[sorte];
+  if(!sd){openLagerDrilldown(lagerId);return;}
+
+  let html=`<button onclick="openLagerDrilldown('${lagerId}')" style="background:none;border:none;color:var(--p);cursor:pointer;font-size:.82rem;padding:0 0 12px;display:flex;align-items:center;gap:4px">‹ zurück zu ${l?.name||'Lager'}</button>`;
+  html+=`<div style="font-size:.85rem;font-weight:800;color:var(--pd);margin-bottom:10px">🍎 ${sorte}</div>`;
+  html+=`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
+      <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Datum</th>
+      <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Schlag</th>
+      <th style="text-align:right;padding:4px 8px;font-size:.72rem;color:var(--pl);font-weight:800">1.Kl.</th>
+      <th style="text-align:right;padding:4px 8px;font-size:.72rem;color:var(--info);font-weight:800">Verarb.</th>
+    </tr></thead><tbody>`;
+  sd.eintraege.sort((a,b)=>a.e.datum<b.e.datum?-1:1).forEach(({e,schlag,kl1,ver})=>{
+    const schlagName=schlag?schlag.name:'?';
+    const isEigen=D.ernte_ist.some(x=>x.id===e.id);
+    const editBtn=isEigen?`<button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 4px">✏️</button>`:'';
+    html+=`<tr style="border-bottom:1px solid var(--bdr)">
+      <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
+      <td style="padding:6px 8px;font-size:.8rem">${schlagName}${editBtn}</td>
+      <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--pl)">${kl1||'–'}</td>
+      <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--info)">${ver||'–'}</td>
+    </tr>`;
+  });
+  const totKl1=sd.eintraege.reduce((s,x)=>s+x.kl1,0);
+  const totVer=sd.eintraege.reduce((s,x)=>s+x.ver,0);
+  html+=`</tbody><tfoot><tr style="border-top:2px solid var(--bdr);background:var(--bg)">
+    <td colspan="2" style="padding:5px 8px;font-size:.8rem;font-weight:700">Gesamt</td>
+    <td style="padding:5px 8px;text-align:right;font-size:.95rem;font-weight:800;color:var(--pl)">${totKl1}</td>
+    <td style="padding:5px 8px;text-align:right;font-size:.95rem;font-weight:800;color:var(--info)">${totVer}</td>
+  </tr></tfoot></table>`;
+
+  document.getElementById('lager-drill-title').textContent='🏪 '+( l?.name||'Lager')+' · '+sorte;
+  document.getElementById('lager-drill-body').innerHTML=html;
+}
+
 function calcStandortBestand(lagerId){
   // Bestand an einem Standort = Summe Ernte dort - Summe Transport von dort
   let gk1kl=0,gkVer=0;
-  D.ernte_ist.forEach(e=>{
+  _getAllErnteIst().forEach(e=>{
     const typ=getEntryTyp(e);
     if(typ==='ernte'){
       // neues Format: verteilung-Array
@@ -4749,7 +4882,7 @@ function calcStandortBestand(lagerId){
 
 function calcLeergutGK(){
   let sum=0;
-  D.ernte_ist.forEach(e=>{
+  _getAllErnteIst().forEach(e=>{
     const typ=getEntryTyp(e);
     if(typ==='leergut') sum+=(e.gk_anzahl||0);
     // altes Format
@@ -4763,9 +4896,11 @@ function calcZwlBestand(lagerId){return calcStandortBestand(lagerId).total;}
 function calcZwlBestandTyp(lagerId,typ){const r=calcStandortBestand(lagerId);return typ==='tafel'?r.gk1kl:r.gkVer;}
 function calcLeergutBestand(typ){if(typ==='grosskisten')return calcLeergutGK();return 0;}
 
-function renderErnteIst(){
+async function renderErnteIst(){
   const el=document.getElementById('ernte-ist-wrap');
   if(!el)return;
+  // Gruppen-Daten laden (falls Betriebsgruppe vorhanden)
+  await _loadGruppenErnte();
   const verwendungen=getVerwendungen();
 
   // ── Bestand-Karten pro Lagerort ──────────────────────────────
@@ -4782,7 +4917,7 @@ function renderErnteIst(){
       const detail=b.gk1kl&&b.gkVer?`<div style="font-size:.65rem;color:var(--txl);margin-top:2px">🍎 ${b.gk1kl} 1.Kl · 🐛 ${b.gkVer} Verarb.</div>`
                   :b.gk1kl?`<div style="font-size:.65rem;color:var(--txl);margin-top:2px">🍎 ${b.gk1kl} 1.Kl</div>`
                   :b.gkVer?`<div style="font-size:.65rem;color:var(--txl);margin-top:2px">🐛 ${b.gkVer} Verarb.</div>`:'';
-      return`<div style="background:var(--card);border:1px solid ${total>0?'var(--pd)':'var(--bdr)'};border-radius:10px;padding:10px 12px;flex:1;min-width:130px">
+      return`<div onclick="openLagerDrilldown('${l.id}')" style="background:var(--card);border:1px solid ${total>0?'var(--pd)':'var(--bdr)'};border-radius:10px;padding:10px 12px;flex:1;min-width:130px;cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'" onmouseleave="this.style.boxShadow=''">
         <div style="font-size:.65rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${l.name}</div>
         <div style="font-size:1.4rem;font-weight:800;color:${total>0?'var(--pd)':'var(--txl)'};line-height:1">${total} GK</div>
         ${detail}${barHtml}
@@ -4801,7 +4936,8 @@ function renderErnteIst(){
   // ── Sortenübersicht (nur Ernte-Buchungen des aktuellen Jahres) ─
   // sortenMap: sorte → { kl1, ver, schlage: { schlagId → { name, kl1, ver } } }
   const sortenMap={};
-  D.ernte_ist.forEach(e=>{
+  const _allEI=_getAllErnteIst();
+  _allEI.forEach(e=>{
     if(!e.datum||!e.datum.startsWith(String(ernteJahr))) return;
     const typ=getEntryTyp(e);
     if(typ!=='ernte') return;
@@ -4832,17 +4968,15 @@ function renderErnteIst(){
         const sv=sd.schlage[sid];
         return`<tr style="border-bottom:1px solid var(--bdr)">
           <td style="padding:3px 8px 3px 22px;font-size:.78rem;color:var(--txl)">↳ ${sv.name}</td>
-          <td style="padding:3px 8px;text-align:right;font-size:.78rem;color:var(--pl)">${sv.kl1||'–'}</td>
-          <td style="padding:3px 8px;text-align:right;font-size:.78rem;color:var(--info)">${sv.ver||'–'}</td>
-          <td style="padding:3px 8px;text-align:right;font-size:.78rem;color:var(--txl)">${sv.kl1+sv.ver}</td>
+          <td style="padding:3px 10px;text-align:right;font-size:.88rem;font-weight:700;color:var(--pl)">${sv.kl1||'–'}</td>
+          <td style="padding:3px 10px;text-align:right;font-size:.88rem;font-weight:700;color:var(--info)">${sv.ver||'–'}</td>
         </tr>`;
       }).join('');
       // Sorte-Zeile (Summe)
       const sorteRow=`<tr style="border-bottom:${multiSchlag?'2px':'1px'} solid var(--bdr);background:${multiSchlag?'var(--bg)':'transparent'}">
-        <td style="padding:5px 8px;font-size:.82rem;font-weight:700;color:var(--pd)">${sorte}${multiSchlag?' <span style="font-size:.7rem;font-weight:400;color:var(--txl)">Gesamt</span>':''}</td>
-        <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--pl)"><b>${sd.kl1}</b></td>
-        <td style="padding:5px 8px;text-align:right;font-size:.82rem;color:var(--info)"><b>${sd.ver}</b></td>
-        <td style="padding:5px 8px;text-align:right;font-size:.82rem;font-weight:700">${sd.kl1+sd.ver}</td>
+        <td style="padding:6px 8px;font-size:.85rem;font-weight:700;color:var(--pd)">${sorte}</td>
+        <td style="padding:6px 10px;text-align:right;font-size:1.05rem;font-weight:800;color:var(--pl)">${sd.kl1}</td>
+        <td style="padding:6px 10px;text-align:right;font-size:1.05rem;font-weight:800;color:var(--info)">${sd.ver}</td>
       </tr>`;
       return(multiSchlag?subRows:'')+sorteRow;
     }).join('');
@@ -4851,23 +4985,21 @@ function renderErnteIst(){
       <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem">
         <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
           <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Sorte / Schlag</th>
-          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--pl);font-weight:700">🍎 1. Kl GK</th>
-          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--info);font-weight:700">🐛 Verarb. GK</th>
-          <th style="text-align:right;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Gesamt</th>
+          <th style="text-align:right;padding:4px 10px;font-size:.78rem;color:var(--pl);font-weight:800">1.Kl.</th>
+          <th style="text-align:right;padding:4px 10px;font-size:.78rem;color:var(--info);font-weight:800">Verarb.</th>
         </tr></thead>
         <tbody>${sRows}</tbody>
         <tfoot><tr style="border-top:2px solid var(--bdr);background:var(--bg)">
-          <td style="padding:5px 8px;font-size:.8rem;font-weight:700">Gesamt</td>
-          <td style="padding:5px 8px;text-align:right;font-size:.8rem;font-weight:700;color:var(--pl)">${totKl1}</td>
-          <td style="padding:5px 8px;text-align:right;font-size:.8rem;font-weight:700;color:var(--info)">${totVer}</td>
-          <td style="padding:5px 8px;text-align:right;font-size:.8rem;font-weight:700">${totKl1+totVer}</td>
+          <td style="padding:6px 8px;font-size:.82rem;font-weight:700">Gesamt</td>
+          <td style="padding:6px 10px;text-align:right;font-size:1.05rem;font-weight:800;color:var(--pl)">${totKl1}</td>
+          <td style="padding:6px 10px;text-align:right;font-size:1.05rem;font-weight:800;color:var(--info)">${totVer}</td>
         </tr></tfoot>
       </table></div>
     </div>`;
   }
 
   // ── Journal ──────────────────────────────────────────────────
-  const yearEntries=[...D.ernte_ist].filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))).reverse();
+  const yearEntries=[..._allEI].filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))).reverse();
   let journalHtml='';
   if(yearEntries.length){
     const rows=yearEntries.map(e=>{
@@ -4941,7 +5073,7 @@ function renderErnteIst(){
 
   // ── Ernte-Journal grouped by Betriebsgruppe ─────────────────
   // collect ernte entries for this year
-  const ernteEntries=D.ernte_ist.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='ernte');
+  const ernteEntries=_allEI.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='ernte');
   // group by Betriebsgruppe-Name (from Schlag.betrieb or Schlag.betriebsgruppe)
   const gruppenMap={}; // gruppenName → [{entry, schlag, sorte}]
   ernteEntries.forEach(e=>{
@@ -5014,8 +5146,8 @@ function renderErnteIst(){
   }
 
   // ── Transport-Journal ─────────────────────────────────────────
-  const transportEntries=D.ernte_ist.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='transport');
-  const leergutEntries=D.ernte_ist.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='leergut');
+  const transportEntries=_allEI.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='transport');
+  const leergutEntries=_allEI.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='leergut');
   let transportJournalHtml='';
   if(!transportEntries.length&&!leergutEntries.length){
     transportJournalHtml=`<div style="margin-bottom:16px">
@@ -5235,14 +5367,12 @@ function renderEOSorten(){
   const apfel=list.filter(s=>s.typ==='apfel').sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const birne=list.filter(s=>s.typ==='birne').sort((a,b)=>a.name.localeCompare(b.name,'de'));
   const renderGrp=(arr,label)=>!arr.length?'':
-    `<tr><td colspan="6" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
+    `<tr><td colspan="5" style="padding:8px 10px 4px;font-size:.72rem;font-weight:800;color:var(--p);text-transform:uppercase;background:var(--bg)">${label}</td></tr>`+
     arr.map(s=>{
       const nkg=s.netto_kg||getSorteNkg(s.name);
       const brutto=nkg+TARA_GK;
-      const klonEsc=(s.klon||'').replace(/'/g,"\\'");
       return`<tr>
         <td style="padding:6px 10px;font-size:.83rem;font-weight:600">${s.name}</td>
-        <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.klon?`<span style="font-style:italic">${s.klon}</span>`:'<span style="color:var(--bdr)">–</span>'}</td>
         <td style="padding:6px 10px;font-size:.78rem;color:var(--txl)">${s.typ==='birne'?'🍐 Birne':'🍎 Apfel'}</td>
         <td style="padding:6px 10px;font-size:.78rem;white-space:nowrap">
           <b>${nkg}</b> kg netto
@@ -5250,21 +5380,20 @@ function renderEOSorten(){
         </td>
         <td style="padding:6px 10px;font-size:.78rem">${s.aktiv===false?'<span style="color:var(--crit)">❌ inaktiv</span>':'<span style="color:var(--p)">✅ aktiv</span>'}</td>
         <td style="padding:4px 6px;text-align:right">
-          ${fromDB&&s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false},${nkg},'${klonEsc}')">✏️</button>`:''}
+          ${fromDB&&s.id?`<button class="btn btn-s btn-sm" onclick="openEOEditSorte('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.typ}',${s.aktiv!==false},${nkg})">✏️</button>`:''}
         </td>
       </tr>`;
     }).join('');
   const hint=!fromDB?`<div style="font-size:.75rem;color:var(--warn);padding:6px 10px 6px">⚠ Sorten noch nicht in Supabase — Standardliste wird angezeigt. Bitte SQL-Import ausführen (siehe unten).</div>`:'';
   const taraInfo=`<div style="font-size:.71rem;color:var(--txl);padding:5px 10px 2px">Tara (leere Großkiste): <b>${TARA_GK} kg</b> — Brutto = Netto + ${TARA_GK} kg</div>`;
   el.innerHTML=hint+`<div class="twrap"><table style="width:100%">
-    <thead><tr><th>Name</th><th>Klon</th><th>Typ</th><th>Netto kg / GK</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Typ</th><th>Netto kg / GK</th><th>Status</th><th></th></tr></thead>
     <tbody>${renderGrp(apfel,'🍎 Äpfel')}${renderGrp(birne,'🍐 Birnen')}</tbody>
   </table></div>`+taraInfo;
 }
 
 function openEONeueSorte(){
   document.getElementById('ns-name').value='';
-  document.getElementById('ns-klon').value='';
   document.getElementById('ns-typ').value='apfel';
   document.getElementById('ns-nkg').value='330';
   document.getElementById('ns-aktiv').value='1';
@@ -5274,9 +5403,8 @@ function openEONeueSorte(){
   openMod('mod-sorte');
 }
 
-function openEOEditSorte(id,name,typ,aktiv,nkg,klon){
+function openEOEditSorte(id,name,typ,aktiv,nkg){
   document.getElementById('ns-name').value=name;
-  document.getElementById('ns-klon').value=klon||'';
   document.getElementById('ns-typ').value=typ;
   document.getElementById('ns-nkg').value=nkg||getSorteNkg(name)||330;
   document.getElementById('ns-aktiv').value=aktiv!==false?'1':'0';
@@ -5288,7 +5416,6 @@ function openEOEditSorte(id,name,typ,aktiv,nkg,klon){
 
 async function saveNeueSorte(){
   const name=document.getElementById('ns-name').value.trim();
-  const klon=document.getElementById('ns-klon').value.trim()||null;
   const typ=document.getElementById('ns-typ').value;
   const netto_kg=parseInt(document.getElementById('ns-nkg').value)||330;
   const aktiv=document.getElementById('ns-aktiv').value!=='0';
@@ -5298,7 +5425,7 @@ async function saveNeueSorte(){
       // Update
       const r=await _supaFetch(SUPA_URL+'/rest/v1/sorten?id=eq.'+window._editSorteId,{
         method:'PATCH',headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=minimal'},
-        body:JSON.stringify({name,klon,typ,netto_kg,aktiv})
+        body:JSON.stringify({name,typ,netto_kg,aktiv})
       });
       if(!r.ok) throw new Error('HTTP '+r.status);
       toast('✓ Sorte aktualisiert');
@@ -5306,7 +5433,7 @@ async function saveNeueSorte(){
       // Insert
       const r=await _supaFetch(SUPA_URL+'/rest/v1/sorten',{
         method:'POST',headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=minimal'},
-        body:JSON.stringify({name,klon,typ,netto_kg,aktiv:true})
+        body:JSON.stringify({name,typ,netto_kg,aktiv:true})
       });
       if(!r.ok) throw new Error('HTTP '+r.status);
       toast('✓ Sorte "'+name+'" angelegt');
