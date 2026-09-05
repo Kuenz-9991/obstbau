@@ -331,6 +331,34 @@ tr:hover td{background:#f9fcfa}
   </div>
 </div>
 
+<!-- MODAL: Gaimberg Lagerplan -->
+<div class="mov" id="mod-lagerplan">
+  <div class="mod" style="max-width:760px;width:95vw;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:14px">
+    <div style="padding:14px 16px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--card);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:.95rem;font-weight:800;color:var(--pd)">🏪 Kühllager Gaimberg</div>
+      <button onclick="closeMod('mod-lagerplan')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1">✕</button>
+    </div>
+    <div style="padding:10px 16px 0;flex-shrink:0;display:flex;gap:10px;flex-wrap:wrap;font-size:.7rem;align-items:center">
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.12);background:#6ee7b7"></div>Uns (4 hoch)</div>
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.12);background:#a7f3d0"></div>Uns (3 hoch)</div>
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.12);background:#fca5a5"></div>Fremd</div>
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.12);background:#e2e8f0"></div>Leer / frei</div>
+    </div>
+    <div style="padding:10px 16px 0;flex-shrink:0;display:flex;gap:6px;flex-wrap:wrap" id="lp-tabs">
+      <button id="lp-tab-0" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:var(--pd);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer" onclick="_lpShowZelle(0)">Zelle 1 · links (teilw. uns)</button>
+      <button id="lp-tab-1" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(1)">Zelle 2 · mitte (fremd)</button>
+      <button id="lp-tab-2" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(2)">Zelle 3 · rechts (ganz uns)</button>
+    </div>
+    <div style="flex:1;overflow:auto;padding:12px 16px;-webkit-overflow-scrolling:touch">
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <canvas id="lp-canvas" width="700" height="310" style="display:block;border-radius:10px;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,.1)"></canvas>
+      </div>
+      <div id="lp-info" style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;font-size:.72rem;color:#92400e;margin-top:12px;line-height:1.6"></div>
+    </div>
+  </div>
+</div>
+<div id="lp-tt" style="position:fixed;background:rgba(0,0,0,.82);color:#fff;padding:5px 9px;border-radius:6px;font-size:.72rem;pointer-events:none;display:none;z-index:10001;white-space:nowrap"></div>
+
 <!-- MODAL: Familien-Gruppe anlegen/bearbeiten -->
 <div class="mov" id="mod-gruppe">
   <div class="mod" style="max-width:460px">
@@ -389,50 +417,23 @@ tr:hover td{background:#f9fcfa}
 </div>
 
 <!-- MODAL: Transport-Buchung (Multi-Position) -->
+<!-- MODAL: Transport Wizard -->
 <div class="mov" id="mod-transport-buchung">
-  <div class="mod" style="max-width:640px">
-    <div class="mod-hdr">
-      <div class="mod-title" id="transp-buch-title">🚛 Transport erfassen</div>
-      <button class="mod-x" onclick="closeMod('mod-transport-buchung')">✕</button>
-    </div>
-    <div style="border-left:4px solid #fb8c00;background:#fff8f0;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:12px">
-      <!-- Datum + Lieferziel -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
-        <div class="fg">
-          <label style="font-size:.72rem;font-weight:700;color:#e65100">Datum</label>
-          <input type="date" id="transp-datum" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.88rem;width:100%">
-        </div>
-        <div class="fg">
-          <label style="font-size:.72rem;font-weight:700;color:#e65100">🎯 Lieferziel</label>
-          <select id="transp-verwendung" style="border:1px solid #ffcc80;border-radius:6px;padding:6px 8px;font-size:.82rem;background:#fff;width:100%"></select>
-        </div>
+  <div class="mod" style="max-width:480px;max-height:95vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:16px">
+    <div id="tw-hdr" style="padding:14px 16px 10px;border-bottom:1px solid #ffe0b2;flex-shrink:0;background:#fff8f0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:.62rem;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:.07em" id="tw-step-label">Schritt 1 von 3</div>
+        <div style="font-size:.95rem;font-weight:800;color:#bf360c" id="tw-step-title">Datum &amp; Ziel</div>
       </div>
-      <!-- Positions-Header -->
-      <div style="display:grid;grid-template-columns:1.6fr 1.6fr 72px 72px 28px;gap:4px;margin-bottom:4px;padding:0 2px">
-        <span style="font-size:.67rem;font-weight:700;color:#e65100;text-transform:uppercase">Von Standort</span>
-        <span style="font-size:.67rem;font-weight:700;color:#e65100;text-transform:uppercase">Schlag</span>
-        <span style="font-size:.67rem;font-weight:700;color:#e65100;text-transform:uppercase;text-align:right">🍎 1.Kl</span>
-        <span style="font-size:.67rem;font-weight:700;color:#e65100;text-transform:uppercase;text-align:right">🐛 Verarb.</span>
-        <span></span>
-      </div>
-      <!-- Dynamic rows -->
-      <div id="transp-positionen"></div>
-      <button onclick="addTranspPosition()" style="margin-top:6px;background:none;border:1px dashed #fb8c00;color:#e65100;border-radius:6px;padding:4px 12px;font-size:.78rem;cursor:pointer;width:100%">+ Position hinzufügen</button>
-      <!-- Summe -->
-      <div id="transp-summe" style="margin-top:8px;padding:6px 8px;background:#fff3e0;border-radius:6px;font-size:.8rem;display:none"></div>
+      <button onclick="closeMod('mod-transport-buchung')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1">✕</button>
     </div>
-    <div class="fg" style="margin-bottom:14px">
-      <label style="font-size:.75rem;font-weight:700;color:var(--txl)">Notiz</label>
-      <input type="text" id="transp-notiz" placeholder="Bemerkung" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%">
+    <div style="padding:8px 16px 4px;flex-shrink:0;display:flex;gap:5px;align-items:center;background:#fff8f0">
+      <div id="tw-dot-1" style="width:8px;height:8px;border-radius:50%;background:#e65100"></div>
+      <div id="tw-dot-2" style="width:8px;height:8px;border-radius:50%;background:#fed7aa"></div>
+      <div id="tw-dot-3" style="width:8px;height:8px;border-radius:50%;background:#fed7aa"></div>
     </div>
-    <input type="hidden" id="transp-edit-id">
-    <div class="mod-ft" style="display:flex;justify-content:space-between;align-items:center">
-      <button class="btn btn-d btn-sm" id="transp-del-btn" onclick="deleteTransportBuchung()" style="display:none">Löschen</button>
-      <div style="display:flex;gap:8px;margin-left:auto">
-        <button class="btn btn-s" onclick="closeMod('mod-transport-buchung')">Abbrechen</button>
-        <button class="btn btn-p" onclick="saveTransportBuchung()">💾 Speichern</button>
-      </div>
-    </div>
+    <div id="tw-body" style="flex:1;overflow-y:auto;padding:14px 16px;-webkit-overflow-scrolling:touch"></div>
+    <div id="tw-footer" style="padding:12px 16px;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--card);display:flex;gap:8px;justify-content:space-between;align-items:center"></div>
   </div>
 </div>
 
@@ -1668,7 +1669,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.18.3";
+const APP_VERSION="v2.20.0";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -4556,6 +4557,245 @@ function getTransportPositionen(e){
            gk_1kl:e.gk_1kl||e.gk_anzahl||0,gk_verarbeitung:e.gk_verarbeitung||0}];
 }
 
+// ── Transport Wizard ──────────────────────────────────────────────────────────
+let _tw={step:1,datum:'',verwendungId:'',notiz:'',editId:'',alloc:{}};
+
+function openTransportMod(editId){
+  const today=new Date().toISOString().slice(0,10);
+  _tw={step:1,datum:today,verwendungId:'',notiz:'',editId:editId||'',alloc:{}};
+  if(editId){
+    const entry=D.ernte_ist.find(e=>e.id===editId);
+    if(entry){
+      _tw.datum=entry.datum;_tw.verwendungId=entry.verwendung_id||'';_tw.notiz=entry.notiz||'';
+      getTransportPositionen(entry).forEach(p=>{
+        const sid=p.von_standort_id;
+        if(!_tw.alloc[sid]) _tw.alloc[sid]={kl1:0,ver:0,schlag_id:''};
+        _tw.alloc[sid].kl1+=(p.gk_1kl||0);_tw.alloc[sid].ver+=(p.gk_verarbeitung||0);
+        if(p.schlag_id) _tw.alloc[sid].schlag_id=p.schlag_id;
+      });
+    }
+  }
+  _twRender();
+  openMod('mod-transport-buchung');
+}
+
+function _twRender(){
+  const titles=['Datum & Ziel','Mengen erfassen','Bestätigung'];
+  document.getElementById('tw-step-label').textContent='Schritt '+_tw.step+' von 3';
+  document.getElementById('tw-step-title').textContent=titles[_tw.step-1];
+  [1,2,3].forEach(i=>{
+    const d=document.getElementById('tw-dot-'+i);
+    if(d)d.style.background=i===_tw.step?'#e65100':(i<_tw.step?'#f97316':'#fed7aa');
+  });
+  const body=document.getElementById('tw-body');
+  const footer=document.getElementById('tw-footer');
+  if(_tw.step===1)_twStep1(body,footer);
+  else if(_tw.step===2)_twStep2(body,footer);
+  else _twStep3(body,footer);
+}
+
+function _twStep1(body,footer){
+  const verwOpts=getVerwendungen().map(v=>`<option value="${v.id}"${v.id===_tw.verwendungId?' selected':''}>${v.typ==='tafel'?'🍎':'🏭'} ${v.name}</option>`).join('');
+  const bestandRows=D.lagerorte.map(l=>{
+    const b=calcStandortBestand(l.id);if(b.total===0)return'';
+    const parts=[];if(b.gk1kl>0)parts.push(`<b style="color:var(--pl)">${b.gk1kl}</b> 1.Kl`);if(b.gkVer>0)parts.push(`<b style="color:var(--info)">${b.gkVer}</b> Verarb.`);
+    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:7px;margin-bottom:4px;font-size:.8rem"><span style="font-weight:700;color:var(--pd)">${l.name}</span><span>${parts.join(' · ')}</span></div>`;
+  }).join('');
+  body.innerHTML=`
+    <div style="margin-bottom:16px">
+      <label style="font-size:.72rem;font-weight:700;color:#e65100;display:block;margin-bottom:5px">Datum</label>
+      <input type="date" id="tw-datum" value="${_tw.datum}" style="border:1.5px solid #ffcc80;border-radius:8px;padding:9px 12px;font-size:1rem;width:100%;background:#fff">
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:.72rem;font-weight:700;color:#e65100;display:block;margin-bottom:5px">🎯 Lieferziel</label>
+      <select id="tw-verw" style="border:1.5px solid #ffcc80;border-radius:8px;padding:9px 12px;font-size:.9rem;background:#fff;width:100%">
+        <option value="">– Ziel auswählen –</option>${verwOpts}
+      </select>
+    </div>
+    ${bestandRows.length?`<div style="font-size:.7rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:7px">Aktueller Bestand</div>${bestandRows}`:''}`;
+  footer.innerHTML=`
+    <button onclick="closeMod('mod-transport-buchung')" class="btn">Abbrechen</button>
+    <button onclick="_twNext()" style="padding:10px 20px;border-radius:8px;background:#e65100;color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">Weiter →</button>`;
+}
+
+function _twStep2(body,footer){
+  // Verfügbaren Bestand berechnen (ohne editId)
+  const tempData=_tw.editId?D.ernte_ist.filter(e=>e.id!==_tw.editId):D.ernte_ist;
+  const avail={};
+  D.lagerorte.forEach(l=>{
+    let g1=0,gV=0;
+    tempData.forEach(e=>{
+      const t=getEntryTyp(e);
+      if(t==='ernte'){
+        if(e.verteilung)e.verteilung.forEach(v=>{if(v.standort_id===l.id){g1+=(v.gk_1kl||0);gV+=(v.gk_verarbeitung||0);}});
+        else if(e.standort_id===l.id){g1+=(e.gk_1kl||0);gV+=(e.gk_verarbeitung||0);}
+        (e.buchungen||[]).forEach(b=>{if(b.lager_id===l.id){g1+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gV+=(b.verarbeitung_gk||0);}});
+      } else if(t==='transport'){
+        getTransportPositionen(e).forEach(p=>{if(p.von_standort_id===l.id){g1-=(p.gk_1kl||0);gV-=(p.gk_verarbeitung||0);}});
+        (e.buchungen||[]).forEach(b=>{if(b.lager_id===l.id){g1-=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gV-=(b.verarbeitung_gk||0);}});
+      }
+    });
+    avail[l.id]={g1,gV};
+  });
+  window._twAvail=avail;
+  const lagerMitBestand=D.lagerorte.filter(l=>(avail[l.id]?.g1||0)+(avail[l.id]?.gV||0)>0);
+  if(!lagerMitBestand.length){
+    body.innerHTML=`<div style="color:var(--txl);font-size:.88rem;padding:24px 0;text-align:center">Kein Bestand in den Lagerorten vorhanden.</div>`;
+  } else {
+    body.innerHTML=lagerMitBestand.map(l=>{
+      const av=avail[l.id];
+      const alloc=_tw.alloc[l.id]||{kl1:0,ver:0,schlag_id:''};
+      const schlagOpts=D.schlage.map(s=>`<option value="${s.id}"${s.id===alloc.schlag_id?' selected':''}>${s.name}${s.betrieb?' — '+s.betrieb:''}</option>`).join('');
+      const kl1Row=av.g1>0?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <span style="font-size:.72rem;font-weight:700;color:var(--pl);min-width:60px">🍎 1.Kl.</span>
+        <button onclick="_twAdj('${l.id}','kl1',-1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #ffcc80;background:#fff;font-size:1.1rem;cursor:pointer;font-weight:700;color:#e65100;line-height:1">−</button>
+        <span id="tw-kl1-${l.id}" style="font-size:1.1rem;font-weight:800;color:var(--pl);min-width:34px;text-align:center">${alloc.kl1}</span>
+        <button onclick="_twAdj('${l.id}','kl1',1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #ffcc80;background:#fff;font-size:1.1rem;cursor:pointer;font-weight:700;color:#e65100;line-height:1">+</button>
+        <span style="font-size:.7rem;color:var(--txl)">von ${av.g1}</span>
+      </div>`:'';
+      const verRow=av.gV>0?`<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+        <span style="font-size:.72rem;font-weight:700;color:var(--info);min-width:60px">🐛 Verarb.</span>
+        <button onclick="_twAdj('${l.id}','ver',-1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #ffcc80;background:#fff;font-size:1.1rem;cursor:pointer;font-weight:700;color:#e65100;line-height:1">−</button>
+        <span id="tw-ver-${l.id}" style="font-size:1.1rem;font-weight:800;color:var(--info);min-width:34px;text-align:center">${alloc.ver}</span>
+        <button onclick="_twAdj('${l.id}','ver',1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid #ffcc80;background:#fff;font-size:1.1rem;cursor:pointer;font-weight:700;color:#e65100;line-height:1">+</button>
+        <span style="font-size:.7rem;color:var(--txl)">von ${av.gV}</span>
+      </div>`:'';
+      return`<div style="border:1.5px solid #ffcc80;border-radius:10px;padding:12px;margin-bottom:10px;background:#fff8f0">
+        <div style="font-size:.85rem;font-weight:800;color:#bf360c;margin-bottom:8px">${l.name}</div>
+        ${kl1Row}${verRow}
+        <div style="margin-top:4px">
+          <label style="font-size:.68rem;font-weight:700;color:var(--txl);display:block;margin-bottom:3px">Schlag (optional)</label>
+          <select onchange="_twSetSchlag('${l.id}',this.value)" style="border:1px solid #ffcc80;border-radius:6px;padding:5px 8px;font-size:.75rem;background:#fff;width:100%">
+            <option value="">– Schlag wählen –</option>${schlagOpts}
+          </select>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  footer.innerHTML=`
+    <button onclick="_twBack()" class="btn">← Zurück</button>
+    <span id="tw-total" style="font-size:.82rem;font-weight:700;color:#e65100"></span>
+    <button onclick="_twNext()" style="padding:10px 20px;border-radius:8px;background:#e65100;color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">Weiter →</button>`;
+  _twUpdateTotal();
+}
+
+function _twStep3(body,footer){
+  const verw=getVerwendungen().find(v=>v.id===_tw.verwendungId);
+  const lagerById={};D.lagerorte.forEach(l=>lagerById[l.id]=l);
+  const schlagById={};D.schlage.forEach(s=>schlagById[s.id]=s);
+  const positionen=Object.entries(_tw.alloc).filter(([sid,a])=>(a.kl1||0)+(a.ver||0)>0).map(([sid,a])=>({sid,l:lagerById[sid],a}));
+  const posRows=positionen.map(({sid,l,a})=>{
+    const schlag=a.schlag_id?schlagById[a.schlag_id]:null;
+    return`<tr style="border-bottom:1px solid var(--bdr)">
+      <td style="padding:7px 8px;font-size:.82rem;font-weight:600;color:var(--pd)">${l?.name||sid}</td>
+      <td style="padding:7px 8px;font-size:.78rem;color:var(--txl)">${schlag?schlag.name:'–'}</td>
+      <td style="padding:7px 8px;text-align:right;font-weight:700;color:var(--pl)">${a.kl1||'–'}</td>
+      <td style="padding:7px 8px;text-align:right;font-weight:700;color:var(--info)">${a.ver||'–'}</td>
+    </tr>`;
+  }).join('');
+  const totKl1=positionen.reduce((s,{a})=>s+(a.kl1||0),0);
+  const totVer=positionen.reduce((s,{a})=>s+(a.ver||0),0);
+  body.innerHTML=`
+    <div style="background:#fff3e0;border-left:4px solid #e65100;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;gap:20px">
+        <div><div style="font-size:.68rem;font-weight:700;color:#e65100;margin-bottom:2px">Datum</div>
+          <div style="font-size:.95rem;font-weight:800;color:#bf360c">${_tw.datum}</div></div>
+        <div><div style="font-size:.68rem;font-weight:700;color:#e65100;margin-bottom:2px">🎯 Lieferziel</div>
+          <div style="font-size:.95rem;font-weight:800;color:#bf360c">${verw?verw.name:'?'}</div></div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
+      <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
+        <th style="text-align:left;padding:5px 8px;font-size:.68rem;color:var(--txl)">Von Standort</th>
+        <th style="text-align:left;padding:5px 8px;font-size:.68rem;color:var(--txl)">Schlag</th>
+        <th style="text-align:right;padding:5px 8px;font-size:.72rem;color:var(--pl)">1.Kl</th>
+        <th style="text-align:right;padding:5px 8px;font-size:.72rem;color:var(--info)">Verarb.</th>
+      </tr></thead>
+      <tbody>${posRows}</tbody>
+      <tfoot><tr style="border-top:2px solid var(--bdr);background:var(--bg)">
+        <td colspan="2" style="padding:6px 8px;font-size:.8rem;font-weight:700">Gesamt</td>
+        <td style="padding:6px 8px;text-align:right;font-size:1rem;font-weight:800;color:var(--pl)">${totKl1||'–'}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:1rem;font-weight:800;color:var(--info)">${totVer||'–'}</td>
+      </tr></tfoot>
+    </table>
+    <div style="margin-bottom:${_tw.editId?'0':'4px'}">
+      <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:4px">Notiz (optional)</label>
+      <input type="text" id="tw-notiz" value="${(_tw.notiz||'').replace(/"/g,'&quot;')}" placeholder="Bemerkung…" style="border:1.5px solid var(--bdr);border-radius:8px;padding:9px 12px;font-size:.88rem;width:100%">
+    </div>
+    ${_tw.editId?`<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--bdr)">
+      <button onclick="_twDelete()" style="background:none;border:1px solid var(--crit);color:var(--crit);border-radius:7px;padding:7px 14px;font-size:.8rem;cursor:pointer">🗑 Transport löschen</button>
+    </div>`:''}`;
+  footer.innerHTML=`
+    <button onclick="_twBack()" class="btn">← Zurück</button>
+    <button onclick="_twSave()" style="padding:10px 20px;border-radius:8px;background:#e65100;color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">💾 Transport speichern</button>`;
+}
+
+function _twNext(){
+  if(_tw.step===1){
+    const datum=document.getElementById('tw-datum')?.value;
+    const verw=document.getElementById('tw-verw')?.value;
+    if(!datum){alert('Bitte Datum eingeben');return;}
+    if(!verw){alert('Bitte Lieferziel auswählen');return;}
+    _tw.datum=datum;_tw.verwendungId=verw;_tw.step=2;_twRender();
+  } else if(_tw.step===2){
+    const tot=Object.values(_tw.alloc).reduce((s,a)=>s+(a.kl1||0)+(a.ver||0),0);
+    if(!tot){alert('Bitte mindestens eine GK-Menge auswählen');return;}
+    _tw.step=3;_twRender();
+  }
+}
+function _twBack(){if(_tw.step>1){_tw.step--;_twRender();}}
+function _twAdj(lagerId,field,delta){
+  if(!_tw.alloc[lagerId])_tw.alloc[lagerId]={kl1:0,ver:0,schlag_id:''};
+  const av=window._twAvail?.[lagerId]||{g1:0,gV:0};
+  const max=field==='kl1'?av.g1:av.gV;
+  _tw.alloc[lagerId][field]=Math.max(0,Math.min(max,(_tw.alloc[lagerId][field]||0)+delta));
+  const el=document.getElementById('tw-'+(field==='kl1'?'kl1':'ver')+'-'+lagerId);
+  if(el)el.textContent=_tw.alloc[lagerId][field];
+  _twUpdateTotal();
+}
+function _twSetSchlag(lagerId,schlagId){
+  if(!_tw.alloc[lagerId])_tw.alloc[lagerId]={kl1:0,ver:0,schlag_id:''};
+  _tw.alloc[lagerId].schlag_id=schlagId;
+}
+function _twUpdateTotal(){
+  const tot1=Object.values(_tw.alloc).reduce((s,a)=>s+(a.kl1||0),0);
+  const totV=Object.values(_tw.alloc).reduce((s,a)=>s+(a.ver||0),0);
+  const el=document.getElementById('tw-total');
+  if(el)el.textContent=(tot1||totV)?`${tot1+totV} GK gesamt`:'';
+}
+function _twSave(){
+  const notiz=(document.getElementById('tw-notiz')?.value||'').trim();
+  const positionen=Object.entries(_tw.alloc)
+    .filter(([sid,a])=>(a.kl1||0)+(a.ver||0)>0)
+    .map(([sid,a])=>({von_standort_id:sid,schlag_id:a.schlag_id||'',gk_1kl:a.kl1||0,gk_verarbeitung:a.ver||0}));
+  if(!positionen.length){alert('Keine Positionen mit Mengen');return;}
+  const entryId=_tw.editId||uid();
+  const entry={id:entryId,typ:'transport',datum:_tw.datum,verwendung_id:_tw.verwendungId,notiz,positionen};
+  if(_tw.editId)D.ernte_ist=D.ernte_ist.filter(e=>e.id!==_tw.editId);
+  const idx=D.ernte_ist.findIndex(e=>e.id===entry.id);
+  if(idx>=0)D.ernte_ist[idx]=entry;else D.ernte_ist.push(entry);
+  D.ernte_ist.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
+  scheduleSave();closeMod('mod-transport-buchung');renderErnteIst();
+  if(confirm('Transport gespeichert. Lieferschein drucken?'))printLieferschein(entryId);
+}
+function _twDelete(){
+  if(!_tw.editId||!confirm('Transport-Buchung wirklich löschen?'))return;
+  D.ernte_ist=D.ernte_ist.filter(e=>e.id!==_tw.editId);
+  scheduleSave();closeMod('mod-transport-buchung');renderErnteIst();
+}
+
+// Ernte-Eintrag löschen (Journal-Papierkorb)
+function deleteErnteEintrag(id){
+  const e=D.ernte_ist.find(x=>x.id===id);
+  if(!e)return;
+  const sc=D.schlage.find(x=>x.id===e.schlag_id);
+  const label=sc?sc.name+' ('+e.datum+')':e.datum;
+  if(!confirm('Ernte-Buchung "'+label+'" wirklich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.'))return;
+  D.ernte_ist=D.ernte_ist.filter(x=>x.id!==id);
+  scheduleSave();renderErnteIst();
+}
+
+// ── Alte Transport-Hilfsfunktionen (werden durch Wizard ersetzt) ───────────
 function _transpStandortOpts(){
   return '<option value="">– Standort –</option>'+D.lagerorte.map(l=>{
     const b=calcStandortBestand(l.id);
@@ -4974,6 +5214,139 @@ function calcStandortBestand(lagerId){
   return {gk1kl,gkVer,total:gk1kl+gkVer};
 }
 
+// ── Gaimberg Lagerplan ────────────────────────────────────────────────────────
+let _lpZelle=0;
+const _LP={REIHEN:4,STAPEL:11,MAX_H:4,TW:40,TH:20,BH:22,OX:430,OY:265};
+
+function _lpMaxH(zi,r,d){return(d>=9&&r>=1&&r<=2)?3:4;}
+function _lpEigenOf(zi,r){
+  if(zi===0)return r>=2?'eigen':'fremd';
+  if(zi===1)return'fremd';
+  return'eigen';
+}
+const _LP_COLORS={
+  eigen:    {front:'#6ee7b7',top:'#a7f3d0',side:'#34d399'},
+  'eigen-dim':{front:'#a7f3d0',top:'#d1fae5',side:'#6ee7b7'},
+  fremd:    {front:'#fca5a5',top:'#fecaca',side:'#f87171'},
+  leer:     {front:'#e2e8f0',top:'#f1f5f9',side:'#cbd5e1'},
+};
+function _lpToScreen(r,d,h){
+  return{x:_LP.OX+(r-d)*_LP.TW/2, y:_LP.OY-(r+d)*_LP.TH/2-h*_LP.BH};
+}
+function _lpDrawBox(ctx,r,d,h,ck){
+  const c=_LP_COLORS[ck]||_LP_COLORS.leer;
+  const p=(ri,di,hi)=>_lpToScreen(ri,di,hi);
+  // rechte Seite
+  const fr=p(r+1,d,h),br=p(r+1,d+1,h),br1=p(r+1,d+1,h+1),fr1=p(r+1,d,h+1);
+  ctx.beginPath();ctx.moveTo(fr.x,fr.y);ctx.lineTo(br.x,br.y);ctx.lineTo(br1.x,br1.y);ctx.lineTo(fr1.x,fr1.y);ctx.closePath();
+  ctx.fillStyle=c.side;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.13)';ctx.lineWidth=.8;ctx.stroke();
+  // vordere Fläche
+  const fl=p(r,d,h),fl1=p(r,d,h+1);
+  ctx.beginPath();ctx.moveTo(fl.x,fl.y);ctx.lineTo(fr.x,fr.y);ctx.lineTo(fr1.x,fr1.y);ctx.lineTo(fl1.x,fl1.y);ctx.closePath();
+  ctx.fillStyle=c.front;ctx.fill();ctx.stroke();
+  // obere Fläche
+  const bl1=p(r,d+1,h+1);
+  ctx.beginPath();ctx.moveTo(fl1.x,fl1.y);ctx.lineTo(fr1.x,fr1.y);ctx.lineTo(br1.x,br1.y);ctx.lineTo(bl1.x,bl1.y);ctx.closePath();
+  ctx.fillStyle=c.top;ctx.fill();ctx.stroke();
+}
+function _lpDrawLabels(ctx){
+  ctx.fillStyle='#64748b';ctx.font='bold 10px system-ui';
+  for(let r=0;r<_LP.REIHEN;r++){const p=_lpToScreen(r+0.5,0,0);ctx.fillText('R'+(r+1),p.x-7,p.y+14);}
+  ctx.font='9px system-ui';
+  for(let d=0;d<_LP.STAPEL;d++){const p=_lpToScreen(0,d+0.5,0);ctx.fillText(_LP.STAPEL-d,p.x-22,p.y+4);}
+  ctx.fillStyle='#94a3b8';ctx.font='bold 9px system-ui';
+  const doorPt=_lpToScreen(_LP.REIHEN/2-0.5,-0.8,0);ctx.fillText('← Tür',doorPt.x-14,doorPt.y+4);
+  const wallPt=_lpToScreen(0,_LP.STAPEL+0.2,0);ctx.fillText('Wand →',wallPt.x-2,wallPt.y+4);
+}
+function _lpBuildBoxes(zi){
+  const boxes=[];
+  for(let d=0;d<_LP.STAPEL;d++){
+    for(let r=0;r<_LP.REIHEN;r++){
+      const mh=_lpMaxH(zi,r,d);
+      const ek=_lpEigenOf(zi,r);
+      for(let h=0;h<_LP.MAX_H;h++){
+        if(h<mh){boxes.push({r,d,h,ck:ek==='eigen'?(mh<_LP.MAX_H?'eigen-dim':'eigen'):'fremd'});}
+      }
+    }
+  }
+  boxes.sort((a,b)=>{const da=a.d-a.r,db=b.d-b.r;if(da!==db)return db-da;if(a.r!==b.r)return b.r-a.r;return a.h-b.h;});
+  return boxes;
+}
+function _lpRenderZelle(zi){
+  const canvas=document.getElementById('lp-canvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,canvas.width,canvas.height);
+  // Bodenraster
+  ctx.strokeStyle='#e2e8f0';ctx.lineWidth=0.5;
+  for(let r=0;r<=_LP.REIHEN;r++){
+    for(let d=0;d<=_LP.STAPEL;d++){
+      if(r<_LP.REIHEN){const a=_lpToScreen(r,d,0),b=_lpToScreen(r+1,d,0);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+      if(d<_LP.STAPEL){const a=_lpToScreen(r,d,0),b=_lpToScreen(r,d+1,0);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
+    }
+  }
+  _lpBuildBoxes(zi).forEach(box=>_lpDrawBox(ctx,box.r,box.d,box.h,box.ck));
+  _lpDrawLabels(ctx);
+  // Info-Box
+  let eigen=0,eigenDim=0;
+  for(let r=0;r<_LP.REIHEN;r++){
+    if(_lpEigenOf(zi,r)!=='eigen')continue;
+    for(let d=0;d<_LP.STAPEL;d++){const mh=_lpMaxH(zi,r,d);eigen+=mh;if(mh<_LP.MAX_H)eigenDim+=mh;}
+  }
+  const names=['Zelle 1 (links)','Zelle 2 (mitte)','Zelle 3 (rechts)'];
+  const eigen_desc=['R3+R4 uns · R1+R2 fremd','komplett fremd','komplett uns'];
+  const infoEl=document.getElementById('lp-info');
+  if(infoEl)infoEl.innerHTML=`<b>${names[zi]}:</b> ${eigen_desc[zi]}. Kapazität unsere Fläche: <b>${eigen}</b> Stellplätze${eigenDim>0?' (davon '+eigenDim+' mit max. 3 hoch)':''}.`;
+}
+function _lpShowZelle(zi){
+  _lpZelle=zi;
+  [0,1,2].forEach(i=>{
+    const t=document.getElementById('lp-tab-'+i);
+    if(!t)return;
+    t.style.background=i===zi?'var(--pd)':'#fff';
+    t.style.color=i===zi?'#fff':'var(--txl)';
+  });
+  _lpRenderZelle(zi);
+}
+function openLagerplan(){
+  openMod('mod-lagerplan');
+  // Canvas erst nach dem Öffnen rendern (Layout muss stehen)
+  setTimeout(()=>{
+    _lpShowZelle(0);
+    // Canvas-Tooltip
+    const canvas=document.getElementById('lp-canvas');
+    const tt=document.getElementById('lp-tt');
+    if(canvas&&tt&&!canvas._lpBound){
+      canvas._lpBound=true;
+      canvas.addEventListener('mousemove',e=>{
+        const rect=canvas.getBoundingClientRect();
+        const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
+        const my=(e.clientY-rect.top)*(canvas.height/rect.height);
+        let found=null;
+        for(let d=0;d<_LP.STAPEL&&!found;d++){
+          for(let r=0;r<_LP.REIHEN&&!found;r++){
+            const mh=_lpMaxH(_lpZelle,r,d);
+            for(let h=0;h<mh&&!found;h++){
+              const p=_lpToScreen(r+0.5,d+0.5,h+0.5);
+              if(Math.abs(mx-p.x)<_LP.TW*0.7&&Math.abs(my-p.y)<_LP.BH*0.8){
+                const stapelNr=_LP.STAPEL-d;
+                const ek=_lpEigenOf(_lpZelle,r);
+                const isDim=mh<_LP.MAX_H;
+                const lbl=ek==='eigen'?(isDim?'Uns (3 hoch)':'Uns'):'Fremd';
+                found=`R${r+1} · Stapel ${stapelNr} · Kiste ${h+1} — ${lbl}`;
+              }
+            }
+          }
+        }
+        if(found){tt.textContent=found;tt.style.display='block';tt.style.left=(e.clientX+12)+'px';tt.style.top=(e.clientY-32)+'px';}
+        else{tt.style.display='none';}
+      });
+      canvas.addEventListener('mouseleave',()=>{const t=document.getElementById('lp-tt');if(t)t.style.display='none';});
+    }
+  },60);
+}
+
 function calcLeergutGK(){
   let sum=0;
   _getAllErnteIst().forEach(e=>{
@@ -5178,14 +5551,14 @@ async function renderErnteIst(){
       const kl1=e.gk_1kl||(e.buchungen||[]).reduce((s,b)=>s+(b.tafel_gk!==undefined?b.tafel_gk:b.gk||0),0);
       const ver=e.gk_verarbeitung||(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
       const notizHtml=e.notiz?`<div style="font-size:.67rem;color:var(--txl);margin-top:1px;font-style:italic">${e.notiz}</div>`:'';
-      const editBtn=isEigen(e)?`<button class="btn btn-s btn-sm" onclick="openErnteWizard('${e.id}')" style="padding:2px 6px">✏️</button>`:'';
+      const actBtns=isEigen(e)?`<div style="display:flex;gap:3px;justify-content:flex-end"><button onclick="openErnteWizard('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 3px" title="Bearbeiten">✏️</button><button onclick="deleteErnteEintrag('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 3px;color:var(--crit)" title="Löschen">🗑</button></div>`:'';
       return`<tr style="border-bottom:1px solid var(--bdr)">
         <td style="padding:5px 8px;font-size:.8rem;white-space:nowrap;vertical-align:top"><b>${e.datum}</b></td>
         <td style="padding:5px 8px;font-size:.8rem;vertical-align:top">${schlagName} <span style="font-size:.72rem;color:var(--txl)">${sorte}</span>${notizHtml}</td>
         <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:700;color:var(--pl);vertical-align:top">${kl1||'–'}</td>
         <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:700;color:var(--info);vertical-align:top">${ver||'–'}</td>
         <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:800;vertical-align:top">${kl1+ver}</td>
-        <td style="padding:5px 4px;vertical-align:top">${editBtn}</td>
+        <td style="padding:5px 4px;vertical-align:top">${actBtns}</td>
       </tr>`;
     }).join('');
     ernteJournalHtml=`<div style="margin-bottom:16px">
@@ -5275,6 +5648,7 @@ async function renderErnteIst(){
       <div style="font-size:1rem;font-weight:700;color:var(--pd)">🌾 Ernte ${ernteJahr}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-s btn-sm" onclick="openLagerMod()">⚙️ Standorte</button>
+        <button class="btn btn-s btn-sm" onclick="openLagerplan()">🗺 Lagerplan</button>
         <button onclick="openTransportMod()" style="padding:8px 14px;border-radius:8px;background:#fb8c00;color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">🚛 Transport</button>
         <button onclick="openErnteWizard()" style="padding:8px 14px;border-radius:8px;background:var(--pd);color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">+ Buchung erfassen</button>
       </div>
