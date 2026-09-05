@@ -331,6 +331,32 @@ tr:hover td{background:#f9fcfa}
   </div>
 </div>
 
+<!-- MODAL: Familien-Gruppe anlegen/bearbeiten -->
+<div class="mov" id="mod-gruppe">
+  <div class="mod" style="max-width:460px">
+    <div class="mod-hdr">
+      <div class="mod-title" id="mg-title">Familien-Gruppe anlegen</div>
+      <button class="mod-x" onclick="closeMod('mod-gruppe')">✕</button>
+    </div>
+    <div style="overflow-y:auto;max-height:calc(90vh - 140px);padding-right:4px">
+      <div class="fg fw" style="margin-bottom:12px">
+        <label>Gruppenname *</label>
+        <input id="mg-name" placeholder="z.B. Familie Kuenz">
+      </div>
+      <div class="fg fw" style="margin-bottom:12px">
+        <label style="margin-bottom:6px;display:block">Mitgliedsbetriebe</label>
+        <div id="mg-betriebe-list" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;border:1px solid var(--bdr);border-radius:8px;padding:10px"></div>
+      </div>
+      <div id="mg-err" style="color:var(--crit);font-size:.8rem;margin-bottom:8px;display:none"></div>
+    </div>
+    <div class="mod-ftr" style="display:flex;gap:8px">
+      <button id="mg-del-btn" class="btn btn-s" style="margin-right:auto;color:var(--crit);border-color:var(--crit)" onclick="deleteGruppe()">🗑 Löschen</button>
+      <button class="btn" onclick="closeMod('mod-gruppe')">Abbrechen</button>
+      <button class="btn btn-p" onclick="saveGruppe()">💾 Speichern</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Ernte-Wizard (Mobile-optimiert) -->
 <div class="mov" id="mod-ernte-wizard">
   <div class="mod" style="max-width:480px;max-height:95vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:16px">
@@ -340,7 +366,13 @@ tr:hover td{background:#f9fcfa}
         <div style="font-size:.95rem;font-weight:800;color:var(--pd)" id="wiz-title">🌿 Ernte erfassen</div>
         <button onclick="closeMod('mod-ernte-wizard')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1">✕</button>
       </div>
-      <input type="date" id="wiz-datum" style="border:1px solid var(--bdr);border-radius:8px;padding:7px 10px;font-size:.9rem">
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="date" id="wiz-datum" style="border:1px solid var(--bdr);border-radius:8px;padding:7px 10px;font-size:.9rem;flex:1">
+        <div id="wiz-kisten-badge" style="display:none;flex-direction:column;align-items:flex-end;background:#fff3e0;border:1.5px solid #ffcc80;border-radius:8px;padding:5px 10px;white-space:nowrap">
+          <div style="font-size:.62rem;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:.04em">Noch offen</div>
+          <div id="wiz-kisten-badge-val" style="font-size:1rem;font-weight:800;color:#e65100;line-height:1.2">–</div>
+        </div>
+      </div>
       <!-- Progress bar (4 Schritte) -->
       <div style="display:flex;gap:5px;margin-top:10px">
         <div id="wiz-dot-0" style="height:5px;border-radius:3px;background:var(--bdr);flex:1;transition:background .25s"></div>
@@ -515,6 +547,15 @@ tr:hover td{background:#f9fcfa}
     <div id="eo-prog-wrap">
       <div class="empty">–</div>
     </div>
+  </div>
+
+  <!-- Familien-Gruppen -->
+  <div class="card" style="margin-top:12px">
+    <div class="card-hdr" style="display:flex;justify-content:space-between;align-items:center">
+      <span>👨‍👩‍👧 Familien-Gruppen</span>
+      <button class="btn btn-p btn-sm" onclick="openGruppeMod()">+ Neue Gruppe</button>
+    </div>
+    <div id="eo-gruppen-wrap"><div class="empty">Lade…</div></div>
   </div>
 </div>
 
@@ -1627,7 +1668,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.17.6";
+const APP_VERSION="v2.18.0";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -4150,10 +4191,13 @@ function _wizRender(){
   }
   const body=document.getElementById('wiz-body');
   const footer=document.getElementById('wiz-footer');
+  // Badge nur in Schritt 3 (Lagerort) bei GK-Modus sichtbar
+  const badge=document.getElementById('wiz-kisten-badge');
+  if(badge) badge.style.display=(_wiz.step===3&&_wiz.einheit==='gk')?'flex':'none';
   if(_wiz.step===0) _wizRenderSorte(body,footer);
   else if(_wiz.step===1) _wizRenderSchlag(body,footer);
   else if(_wiz.step===2) _wizRenderMengen(body,footer);
-  else if(_wiz.step===3) _wizRenderLagerort(body,footer);
+  else if(_wiz.step===3){_wizRenderLagerort(body,footer);_wizUpdateKistenBadge();}
   body.scrollTop=0;
 }
 
@@ -4351,9 +4395,40 @@ function _wizToggleLagerKg(lagerId){
   _wizRenderLagerort(document.getElementById('wiz-body'),document.getElementById('wiz-footer'));
 }
 
+function _wizUpdateKistenBadge(){
+  const badge=document.getElementById('wiz-kisten-badge');
+  const badgeVal=document.getElementById('wiz-kisten-badge-val');
+  if(!badge||!badgeVal) return;
+  if(_wiz.step!==3||_wiz.einheit!=='gk'){badge.style.display='none';return;}
+  const tot1=_wiz.gk1kl||0,totV=_wiz.gkVer||0;
+  let a1=0,aV=0;Object.values(_wiz.verteilung).forEach(v=>{a1+=(v.kl1||0);aV+=(v.ver||0);});
+  const r1=tot1-a1,rV=totV-aV;
+  const allOk=r1===0&&rV===0&&(tot1||totV);
+  const anyOver=r1<0||rV<0;
+  badge.style.display='flex';
+  if(allOk){
+    badge.style.background='#e8f5e9';badge.style.borderColor='#a5d6a7';
+    badgeVal.style.color='#2e7d32';badgeVal.textContent='✓ Fertig';
+  } else if(anyOver){
+    badge.style.background='#ffebee';badge.style.borderColor='#ef9a9a';
+    badgeVal.style.color='var(--crit)';
+    const parts=[];if(r1<0)parts.push(Math.abs(r1)+' 1.Kl');if(rV<0)parts.push(Math.abs(rV)+' Ver');
+    badgeVal.textContent='−'+parts.join(' / ')+' GK';
+  } else {
+    badge.style.background='#fff3e0';badge.style.borderColor='#ffcc80';
+    badgeVal.style.color='#e65100';
+    const parts=[];if(r1>0)parts.push(r1+' 1.Kl');if(rV>0)parts.push(rV+' Ver');
+    badgeVal.textContent=parts.join(' / ')+' GK';
+  }
+}
+
 function _wizAdjLager(lagerId,field,delta){
   if(!_wiz.verteilung[lagerId]) _wiz.verteilung[lagerId]={kl1:0,ver:0};
-  _wiz.verteilung[lagerId][field]=Math.max(0,(_wiz.verteilung[lagerId][field]||0)+delta);
+  // Über-Zuteilung verhindern
+  const tot=field==='kl1'?(_wiz.gk1kl||0):(_wiz.gkVer||0);
+  let already=0;Object.entries(_wiz.verteilung).forEach(([id,v])=>{if(id!==lagerId)already+=(v[field]||0);});
+  const maxAllowed=tot-already;
+  _wiz.verteilung[lagerId][field]=Math.max(0,Math.min(maxAllowed,(_wiz.verteilung[lagerId][field]||0)+delta));
   const el=document.getElementById('wiz-l-'+lagerId+'-'+field);
   if(el) el.textContent=_wiz.verteilung[lagerId][field];
   // Status aktualisieren
@@ -4368,6 +4443,7 @@ function _wizAdjLager(lagerId,field,delta){
     s.style.color=allOk?'#2e7d32':anyOver?'var(--crit)':'#e65100';
     s.textContent=allOk?'✅ Vollständig zugeteilt':anyOver?'⚠️ Zu viel zugeteilt!':('Noch offen: '+(tot1>0?r1+' GK 1.Kl ':''+(totV>0?rV+' GK Verarb.':'')).trim());
   }
+  _wizUpdateKistenBadge();
 }
 
 // ─── Speichern ────────────────────────────────────────────────
@@ -5248,6 +5324,7 @@ async function renderEO(){
   _fillEOJahrSel();
   renderEOErnte();
   renderEOProg();
+  await renderEOGruppen();
 }
 
 async function _loadEOBetriebe(){
@@ -5356,6 +5433,147 @@ async function eoAssignSchlag(schlagId, betriebId){
     await _loadEOBetriebe();
     await loadSchlage();
     _renderEOBetriebeListe();
+  }catch(e){toast('⚠ '+e.message);}
+}
+
+// ═══════════════════════════════════════════════════
+// FAMILIEN-GRUPPEN (EO-Admin)
+// ═══════════════════════════════════════════════════
+
+let _eoGruppen=[];       // [{id, name, mitglieder:[{betrieb_id}]}]
+let _mgEditId=null;      // aktuell bearbeitete Gruppe
+
+async function _loadEOGruppen(){
+  try{
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebsgruppen?order=name&select=*',{headers:supaHeaders()});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const gruppen=await r.json();
+    // Mitglieder für jede Gruppe laden
+    for(const g of gruppen){
+      try{
+        const r2=await _supaFetch(SUPA_URL+'/rest/v1/betriebsgruppe_mitglieder?gruppe_id=eq.'+g.id+'&select=betrieb_id',{headers:supaHeaders()});
+        g.mitglieder=r2.ok?(await r2.json()):[];
+      }catch(e){g.mitglieder=[];}
+    }
+    _eoGruppen=gruppen;
+  }catch(e){toast('⚠ Gruppen: '+e.message);_eoGruppen=[];}
+}
+
+async function renderEOGruppen(){
+  const el=document.getElementById('eo-gruppen-wrap');if(!el)return;
+  await _loadEOGruppen();
+  if(!_eoGruppen.length){
+    el.innerHTML='<div class="empty">Noch keine Familien-Gruppen angelegt.</div>';return;
+  }
+  let html='';
+  for(const g of _eoGruppen){
+    const mitglieder=g.mitglieder||[];
+    const namen=mitglieder.map(m=>{
+      const b=_eoBetriebe.find(b=>b.id===m.betrieb_id);
+      return b?`<span style="background:#e0f2fe;color:#0369a1;border-radius:5px;padding:1px 7px;font-size:.75rem;font-weight:600">${b.kuerzel||b.name}</span>`:'';
+    }).filter(Boolean).join(' ');
+    html+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--bdr)">
+      <span style="font-weight:700;flex:1">${g.name}</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">${namen||'<span style="color:var(--txl);font-size:.78rem">Keine Mitglieder</span>'}</div>
+      <button class="btn btn-s btn-sm" onclick="openGruppeMod('${g.id}')">✏️</button>
+    </div>`;
+  }
+  el.innerHTML='<div style="border:1px solid var(--bdr);border-radius:10px;overflow:hidden">'+html+'</div>';
+}
+
+function openGruppeMod(id){
+  _mgEditId=id||null;
+  document.getElementById('mg-title').textContent=id?'Familien-Gruppe bearbeiten':'Familien-Gruppe anlegen';
+  document.getElementById('mg-del-btn').style.display=id?'':'none';
+  document.getElementById('mg-err').style.display='none';
+  // Gruppenname vorbelegen
+  if(id){
+    const g=_eoGruppen.find(g=>g.id===id);
+    document.getElementById('mg-name').value=g?g.name:'';
+    window._mgAktMitglieder=new Set((g?.mitglieder||[]).map(m=>m.betrieb_id));
+  } else {
+    document.getElementById('mg-name').value='';
+    window._mgAktMitglieder=new Set();
+  }
+  // Betriebe-Checkboxen rendern
+  const wrap=document.getElementById('mg-betriebe-list');
+  if(!_eoBetriebe.length){wrap.innerHTML='<div class="empty">Keine Betriebe vorhanden.</div>';}
+  else{
+    wrap.innerHTML=_eoBetriebe.map(b=>`
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 0">
+        <input type="checkbox" value="${b.id}" ${window._mgAktMitglieder.has(b.id)?'checked':''} style="width:16px;height:16px;accent-color:var(--p)" onchange="window._mgAktMitglieder.has(this.value)?window._mgAktMitglieder.delete(this.value):window._mgAktMitglieder.add(this.value)">
+        <span style="font-weight:600;font-size:.85rem">${b.kuerzel?'['+b.kuerzel+'] ':''}</span>
+        <span style="font-size:.85rem">${b.name}</span>
+        ${b.anbauweise==='bio'?'<span style="font-size:.7rem;color:#065f46">🌱</span>':''}
+      </label>`).join('');
+  }
+  openMod('mod-gruppe');
+}
+
+async function saveGruppe(){
+  const name=(document.getElementById('mg-name').value||'').trim();
+  const errEl=document.getElementById('mg-err');
+  if(!name){errEl.textContent='Bitte einen Gruppennamen eingeben.';errEl.style.display='';return;}
+  errEl.style.display='none';
+  try{
+    let gruppeId=_mgEditId;
+    if(gruppeId){
+      // Update Gruppenname
+      const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebsgruppen?id=eq.'+gruppeId,{
+        method:'PATCH',
+        headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify({name})
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+    } else {
+      // Neue Gruppe anlegen
+      const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebsgruppen',{
+        method:'POST',
+        headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=representation'},
+        body:JSON.stringify({name})
+      });
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const neu=await r.json();
+      gruppeId=(Array.isArray(neu)?neu[0]:neu).id;
+    }
+    // Mitglieder: erst alle löschen, dann neu einfügen
+    await _supaFetch(SUPA_URL+'/rest/v1/betriebsgruppe_mitglieder?gruppe_id=eq.'+gruppeId,{
+      method:'DELETE',
+      headers:{...supaHeaders(),'Prefer':'return=minimal'}
+    });
+    const mitglieder=[...(window._mgAktMitglieder||[])];
+    if(mitglieder.length){
+      const rows=mitglieder.map(bid=>({gruppe_id:gruppeId,betrieb_id:bid}));
+      const r3=await _supaFetch(SUPA_URL+'/rest/v1/betriebsgruppe_mitglieder',{
+        method:'POST',
+        headers:{...supaHeaders(),'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify(rows)
+      });
+      if(!r3.ok) throw new Error('Mitglieder: HTTP '+r3.status);
+    }
+    closeMod('mod-gruppe');
+    toast('✓ Gruppe gespeichert');
+    await renderEOGruppen();
+  }catch(e){
+    const errEl=document.getElementById('mg-err');
+    errEl.textContent='Fehler: '+e.message;errEl.style.display='';
+  }
+}
+
+async function deleteGruppe(){
+  if(!_mgEditId) return;
+  if(!confirm('Gruppe wirklich löschen? Die Betriebe selbst bleiben erhalten.')) return;
+  try{
+    await _supaFetch(SUPA_URL+'/rest/v1/betriebsgruppe_mitglieder?gruppe_id=eq.'+_mgEditId,{
+      method:'DELETE',headers:{...supaHeaders(),'Prefer':'return=minimal'}
+    });
+    const r=await _supaFetch(SUPA_URL+'/rest/v1/betriebsgruppen?id=eq.'+_mgEditId,{
+      method:'DELETE',headers:{...supaHeaders(),'Prefer':'return=minimal'}
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    closeMod('mod-gruppe');
+    toast('✓ Gruppe gelöscht');
+    await renderEOGruppen();
   }catch(e){toast('⚠ '+e.message);}
 }
 
