@@ -323,41 +323,41 @@ tr:hover td{background:#f9fcfa}
 <!-- MODAL: Lager Drill-Down -->
 <div class="mov" id="mod-lager-drill">
   <div class="mod" style="max-width:460px;max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:14px">
-    <div style="padding:14px 16px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--card);display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:.95rem;font-weight:800;color:var(--pd)" id="lager-drill-title">Lager</div>
-      <button onclick="closeMod('mod-lager-drill')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1">✕</button>
+    <div style="padding:14px 16px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--card);display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="font-size:.95rem;font-weight:800;color:var(--pd);flex:1;min-width:0" id="lager-drill-title">Lager</div>
+      <button id="lager-drill-lp-btn" onclick="openLagerplan()" style="display:none;padding:5px 10px;border-radius:7px;border:1.5px solid var(--p);background:var(--ps);color:var(--pd);font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap">🗺 Lagerplan</button>
+      <button onclick="closeMod('mod-lager-drill')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1;flex-shrink:0">✕</button>
     </div>
     <div id="lager-drill-body" style="flex:1;overflow-y:auto;padding:14px;-webkit-overflow-scrolling:touch"></div>
   </div>
 </div>
 
-<!-- MODAL: Gaimberg Lagerplan -->
+<!-- MODAL: Gaimberg Lagerplan (2D) -->
 <div class="mov" id="mod-lagerplan">
-  <div class="mod" style="max-width:760px;width:95vw;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:14px">
-    <div style="padding:14px 16px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--card);display:flex;align-items:center;justify-content:space-between">
+  <div class="mod" style="max-width:800px;width:98vw;max-height:94vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:14px">
+    <div style="padding:12px 16px 8px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--card);display:flex;align-items:center;justify-content:space-between">
       <div style="font-size:.95rem;font-weight:800;color:var(--pd)">🏪 Kühllager Gaimberg</div>
       <button onclick="closeMod('mod-lagerplan')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1">✕</button>
     </div>
-    <div style="padding:10px 16px 0;flex-shrink:0;display:flex;gap:10px;flex-wrap:wrap;font-size:.7rem;align-items:center">
-      <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.12);background:#6ee7b7"></div>Uns (4 hoch)</div>
-      <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.12);background:#a7f3d0"></div>Uns (3 hoch)</div>
-      <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.12);background:#fca5a5"></div>Fremd</div>
-      <div style="display:flex;align-items:center;gap:4px"><div style="width:14px;height:10px;border-radius:2px;border:1px solid rgba(0,0,0,.12);background:#e2e8f0"></div>Leer / frei</div>
+    <!-- Legende -->
+    <div style="padding:8px 16px 0;flex-shrink:0;display:flex;gap:10px;flex-wrap:wrap;font-size:.68rem;align-items:center;background:var(--bg)">
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:10px;border-radius:2px;background:#4caf50"></div>Uns – belegt</div>
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:10px;border-radius:2px;background:#c8e6c9;border:1px solid #a5d6a7"></div>Uns – leer</div>
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:10px;border-radius:2px;background:#e57373"></div>Fremd – belegt</div>
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:10px;border-radius:2px;background:#fce4ec;border:1px solid #f48fb1"></div>Fremd – leer</div>
+      <div style="display:flex;align-items:center;gap:4px"><div style="width:12px;height:10px;border-radius:2px;background:#e0e0e0"></div>Kein Platz</div>
+      <span style="color:var(--txl);font-style:italic">· Klick auf Kiste = Sorte zuordnen</span>
     </div>
-    <div style="padding:10px 16px 0;flex-shrink:0;display:flex;gap:6px;flex-wrap:wrap" id="lp-tabs">
-      <button id="lp-tab-0" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:var(--pd);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer" onclick="_lpShowZelle(0)">Zelle 1 · links (teilw. uns)</button>
+    <!-- Zellen-Tabs -->
+    <div style="padding:8px 16px 0;flex-shrink:0;display:flex;gap:6px;flex-wrap:wrap;background:var(--bg)">
+      <button id="lp-tab-0" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:var(--pd);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer" onclick="_lpShowZelle(0)">Zelle 1 · links</button>
       <button id="lp-tab-1" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(1)">Zelle 2 · mitte (fremd)</button>
-      <button id="lp-tab-2" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(2)">Zelle 3 · rechts (ganz uns)</button>
+      <button id="lp-tab-2" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(2)">Zelle 3 · rechts</button>
     </div>
-    <div style="flex:1;overflow:auto;padding:12px 16px;-webkit-overflow-scrolling:touch">
-      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-        <canvas id="lp-canvas" width="700" height="310" style="display:block;border-radius:10px;background:#f8fafc;box-shadow:0 2px 10px rgba(0,0,0,.1)"></canvas>
-      </div>
-      <div id="lp-info" style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;font-size:.72rem;color:#92400e;margin-top:12px;line-height:1.6"></div>
-    </div>
+    <!-- Tabelle -->
+    <div id="lp-table-wrap" style="flex:1;overflow:auto;padding:10px 16px 16px;-webkit-overflow-scrolling:touch;background:var(--bg)"></div>
   </div>
 </div>
-<div id="lp-tt" style="position:fixed;background:rgba(0,0,0,.82);color:#fff;padding:5px 9px;border-radius:6px;font-size:.72rem;pointer-events:none;display:none;z-index:10001;white-space:nowrap"></div>
 
 <!-- MODAL: Familien-Gruppe anlegen/bearbeiten -->
 <div class="mov" id="mod-gruppe">
@@ -1669,7 +1669,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.20.0";
+const APP_VERSION="v2.20.2";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -4873,106 +4873,7 @@ function updateTranspSummary(){
   }
 }
 
-function openTransportMod(editId){
-  const today=new Date().toISOString().slice(0,10);
-  document.getElementById('transp-datum').value=today;
-  document.getElementById('transp-notiz').value='';
-  document.getElementById('transp-edit-id').value='';
-  document.getElementById('transp-del-btn').style.display='none';
-  document.getElementById('transp-buch-title').textContent='🚛 Transport erfassen';
-  document.getElementById('transp-verwendung').innerHTML=getVerwendungen().map(v=>`<option value="${v.id}">${v.typ==='tafel'?'🍎':'🏭'} ${v.name}</option>`).join('');
-  // Positionen zurücksetzen
-  document.getElementById('transp-positionen').innerHTML='';
-  document.getElementById('transp-summe').style.display='none';
-  if(editId){
-    const entry=D.ernte_ist.find(e=>e.id===editId);
-    if(entry){
-      document.getElementById('transp-datum').value=entry.datum;
-      document.getElementById('transp-notiz').value=entry.notiz||'';
-      document.getElementById('transp-edit-id').value=editId;
-      document.getElementById('transp-del-btn').style.display='';
-      document.getElementById('transp-buch-title').textContent='✏️ Transport bearbeiten';
-      document.getElementById('transp-verwendung').value=entry.verwendung_id||'';
-      getTransportPositionen(entry).forEach(p=>addTranspPosition(p));
-    }
-  } else {
-    addTranspPosition(); // leere Start-Position
-  }
-  openMod('mod-transport-buchung');
-}
-
-function saveTransportBuchung(){
-  const datum=document.getElementById('transp-datum').value;
-  if(!datum){alert('Bitte Datum eingeben');return;}
-  const verw=document.getElementById('transp-verwendung').value;
-  if(!verw){alert('Bitte Lieferziel auswählen');return;}
-  const notiz=document.getElementById('transp-notiz').value.trim();
-  const editId=document.getElementById('transp-edit-id').value;
-  // Positionen einlesen
-  const rows=document.querySelectorAll('#transp-positionen .tp-row');
-  const positionen=[];
-  for(const r of rows){
-    const von=r.querySelector('.tp-standort').value;
-    if(!von){alert('Bitte bei jeder Position einen Von-Standort auswählen');return;}
-    const schlag=r.querySelector('.tp-schlag').value;
-    const kl1=parseFloat(r.querySelector('.tp-kl1').value||0)||0;
-    const ver=parseFloat(r.querySelector('.tp-ver').value||0)||0;
-    if(!kl1&&!ver){alert('Bitte bei jeder Position eine GK-Menge eingeben');return;}
-    positionen.push({von_standort_id:von,schlag_id:schlag,gk_1kl:kl1,gk_verarbeitung:ver});
-  }
-  if(!positionen.length){alert('Mindestens eine Position erforderlich');return;}
-  // ── Minus-Bestand-Check pro Standort ──
-  const tempData=editId?D.ernte_ist.filter(e=>e.id!==editId):D.ernte_ist;
-  const avail={};
-  D.lagerorte.forEach(l=>{
-    let g1=0,gV=0;
-    tempData.forEach(e=>{
-      const t=getEntryTyp(e);
-      if(t==='ernte'){
-        if(e.verteilung) e.verteilung.forEach(v=>{if(v.standort_id===l.id){g1+=(v.gk_1kl||0);gV+=(v.gk_verarbeitung||0);}});
-        else if(e.standort_id===l.id){g1+=(e.gk_1kl||0);gV+=(e.gk_verarbeitung||0);}
-        (e.buchungen||[]).forEach(b=>{if(b.lager_id===l.id){g1+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gV+=(b.verarbeitung_gk||0);}});
-      } else if(t==='transport'){
-        getTransportPositionen(e).forEach(p=>{if(p.von_standort_id===l.id){g1-=(p.gk_1kl||0);gV-=(p.gk_verarbeitung||0);}});
-        (e.buchungen||[]).forEach(b=>{if(b.lager_id===l.id){g1-=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gV-=(b.verarbeitung_gk||0);}});
-      }
-    });
-    avail[l.id]={g1,gV};
-  });
-  // Neue Positionen pro Standort summieren und prüfen
-  const neuByS={};
-  positionen.forEach(p=>{
-    if(!neuByS[p.von_standort_id]) neuByS[p.von_standort_id]={kl1:0,ver:0};
-    neuByS[p.von_standort_id].kl1+=p.gk_1kl;
-    neuByS[p.von_standort_id].ver+=p.gk_verarbeitung;
-  });
-  for(const [sid,m] of Object.entries(neuByS)){
-    const a=avail[sid]||{g1:0,gV:0};
-    const lName=(D.lagerorte.find(l=>l.id===sid)||{}).name||sid;
-    if(m.kl1>a.g1){alert(`⚠️ Minusbestand!\n${lName}: nur ${a.g1} GK (1.Kl) verfügbar, aber ${m.kl1} GK angefordert.`);return;}
-    if(m.ver>a.gV){alert(`⚠️ Minusbestand!\n${lName}: nur ${a.gV} GK (Verarb.) verfügbar, aber ${m.ver} GK angefordert.`);return;}
-  }
-  // ─────────────────────────────────────────────────────────────
-  const entryId=editId||uid();
-  const entry={id:entryId,typ:'transport',datum,verwendung_id:verw,notiz,positionen};
-  if(editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==editId);
-  const idx=D.ernte_ist.findIndex(e=>e.id===entry.id);
-  if(idx>=0) D.ernte_ist[idx]=entry; else D.ernte_ist.push(entry);
-  D.ernte_ist.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
-  scheduleSave();
-  closeMod('mod-transport-buchung');
-  renderErnteIst();
-  if(confirm('Transport gespeichert. Lieferschein drucken?')) printLieferschein(entryId);
-}
-
-function deleteTransportBuchung(){
-  const id=document.getElementById('transp-edit-id').value;
-  if(!id||!confirm('Transport-Buchung wirklich löschen?'))return;
-  D.ernte_ist=D.ernte_ist.filter(e=>e.id!==id);
-  scheduleSave();
-  closeMod('mod-transport-buchung');
-  renderErnteIst();
-}
+// (alte openTransportMod / saveTransportBuchung / deleteTransportBuchung entfernt — ersetzt durch Transport-Wizard oben)
 
 function printLieferschein(entryId){
   const e=D.ernte_ist.find(x=>x.id===entryId);
@@ -5076,6 +4977,8 @@ function openLagerDrilldown(lagerId){
   if(!l) return;
   const b=calcStandortBestand(lagerId);
   document.getElementById('lager-drill-title').textContent='🏪 '+l.name+' · '+b.total+' GK';
+  const lpBtn=document.getElementById('lager-drill-lp-btn');
+  if(lpBtn) lpBtn.style.display=(l.name&&l.name.toLowerCase().includes('gaimberg'))?'':'none';
 
   // Ernte-Einträge dieses Lagerorts nach Sorte gruppieren
   const sortenMap={}; // sorte → {kl1, ver, eintraege:[{e,schlag}]}
@@ -5214,91 +5117,23 @@ function calcStandortBestand(lagerId){
   return {gk1kl,gkVer,total:gk1kl+gkVer};
 }
 
-// ── Gaimberg Lagerplan ────────────────────────────────────────────────────────
+// ── Gaimberg Lagerplan (2D) ──────────────────────────────────────────────────
 let _lpZelle=0;
-const _LP={REIHEN:4,STAPEL:11,MAX_H:4,TW:40,TH:20,BH:22,OX:430,OY:265};
-
-function _lpMaxH(zi,r,d){return(d>=9&&r>=1&&r<=2)?3:4;}
-function _lpEigenOf(zi,r){
-  if(zi===0)return r>=2?'eigen':'fremd';
+// si=0=S1(Wand), si=10=S11(Tür); ri=0=R1..ri=3=R4; hi=0=unten..hi=3=oben
+function _lpMaxH(zi,ri,si){return(si<=1&&ri>=1&&ri<=2)?3:4;}
+function _lpEigenOf(zi,ri){
+  if(zi===0)return ri>=2?'eigen':'fremd';
   if(zi===1)return'fremd';
   return'eigen';
 }
-const _LP_COLORS={
-  eigen:    {front:'#6ee7b7',top:'#a7f3d0',side:'#34d399'},
-  'eigen-dim':{front:'#a7f3d0',top:'#d1fae5',side:'#6ee7b7'},
-  fremd:    {front:'#fca5a5',top:'#fecaca',side:'#f87171'},
-  leer:     {front:'#e2e8f0',top:'#f1f5f9',side:'#cbd5e1'},
-};
-function _lpToScreen(r,d,h){
-  return{x:_LP.OX+(r-d)*_LP.TW/2, y:_LP.OY-(r+d)*_LP.TH/2-h*_LP.BH};
+function _lpCellKey(zi,ri,si,hi){return zi+'_'+ri+'_'+si+'_'+hi;}
+
+function openLagerplan(){
+  if(!D.gaimbergPlan)D.gaimbergPlan={};
+  openMod('mod-lagerplan');
+  setTimeout(()=>_lpShowZelle(0),30);
 }
-function _lpDrawBox(ctx,r,d,h,ck){
-  const c=_LP_COLORS[ck]||_LP_COLORS.leer;
-  const p=(ri,di,hi)=>_lpToScreen(ri,di,hi);
-  // rechte Seite
-  const fr=p(r+1,d,h),br=p(r+1,d+1,h),br1=p(r+1,d+1,h+1),fr1=p(r+1,d,h+1);
-  ctx.beginPath();ctx.moveTo(fr.x,fr.y);ctx.lineTo(br.x,br.y);ctx.lineTo(br1.x,br1.y);ctx.lineTo(fr1.x,fr1.y);ctx.closePath();
-  ctx.fillStyle=c.side;ctx.fill();ctx.strokeStyle='rgba(0,0,0,.13)';ctx.lineWidth=.8;ctx.stroke();
-  // vordere Fläche
-  const fl=p(r,d,h),fl1=p(r,d,h+1);
-  ctx.beginPath();ctx.moveTo(fl.x,fl.y);ctx.lineTo(fr.x,fr.y);ctx.lineTo(fr1.x,fr1.y);ctx.lineTo(fl1.x,fl1.y);ctx.closePath();
-  ctx.fillStyle=c.front;ctx.fill();ctx.stroke();
-  // obere Fläche
-  const bl1=p(r,d+1,h+1);
-  ctx.beginPath();ctx.moveTo(fl1.x,fl1.y);ctx.lineTo(fr1.x,fr1.y);ctx.lineTo(br1.x,br1.y);ctx.lineTo(bl1.x,bl1.y);ctx.closePath();
-  ctx.fillStyle=c.top;ctx.fill();ctx.stroke();
-}
-function _lpDrawLabels(ctx){
-  ctx.fillStyle='#64748b';ctx.font='bold 10px system-ui';
-  for(let r=0;r<_LP.REIHEN;r++){const p=_lpToScreen(r+0.5,0,0);ctx.fillText('R'+(r+1),p.x-7,p.y+14);}
-  ctx.font='9px system-ui';
-  for(let d=0;d<_LP.STAPEL;d++){const p=_lpToScreen(0,d+0.5,0);ctx.fillText(_LP.STAPEL-d,p.x-22,p.y+4);}
-  ctx.fillStyle='#94a3b8';ctx.font='bold 9px system-ui';
-  const doorPt=_lpToScreen(_LP.REIHEN/2-0.5,-0.8,0);ctx.fillText('← Tür',doorPt.x-14,doorPt.y+4);
-  const wallPt=_lpToScreen(0,_LP.STAPEL+0.2,0);ctx.fillText('Wand →',wallPt.x-2,wallPt.y+4);
-}
-function _lpBuildBoxes(zi){
-  const boxes=[];
-  for(let d=0;d<_LP.STAPEL;d++){
-    for(let r=0;r<_LP.REIHEN;r++){
-      const mh=_lpMaxH(zi,r,d);
-      const ek=_lpEigenOf(zi,r);
-      for(let h=0;h<_LP.MAX_H;h++){
-        if(h<mh){boxes.push({r,d,h,ck:ek==='eigen'?(mh<_LP.MAX_H?'eigen-dim':'eigen'):'fremd'});}
-      }
-    }
-  }
-  boxes.sort((a,b)=>{const da=a.d-a.r,db=b.d-b.r;if(da!==db)return db-da;if(a.r!==b.r)return b.r-a.r;return a.h-b.h;});
-  return boxes;
-}
-function _lpRenderZelle(zi){
-  const canvas=document.getElementById('lp-canvas');
-  if(!canvas)return;
-  const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle='#f8fafc';ctx.fillRect(0,0,canvas.width,canvas.height);
-  // Bodenraster
-  ctx.strokeStyle='#e2e8f0';ctx.lineWidth=0.5;
-  for(let r=0;r<=_LP.REIHEN;r++){
-    for(let d=0;d<=_LP.STAPEL;d++){
-      if(r<_LP.REIHEN){const a=_lpToScreen(r,d,0),b=_lpToScreen(r+1,d,0);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
-      if(d<_LP.STAPEL){const a=_lpToScreen(r,d,0),b=_lpToScreen(r,d+1,0);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}
-    }
-  }
-  _lpBuildBoxes(zi).forEach(box=>_lpDrawBox(ctx,box.r,box.d,box.h,box.ck));
-  _lpDrawLabels(ctx);
-  // Info-Box
-  let eigen=0,eigenDim=0;
-  for(let r=0;r<_LP.REIHEN;r++){
-    if(_lpEigenOf(zi,r)!=='eigen')continue;
-    for(let d=0;d<_LP.STAPEL;d++){const mh=_lpMaxH(zi,r,d);eigen+=mh;if(mh<_LP.MAX_H)eigenDim+=mh;}
-  }
-  const names=['Zelle 1 (links)','Zelle 2 (mitte)','Zelle 3 (rechts)'];
-  const eigen_desc=['R3+R4 uns · R1+R2 fremd','komplett fremd','komplett uns'];
-  const infoEl=document.getElementById('lp-info');
-  if(infoEl)infoEl.innerHTML=`<b>${names[zi]}:</b> ${eigen_desc[zi]}. Kapazität unsere Fläche: <b>${eigen}</b> Stellplätze${eigenDim>0?' (davon '+eigenDim+' mit max. 3 hoch)':''}.`;
-}
+
 function _lpShowZelle(zi){
   _lpZelle=zi;
   [0,1,2].forEach(i=>{
@@ -5307,44 +5142,133 @@ function _lpShowZelle(zi){
     t.style.background=i===zi?'var(--pd)':'#fff';
     t.style.color=i===zi?'#fff':'var(--txl)';
   });
-  _lpRenderZelle(zi);
+  const wrap=document.getElementById('lp-table-wrap');
+  if(wrap)wrap.innerHTML=_lpBuildTable(zi);
 }
-function openLagerplan(){
-  openMod('mod-lagerplan');
-  // Canvas erst nach dem Öffnen rendern (Layout muss stehen)
-  setTimeout(()=>{
-    _lpShowZelle(0);
-    // Canvas-Tooltip
-    const canvas=document.getElementById('lp-canvas');
-    const tt=document.getElementById('lp-tt');
-    if(canvas&&tt&&!canvas._lpBound){
-      canvas._lpBound=true;
-      canvas.addEventListener('mousemove',e=>{
-        const rect=canvas.getBoundingClientRect();
-        const mx=(e.clientX-rect.left)*(canvas.width/rect.width);
-        const my=(e.clientY-rect.top)*(canvas.height/rect.height);
-        let found=null;
-        for(let d=0;d<_LP.STAPEL&&!found;d++){
-          for(let r=0;r<_LP.REIHEN&&!found;r++){
-            const mh=_lpMaxH(_lpZelle,r,d);
-            for(let h=0;h<mh&&!found;h++){
-              const p=_lpToScreen(r+0.5,d+0.5,h+0.5);
-              if(Math.abs(mx-p.x)<_LP.TW*0.7&&Math.abs(my-p.y)<_LP.BH*0.8){
-                const stapelNr=_LP.STAPEL-d;
-                const ek=_lpEigenOf(_lpZelle,r);
-                const isDim=mh<_LP.MAX_H;
-                const lbl=ek==='eigen'?(isDim?'Uns (3 hoch)':'Uns'):'Fremd';
-                found=`R${r+1} · Stapel ${stapelNr} · Kiste ${h+1} — ${lbl}`;
-              }
-            }
+
+function _lpBuildTable(zi){
+  const STAPEL=11,REIHEN=4,MAX_H=4;
+  const plan=D.gaimbergPlan||{};
+  // Zellen-Info
+  const zelleInfo=['Zelle 1: R3+R4 uns, R1+R2 fremd','Zelle 2: komplett fremd','Zelle 3: komplett uns'];
+  let belegtEigen=0,belegtFremd=0,freiEigen=0;
+
+  // Tabelle: Spalten = S11(Tür)→S1(Wand), Zeilen = R1..R4 je H4..H1
+  let html=`<div style="font-size:.68rem;color:var(--txl);margin-bottom:8px;font-style:italic">${zelleInfo[zi]}</div>`;
+  html+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="border-collapse:collapse;font-size:.68rem">`;
+  // Header: Stapel-Nummern (Tür links)
+  html+=`<thead><tr>`;
+  html+=`<th style="padding:3px 6px;font-size:.65rem;color:var(--txl);border-bottom:2px solid var(--bdr);position:sticky;left:0;background:var(--card);z-index:2;white-space:nowrap"></th>`;
+  // S11 bis S1 (si=10 down to si=0), display: S11=Tür links, S1=Wand rechts
+  for(let si=STAPEL-1;si>=0;si--){
+    const isTuer=si===STAPEL-1,isWand=si===0;
+    html+=`<th style="padding:3px 5px;font-size:.65rem;color:${isTuer?'#1565c0':isWand?'#6a1a1a':'var(--txl)'};border-bottom:2px solid var(--bdr);text-align:center;min-width:46px;font-weight:${isTuer||isWand?'800':'600'}">S${si+1}${isTuer?' 🚪':isWand?' 🧱':''}</th>`;
+  }
+  html+=`</tr></thead><tbody>`;
+
+  for(let ri=0;ri<REIHEN;ri++){
+    const eigen=_lpEigenOf(zi,ri);
+    const bgLabel=eigen==='eigen'?'#c8e6c9':'#fce4ec';
+    const textLabel=eigen==='eigen'?'#1b5e20':'#880e4f';
+    // H4 (oben) down to H1 (unten)
+    for(let hi=MAX_H-1;hi>=0;hi--){
+      html+=`<tr>`;
+      // Row-Label (nur bei hi=MAX_H-1 = oberste Zeile dieser Reihe)
+      if(hi===MAX_H-1){
+        html+=`<td rowspan="${MAX_H}" style="padding:4px 8px;font-weight:800;color:${textLabel};background:${bgLabel};border:1px solid var(--bdr);position:sticky;left:0;z-index:1;text-align:center;vertical-align:middle;white-space:nowrap;font-size:.75rem">R${ri+1}</td>`;
+      }
+      // Zellen für jeden Stapel
+      for(let si=STAPEL-1;si>=0;si--){
+        const maxH=_lpMaxH(zi,ri,si);
+        const hNum=hi+1; // 1-basiert
+        if(hNum>maxH){
+          // Position existiert nicht (Sonderregel)
+          html+=`<td style="background:repeating-linear-gradient(45deg,#e0e0e0,#e0e0e0 3px,#f5f5f5 3px,#f5f5f5 6px);border:1px solid #ccc;min-width:46px;height:24px" title="Nur ${maxH} GK möglich (Sonderregel)"></td>`;
+        } else {
+          const key=_lpCellKey(zi,ri,si,hi);
+          const label=plan[key]||'';
+          const isEigen=eigen==='eigen';
+          let bg,tc,fw;
+          if(label){
+            bg=isEigen?'#388e3c':'#c62828';tc='#fff';fw='700';
+            if(isEigen)belegtEigen++;else belegtFremd++;
+          } else {
+            bg=isEigen?'#e8f5e9':'#fce4ec';tc=isEigen?'#388e3c':'#ad1457';fw='400';
+            if(isEigen)freiEigen++;
           }
+          const borderTop=hi===MAX_H-1?'border-top:2px solid var(--bdr)':'';
+          html+=`<td onclick="_lpCellClick(${zi},${ri},${si},${hi},this)"
+            style="background:${bg};border:1px solid rgba(0,0,0,.1);${borderTop};min-width:46px;height:24px;cursor:pointer;font-size:.62rem;font-weight:${fw};color:${tc};text-align:center;vertical-align:middle;padding:1px 3px;overflow:hidden;max-width:80px"
+            title="R${ri+1} · S${si+1} · H${hNum}${label?' — '+label:''}">${label}</td>`;
         }
-        if(found){tt.textContent=found;tt.style.display='block';tt.style.left=(e.clientX+12)+'px';tt.style.top=(e.clientY-32)+'px';}
-        else{tt.style.display='none';}
-      });
-      canvas.addEventListener('mouseleave',()=>{const t=document.getElementById('lp-tt');if(t)t.style.display='none';});
+      }
+      html+=`</tr>`;
     }
-  },60);
+    // Trennzeile
+    html+=`<tr><td colspan="${STAPEL+1}" style="height:5px;background:var(--bg);border:none;padding:0"></td></tr>`;
+  }
+  html+=`</tbody></table></div>`;
+  html+=`<div style="margin-top:10px;font-size:.7rem;color:var(--txl);display:flex;gap:16px;flex-wrap:wrap">
+    <span>✅ Uns belegt: <b>${belegtEigen}</b></span>
+    <span>🟢 Uns frei: <b>${freiEigen}</b></span>
+    ${belegtFremd?`<span>🔴 Fremd belegt: <b>${belegtFremd}</b></span>`:''}
+  </div>`;
+  return html;
+}
+
+function _lpCellClick(zi,ri,si,hi,elem){
+  _lpCloseEditor();
+  const key=_lpCellKey(zi,ri,si,hi);
+  const current=(D.gaimbergPlan||{})[key]||'';
+  const hNum=hi+1;
+  const eigen=_lpEigenOf(zi,ri)==='eigen';
+  // Sorte-Optionen aus Schlage
+  const sortenSet=new Set();
+  D.schlage.forEach(s=>{if(s.sorte)sortenSet.add(s.sorte);if(s.name)sortenSet.add(s.name);});
+  const sortList=[...sortenSet].sort().map(s=>`<option value="${s}"${s===current?' selected':''}>${s}</option>`).join('');
+
+  const rect=elem.getBoundingClientRect();
+  const ed=document.createElement('div');
+  ed.id='lp-editor';
+  ed.style.cssText='position:fixed;background:var(--card);border:2px solid var(--pd);border-radius:10px;padding:12px 14px;z-index:10010;box-shadow:0 6px 24px rgba(0,0,0,.25);min-width:210px;max-width:260px';
+  let top=rect.bottom+4,left=rect.left;
+  if(top+140>window.innerHeight)top=rect.top-148;
+  if(left+270>window.innerWidth)left=window.innerWidth-272;
+  ed.style.top=top+'px';ed.style.left=left+'px';
+  ed.innerHTML=`
+    <div style="font-size:.7rem;font-weight:700;color:${eigen?'#1b5e20':'#880e4f'};margin-bottom:8px">R${ri+1} · S${si+1} · Kiste ${hNum} (${eigen?'uns':'fremd'})</div>
+    <input id="lp-ed-inp" list="lp-ed-list" value="${current.replace(/"/g,'&quot;')}" placeholder="Sorte / Inhalt…"
+      style="border:1.5px solid var(--bdr);border-radius:7px;padding:7px 9px;font-size:.82rem;width:100%;margin-bottom:8px;box-sizing:border-box"
+      onkeydown="if(event.key==='Enter'){event.preventDefault();_lpEdSave(${zi},${ri},${si},${hi});}if(event.key==='Escape')_lpCloseEditor()">
+    <datalist id="lp-ed-list">${sortList}</datalist>
+    <div style="display:flex;gap:6px">
+      <button onclick="_lpEdClear(${zi},${ri},${si},${hi})" style="flex:1;padding:6px;border:1px solid #ccc;border-radius:7px;background:#f5f5f5;font-size:.75rem;cursor:pointer">🗑 Leeren</button>
+      <button onclick="_lpEdSave(${zi},${ri},${si},${hi})" style="flex:2;padding:6px;border:none;border-radius:7px;background:var(--pd);color:#fff;font-size:.8rem;font-weight:700;cursor:pointer">✓ OK</button>
+    </div>`;
+  document.body.appendChild(ed);
+  setTimeout(()=>{const inp=document.getElementById('lp-ed-inp');if(inp){inp.focus();inp.select();}},40);
+  setTimeout(()=>document.addEventListener('click',_lpOutsideClick),120);
+}
+function _lpOutsideClick(e){
+  const ed=document.getElementById('lp-editor');
+  if(ed&&!ed.contains(e.target)){_lpCloseEditor();document.removeEventListener('click',_lpOutsideClick);}
+}
+function _lpEdSave(zi,ri,si,hi){
+  const inp=document.getElementById('lp-ed-inp');
+  const label=(inp?inp.value:'').trim();
+  const key=_lpCellKey(zi,ri,si,hi);
+  if(!D.gaimbergPlan)D.gaimbergPlan={};
+  if(label)D.gaimbergPlan[key]=label;else delete D.gaimbergPlan[key];
+  scheduleSave();_lpCloseEditor();_lpShowZelle(zi);
+}
+function _lpEdClear(zi,ri,si,hi){
+  const key=_lpCellKey(zi,ri,si,hi);
+  if(D.gaimbergPlan)delete D.gaimbergPlan[key];
+  scheduleSave();_lpCloseEditor();_lpShowZelle(zi);
+}
+function _lpCloseEditor(){
+  const ed=document.getElementById('lp-editor');if(ed)ed.remove();
+  document.removeEventListener('click',_lpOutsideClick);
 }
 
 function calcLeergutGK(){
