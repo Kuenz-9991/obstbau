@@ -159,6 +159,7 @@ tr:hover td{background:#f9fcfa}
 <nav class="nav">
   <div class="ntab active" onclick="goSec('schlage',this)">🌳 Schläge</div>
   <div class="ntab" onclick="goSec('ernte',this)">🍏 Ernte</div>
+  <div class="ntab" onclick="goSec('sortierung',this)">🔬 Sortierung</div>
   <div class="ntab" onclick="goSec('ernteprognose',this)">📊 Prognose</div>
   <div class="ntab" onclick="goSec('massnahmen',this)">📝 Maßn.</div>
   <div class="ntab" onclick="goSec('betriebsmittel',this)">🧪 Arbeit</div>
@@ -260,6 +261,15 @@ tr:hover td{background:#f9fcfa}
 </div>
 
 <!-- ERNTE -->
+<div id="sec-sortierung" class="sec">
+  <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:10px">
+    <span style="font-weight:700;color:var(--pd);font-size:.88rem">Sortierprotokoll</span>
+    <select id="sort-jahr-sel" onchange="renderSortierung()" style="border:1px solid var(--bdr);border-radius:6px;padding:5px 8px;font-size:.85rem;background:#fff;color:var(--txt)"></select>
+    <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="openSortWizard()">+ Neue Sortierung</button>
+  </div>
+  <div id="sortierung-wrap"></div>
+</div>
+
 <div id="sec-ernte" class="sec">
   <div class="btn-row" style="align-items:center;gap:8px;margin-bottom:10px">
     <span style="font-weight:700;color:var(--pd);font-size:.88rem">Erntejahr:</span>
@@ -432,6 +442,24 @@ tr:hover td{background:#f9fcfa}
     <div id="wiz-body" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
     <!-- Sticky footer -->
     <div id="wiz-footer" style="padding:12px 16px;border-top:1px solid var(--bdr);display:flex;gap:8px;align-items:center;flex-shrink:0;background:var(--card)"></div>
+  </div>
+</div>
+
+<!-- MODAL: Sortierung Wizard -->
+<div class="mov" id="mod-sort-wizard">
+  <div class="mod" style="max-width:480px;max-height:95vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:16px">
+    <div style="padding:14px 16px 10px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--card)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:.95rem;font-weight:800;color:var(--pd)">🔬 Sortierung erfassen</div>
+        <button onclick="closeMod('mod-sort-wizard')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1">✕</button>
+      </div>
+      <div style="display:flex;gap:5px;margin-top:8px">
+        <div id="sw-dot-0" style="height:5px;border-radius:3px;background:var(--bdr);flex:1;transition:background .25s"></div>
+        <div id="sw-dot-1" style="height:5px;border-radius:3px;background:var(--bdr);flex:1;transition:background .25s"></div>
+      </div>
+    </div>
+    <div id="sw-body" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
+    <div id="sw-footer" style="padding:12px 16px;border-top:1px solid var(--bdr);display:flex;gap:8px;align-items:center;flex-shrink:0;background:var(--card)"></div>
   </div>
 </div>
 
@@ -1567,7 +1595,7 @@ const AC_SCHLAGE=[
 // ═══════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════
-let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{},ernte_ist:[],verwendungen:[],standardLagerId:null};
+let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{},ernte_ist:[],sortierungen:[],verwendungen:[],standardLagerId:null};
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5)}
 
@@ -1590,6 +1618,7 @@ function migrateD(){
   if(!D.prognosen) D.prognosen={};
   if(!D.zuteilungen) D.zuteilungen={};
   if(!D.ernte_ist) D.ernte_ist=[];
+  if(!D.sortierungen) D.sortierungen=[];
   if(!D.sorten||!D.sorten.length) D.sorten=[...DEFAULT_SORTEN];
   // Migrate old buchungen format: {lager_id, gk} → {lager_id, tafel_gk, verarbeitung_gk}
   D.ernte_ist.forEach(e=>{
@@ -1688,7 +1717,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.25.0";
+const APP_VERSION="v2.29.4";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1697,6 +1726,7 @@ let _meineGruppeId=null;     // UUID der Betriebsgruppe (z.B. Familie Kuenz)
 let _gruppenBetriebe=[];     // [{id, name, kuerzel}] aller Betriebe in meiner Gruppe
 let _gruppenErnteIst=null;   // null=nicht geladen, []=geladen (ernte_ist anderer Betriebe)
 let _gruppenErnteByBetrieb={}; // betrieb_id → ernte_ist[] (für Fremd-Speichern)
+let _gruppenGaimbergPlan=null; // null=nicht geladen, {}=geladen (gaimbergPlan anderer Betriebe)
 let _betriebFilter=null;       // null=überbetrieblich, betrieb_id=Einzelbetrieb
 let _cloudSaveTimer=null;
 let _cloudDirty=false;
@@ -1837,8 +1867,13 @@ async function _loadGruppenErnte(force=false){
     const rows=await r.json();
     _gruppenErnteIst=rows.flatMap(row=>(row.data?.ernte_ist||[]));
     _gruppenErnteByBetrieb={};
-    rows.forEach(row=>{_gruppenErnteByBetrieb[row.betrieb_id]=row.data?.ernte_ist||[];});
-  }catch(e){console.warn('Gruppen-Ernte laden:',e.message);_gruppenErnteIst=[];_gruppenErnteByBetrieb={};}
+    _gruppenGaimbergPlan={};
+    rows.forEach(row=>{
+      _gruppenErnteByBetrieb[row.betrieb_id]=row.data?.ernte_ist||[];
+      const gp=row.data?.gaimbergPlan;
+      if(gp&&Object.keys(gp).length>0) Object.assign(_gruppenGaimbergPlan,gp);
+    });
+  }catch(e){console.warn('Gruppen-Ernte laden:',e.message);_gruppenErnteIst=[];_gruppenErnteByBetrieb={};_gruppenGaimbergPlan={};}
 }
 
 // Ernte-Eintrag im betrieb_data eines Fremdbetriebs speichern (Gruppe Vollzugriff)
@@ -2140,6 +2175,7 @@ function goSec(id,tab){
   if(id==='massnahmen') renderM();
   if(id==='betriebsmittel') renderBm();
   if(id==='ernte'){fillJahrSel('ernte-jahr-sel',()=>renderErnteIst());}
+  if(id==='sortierung'){fillJahrSel('sort-jahr-sel',()=>renderSortierung());renderSortierung();}
   if(id==='ernteprognose'){fillJahrSel('prognose-jahr-sel',()=>renderErntePrognose());}
   if(id==='referenz') renderRef();
   if(id==='eo') renderEO();
@@ -2309,6 +2345,25 @@ function toggleSorte(sk){
   const open=tbody.style.display==='none';
   tbody.style.display=open?'':'none';
   if(icon) icon.textContent=open?'▼':'▶';
+}
+function toggleSchlagBuchungen(bk){
+  const row=document.getElementById('bb-'+bk);
+  const icon=document.getElementById('bt-'+bk);
+  if(!row) return;
+  const open=row.style.display==='none';
+  row.style.display=open?'':'none';
+  if(icon) icon.textContent=open?'▼':'▶';
+}
+
+// Frucht-Symbol anhand Sortenname: 🍐 für Birnen, sonst 🍎
+function _sorteSymbol(sorte){
+  if(!sorte)return'🍎';
+  // Schlag-Typ aus Stammdaten prüfen
+  const s=D.schlage.find(x=>(x.sorte||x.name)===sorte);
+  if(s?.typ==='birne')return'🍐';
+  // Fallback: bekannte Birnen-Sorten nach Name
+  const birnenNamen=/williams|conference|conferenz|abate|bartlett|gute luise|anjou|bosc|concorde|beurr|kaiser alexander.*birn|clapp/i;
+  return birnenNamen.test(sorte)?'🍐':'🍎';
 }
 
 function betriebFarbe(betrieb){
@@ -4242,11 +4297,11 @@ function renderBuchLagerRows(buchMap){
 // ══════════════════════════════════════════════════════════════
 // ERNTE-WIZARD (Mobile-optimiert)  — Sorte → Schlag → Mengen → Lagerort
 // ══════════════════════════════════════════════════════════════
-let _wiz={buchTyp:'ernte',step:-1,datum:'',sorte:'',schlagId:'',einheit:'gk',gk1kl:0,gkVer:0,kg1kl:0,kgVer:0,notiz:'',dg:0,verteilung:{},editId:'',um_zielId:'',um_quellen:{}};
+let _wiz={buchTyp:'ernte',step:-1,datum:'',sorte:'',schlagId:'',einheit:'gk',gk1kl:0,gkVer:0,kg1kl:0,kgVer:0,notiz:'',dg:0,verteilung:{},editId:'',um_zielId:'',um_quellen:{},um_schlagId:'',um_dg:0,um_ls:'',um_positionen:[]};
 
 function openErnteWizard(editId){
   const today=new Date().toISOString().slice(0,10);
-  _wiz={buchTyp:'ernte',step:editId?0:-1,datum:today,sorte:'',schlagId:'',einheit:'gk',gk1kl:0,gkVer:0,kg1kl:0,kgVer:0,notiz:'',dg:0,verteilung:{},editId:editId||'',um_zielId:'',um_quellen:{}};
+  _wiz={buchTyp:'ernte',step:editId?0:-1,datum:today,sorte:'',schlagId:'',einheit:'gk',gk1kl:0,gkVer:0,kg1kl:0,kgVer:0,notiz:'',dg:0,verteilung:{},editId:editId||'',um_zielId:'',um_quellen:{},um_schlagId:'',um_dg:0,um_ls:'',um_positionen:[]};
   if(editId){
     const e=D.ernte_ist.find(x=>x.id===editId)||(_gruppenErnteIst||[]).find(x=>x.id===editId);
     if(!e) return;
@@ -4256,8 +4311,9 @@ function openErnteWizard(editId){
       _wiz.buchTyp='umbuchung';
       _wiz.sorte=e.sorte||'';_wiz.notiz=e.notiz||'';
       _wiz.um_zielId=e.ziel_lagerort_id||'';_wiz.um_quellen={};
+      _wiz.um_schlagId=e.schlag_id||'';_wiz.um_dg=e.dg||0;_wiz.um_ls=e.lieferschein||'';
       (e.quellen||[]).forEach(q=>{_wiz.um_quellen[q.von_lagerort_id]={kl1:q.gk_1kl||0,ver:q.gk_ver||0};});
-      _wiz.step=1; // bei Bearbeitung: zu Sorte
+      _wiz.step=2; // bei Bearbeitung: zu Schlag/DG-Auswahl
     } else if(t==='ernte'){
       _wiz.datum=e.datum;
       _wiz.schlagId=e.schlag_id||'';
@@ -4298,8 +4354,9 @@ function _wizRender(){
     document.getElementById('wiz-title').textContent=_wiz.editId?'✏️ Umbuchung bearbeiten':'🔄 Lagerumbuchung';
     if(_wiz.step===0) _wizUmZielort(body,footer);
     else if(_wiz.step===1) _wizUmSorte(body,footer);
-    else if(_wiz.step===2) _wizUmQuelle(body,footer);
-    else if(_wiz.step===3) _wizUmBestaetigung(body,footer);
+    else if(_wiz.step===2) _wizUmSchlag(body,footer);
+    else if(_wiz.step===3) _wizUmQuelle(body,footer);
+    else if(_wiz.step===4) _wizUmBestaetigung(body,footer);
   } else {
     document.getElementById('wiz-title').textContent=_wiz.editId?'✏️ Ernte bearbeiten':'🌿 Ernte erfassen';
     if(_wiz.step===0) _wizRenderSorte(body,footer);
@@ -4369,16 +4426,102 @@ function _wizUmSorte(body,footer){
     const sel=s===_wiz.sorte;
     const esc=s.replace(/'/g,"\\'");
     return`<button onclick="_wizUmSelSorte('${esc}')" style="padding:20px 10px;border-radius:14px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--ps)':'#fff'};color:${sel?'var(--pd)':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent">
-      🍎 ${s}<div style="font-size:.7rem;font-weight:400;margin-top:4px;opacity:.75">~${gk} GK im Lager</div>
+      ${_sorteSymbol(s)} ${s}<div style="font-size:.7rem;font-weight:400;margin-top:4px;opacity:.75">~${gk} GK im Lager</div>
     </button>`;
   }).join(''):
   `<div style="color:var(--txl);font-size:.85rem;padding:20px">Kein Ernte-Bestand vorhanden.</div>`;
   body.innerHTML=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Welche Sorte? → <span style="color:var(--p)">${zielName}</span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">${btns}</div>`;
+  const posHinweis=_wiz.um_positionen.length?`<span style="font-size:.72rem;background:#e8f5e9;color:#2e7d32;border-radius:8px;padding:2px 8px;font-weight:700">${_wiz.um_positionen.length} Position${_wiz.um_positionen.length!==1?'en':''} hinzugefügt</span>`:'';
   footer.innerHTML=`<button onclick="_wizBack()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>
-    <span style="font-size:.75rem;color:var(--txl);margin-left:auto">Schritt 2 / 3</span>`;
+    ${posHinweis}<span style="font-size:.75rem;color:var(--txl);margin-left:auto">Schritt 2 / 4</span>`;
 }
-function _wizUmSelSorte(s){_wiz.sorte=s;_wiz.step=2;_wizRender();}
+function _wizUmSelSorte(s){_wiz.sorte=s;_wiz.um_schlagId='';_wiz.um_dg=0;_wiz.step=2;_wizRender();}
+
+// ─── Umbuchung Schritt 2: Schlag + DG auswählen ───────────────
+function _wizUmSchlag(body,footer){
+  const zielName=D.lagerorte.find(l=>l.id===_wiz.um_zielId)?.name||'?';
+  // Finde Schläge für die gewählte Sorte, die irgendwo Bestand haben (außer im Zielort)
+  const schlageForSorte=D.schlage.filter(s=>(s.sorte||s.name||'')===_wiz.sorte);
+  const schlagDGs={}; // schlag_id → Set of DGs
+  _getAllErnteIst().forEach(e=>{
+    if(getEntryTyp(e)!=='ernte')return;
+    if(!schlageForSorte.find(s=>s.id===e.schlag_id))return;
+    let hasStock=false;
+    if(e.verteilung) hasStock=e.verteilung.some(v=>v.standort_id!==_wiz.um_zielId&&((v.gk_1kl||0)+(v.gk_verarbeitung||0)>0));
+    else if(e.standort_id&&e.standort_id!==_wiz.um_zielId) hasStock=(e.gk_1kl||0)+(e.gk_verarbeitung||0)>0;
+    (e.buchungen||[]).forEach(b=>{if(b.lager_id!==_wiz.um_zielId&&(b.gk||b.tafel_gk))hasStock=true;});
+    if(hasStock){
+      if(!schlagDGs[e.schlag_id])schlagDGs[e.schlag_id]=new Set();
+      if(e.dg)schlagDGs[e.schlag_id].add(e.dg);
+    }
+  });
+
+  // Fallback: wenn keine Einträge gefunden, alle Schläge der Sorte zeigen
+  if(!Object.keys(schlagDGs).length) schlageForSorte.forEach(s=>{schlagDGs[s.id]=new Set();});
+
+  const selSchlag=_wiz.um_schlagId;
+  const selDg=_wiz.um_dg;
+
+  let html=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Von welchem Schlag? · <span style="color:var(--p)">${_wiz.sorte}</span> → <span style="color:var(--p)">${zielName}</span></div>
+  <div style="font-size:.68rem;color:var(--txl);margin-bottom:10px;font-style:italic">Schlag muss angegeben werden (Rückverfolgbarkeit)</div>`;
+
+  const unselStyle=`padding:12px 10px;border-radius:10px;border:2px solid var(--bdr);background:#fff;color:var(--txt);font-size:.82rem;font-weight:600;cursor:pointer;text-align:center`;
+  const selStyle=`padding:12px 10px;border-radius:10px;border:2px solid var(--p);background:var(--ps);color:var(--pd);font-size:.82rem;font-weight:700;cursor:pointer;text-align:center`;
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">`;
+  Object.keys(schlagDGs).forEach(schlag_id=>{
+    const sc=D.schlage.find(x=>x.id===schlag_id);
+    const name=sc?.name||schlag_id;
+    const isSel=selSchlag===schlag_id;
+    html+=`<button onclick="_wizUmSelSchlag('${schlag_id}')" style="${isSel?selStyle:unselStyle}">${name}</button>`;
+  });
+  html+=`</div>`;
+
+  // DG-Auswahl (nur wenn Schlag gewählt und DGs vorhanden)
+  if(selSchlag&&schlagDGs[selSchlag]&&schlagDGs[selSchlag].size>0){
+    const dgs=[...schlagDGs[selSchlag]].sort((a,b)=>a-b);
+    html+=`<div style="font-size:.72rem;font-weight:700;color:var(--txl);margin-bottom:6px;margin-top:4px">Erntedurchgang (optional):</div>`;
+    html+=`<div style="display:flex;gap:6px;flex-wrap:wrap">`;
+    const dgUnselStyle=`padding:7px 14px;border-radius:20px;border:1.5px solid var(--bdr);background:#fff;color:var(--txt);font-size:.8rem;font-weight:600;cursor:pointer`;
+    const dgSelStyle=`padding:7px 14px;border-radius:20px;border:1.5px solid var(--info);background:#e0f2fe;color:#0369a1;font-size:.8rem;font-weight:800;cursor:pointer`;
+    html+=`<button onclick="_wizUmSetDg(0)" style="${selDg===0?dgSelStyle:dgUnselStyle}">Alle DG</button>`;
+    dgs.forEach(dg=>{
+      html+=`<button onclick="_wizUmSetDg(${dg})" style="${selDg===dg?dgSelStyle:dgUnselStyle}">${dg}.DG</button>`;
+    });
+    html+=`</div>`;
+  }
+
+  body.innerHTML=html;
+  const canProceed=!!selSchlag;
+  footer.innerHTML=`<button onclick="_wizBack()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>
+    <span style="font-size:.75rem;color:var(--txl);margin-left:auto">Schritt 2 / 4</span>
+    <button onclick="_wizUmSchlagWeiter()" style="padding:10px 20px;border-radius:8px;background:${canProceed?'var(--p)':'#ccc'};color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">Weiter →</button>`;
+}
+function _wizUmSchlagWeiter(){
+  if(!_wiz.um_schlagId){alert('Bitte einen Schlag auswählen (Rückverfolgbarkeit erforderlich)');return;}
+  _wiz.step=3;_wizRender();
+}
+function _wizUmSelSchlag(id){_wiz.um_schlagId=id;_wiz.um_dg=0;_wizRender();}
+function _wizUmSetDg(dg){_wiz.um_dg=dg;_wizRender();}
+
+// Bestand eines bestimmten Schlages an einem Lagerort (nur Ernte-Seite, da Transporte schlag-anonym)
+function calcStandortBestandBySchlag(lagerId, schlagId, dg){
+  // dg optional: wenn gesetzt, nur Einträge mit diesem DG berücksichtigen
+  let gk1kl=0,gkVer=0;
+  _getAllErnteIst().forEach(e=>{
+    if(getEntryTyp(e)!=='ernte'||e.schlag_id!==schlagId)return;
+    if(dg&&(e.dg||0)!==dg)return; // DG-Filter
+    if(e.verteilung){
+      e.verteilung.forEach(v=>{if(v.standort_id===lagerId){gk1kl+=(v.gk_1kl||0);gkVer+=(v.gk_verarbeitung||0);}});
+    } else if(e.standort_id===lagerId){
+      gk1kl+=(e.gk_1kl||0);gkVer+=(e.gk_verarbeitung||0);
+    }
+    (e.buchungen||[]).forEach(b=>{
+      if(b.lager_id===lagerId){gk1kl+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gkVer+=(b.verarbeitung_gk||0);}
+    });
+  });
+  return {gk1kl,gkVer,total:gk1kl+gkVer};
+}
 
 // Hilfsfunktion: Gesamtbestand (gk1kl) einer Sorte über alle Lagerorte
 function calcStandortBestand_BySorte(sorte){
@@ -4395,12 +4538,14 @@ function _wizUmQuelle(body,footer){
   const zielName=D.lagerorte.find(l=>l.id===_wiz.um_zielId)?.name||'?';
   const quellen=D.lagerorte.filter(l=>l.id!==_wiz.um_zielId);
   const rows=quellen.map(l=>{
-    const b=calcStandortBestand(l.id);
+    const b=_wiz.um_schlagId
+      ? calcStandortBestandBySchlag(l.id,_wiz.um_schlagId,_wiz.um_dg||0)
+      : calcStandortBestand(l.id);
     const q=_wiz.um_quellen[l.id]||{kl1:0,ver:0};
     const maxKl1=Math.max(0,b.gk1kl);const maxVer=Math.max(0,b.gkVer);
     if(maxKl1===0&&maxVer===0) return''; // kein Bestand
     const kl1Row=maxKl1>0?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-      <span style="font-size:.7rem;color:#2e7d32;font-weight:700;min-width:46px">🍎 1.Kl</span>
+      <span style="font-size:.7rem;color:#2e7d32;font-weight:700;min-width:46px">1.Kl</span>
       <button onclick="_wizUmAdj('${l.id}','kl1',-5)" style="padding:2px 7px;border-radius:6px;background:#e8f5e9;border:1px solid #a5d6a7;font-size:.7rem;font-weight:700;color:#2e7d32;cursor:pointer">−5</button>
       <button onclick="_wizUmAdj('${l.id}','kl1',-1)" style="width:34px;height:34px;border-radius:9px;background:#e8f5e9;border:1.5px solid #a5d6a7;font-size:1.2rem;cursor:pointer;color:#2e7d32">−</button>
       <div id="um-kl1-${l.id}" style="font-size:1.2rem;font-weight:800;min-width:44px;text-align:center;color:var(--pd)">${q.kl1||0}</div>
@@ -4409,7 +4554,7 @@ function _wizUmQuelle(body,footer){
       <span style="font-size:.68rem;color:var(--txl);margin-left:4px">/ ${maxKl1}</span>
     </div>`:''
     const verRow=maxVer>0?`<div style="display:flex;align-items:center;gap:6px">
-      <span style="font-size:.7rem;color:#e65100;font-weight:700;min-width:46px">🐛 Ver.</span>
+      <span style="font-size:.7rem;color:#e65100;font-weight:700;min-width:46px">Ver.</span>
       <button onclick="_wizUmAdj('${l.id}','ver',-5)" style="padding:2px 7px;border-radius:6px;background:#fff3e0;border:1px solid #ffcc80;font-size:.7rem;font-weight:700;color:#e65100;cursor:pointer">−5</button>
       <button onclick="_wizUmAdj('${l.id}','ver',-1)" style="width:34px;height:34px;border-radius:9px;background:#fff3e0;border:1.5px solid #ffcc80;font-size:1.2rem;cursor:pointer;color:#e65100">−</button>
       <div id="um-ver-${l.id}" style="font-size:1.2rem;font-weight:800;min-width:44px;text-align:center;color:var(--pd)">${q.ver||0}</div>
@@ -4422,15 +4567,21 @@ function _wizUmQuelle(body,footer){
       ${kl1Row}${verRow}
     </div>`;
   }).join('');
-  body.innerHTML=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px">Von welchem Lager? → <span style="color:var(--p)">${_wiz.sorte}</span> nach <span style="color:var(--p)">${zielName}</span></div>
+  const schlagCtx=(()=>{
+    if(!_wiz.um_schlagId) return '';
+    const sc=D.schlage.find(x=>x.id===_wiz.um_schlagId);
+    const dgTxt=_wiz.um_dg?` · ${_wiz.um_dg}.DG`:'';
+    return ` <span style="background:#e0f2fe;color:#0369a1;border-radius:8px;padding:1px 7px;font-size:.68rem;font-weight:700">${sc?.name||'?'}${dgTxt}</span>`;
+  })();
+  body.innerHTML=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px">Von welchem Lager? → <span style="color:var(--p)">${_wiz.sorte}</span>${schlagCtx} nach <span style="color:var(--p)">${zielName}</span></div>
     ${rows||'<div style="color:var(--txl);padding:12px">Kein Bestand in anderen Lagern.</div>'}`;
   footer.innerHTML=`<button onclick="_wizBack()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>
-    <span style="font-size:.75rem;color:var(--txl);margin-left:auto">Schritt 3 / 3</span>
+    <span style="font-size:.75rem;color:var(--txl);margin-left:auto">Schritt 3 / 4</span>
     <button onclick="_wizUmWeiter()" style="padding:10px 20px;border-radius:8px;background:var(--p);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">Weiter →</button>`;
 }
 function _wizUmAdj(lagerId,field,delta){
   if(!_wiz.um_quellen[lagerId]) _wiz.um_quellen[lagerId]={kl1:0,ver:0};
-  const b=calcStandortBestand(lagerId);
+  const b=_wiz.um_schlagId?calcStandortBestandBySchlag(lagerId,_wiz.um_schlagId,_wiz.um_dg||0):calcStandortBestand(lagerId);
   const max=field==='kl1'?Math.max(0,b.gk1kl):Math.max(0,b.gkVer);
   _wiz.um_quellen[lagerId][field]=Math.max(0,Math.min(max,(_wiz.um_quellen[lagerId][field]||0)+delta));
   const el=document.getElementById('um-'+field+'-'+lagerId);
@@ -4439,12 +4590,26 @@ function _wizUmAdj(lagerId,field,delta){
 function _wizUmWeiter(){
   const tot=Object.values(_wiz.um_quellen).reduce((s,q)=>s+(q.kl1||0)+(q.ver||0),0);
   if(!tot){alert('Bitte mindestens eine GK-Menge angeben');return;}
-  _wiz.step=3;_wizRender();
+  _wiz.step=4;_wizRender();
 }
 
 // ─── Umbuchung Schritt 3: Bestätigung ────────────────────────
 function _wizUmBestaetigung(body,footer){
   const zielLager=D.lagerorte.find(l=>l.id===_wiz.um_zielId);
+  // Bereits gespeicherte Positionen anzeigen
+  const bereitsHinzugefuegt=_wiz.um_positionen.map((pos,i)=>{
+    const sc=D.schlage.find(x=>x.id===pos.schlag_id);
+    const dgTxt=pos.dg?` · ${pos.dg}.DG`:'';
+    const totKl1=pos.quellen.reduce((s,q)=>s+(q.gk_1kl||0),0);
+    const totVer=pos.quellen.reduce((s,q)=>s+(q.gk_ver||0),0);
+    return`<div style="background:#f1f8e9;border:1.5px solid #aed581;border-radius:8px;padding:8px 12px;font-size:.8rem;display:flex;justify-content:space-between;align-items:center">
+      <div><b style="color:#33691e">${pos.sorte}</b>${sc?` · ${sc.name}${dgTxt}`:''}</div>
+      <div style="font-size:.82rem;color:var(--txl)">${totKl1?totKl1+'&nbsp;1.Kl':''} ${totVer?totVer+'&nbsp;Ver.':''}</div>
+    </div>`;
+  }).join('');
+  const posHeader=_wiz.um_positionen.length
+    ?`<div style="margin-bottom:10px"><div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">✅ Bereits hinzugefügt (${_wiz.um_positionen.length})</div>${bereitsHinzugefuegt}</div><hr style="border:none;border-top:1.5px dashed var(--bdr);margin:12px 0">`:'';
+  // Aktuelle Position
   const quellenRows=Object.entries(_wiz.um_quellen).filter(([,q])=>(q.kl1||0)+(q.ver||0)>0).map(([id,q])=>{
     const l=D.lagerorte.find(x=>x.id===id);
     return`<tr style="border-bottom:1px solid var(--bdr)">
@@ -4455,11 +4620,13 @@ function _wizUmBestaetigung(body,footer){
   }).join('');
   const totKl1=Object.values(_wiz.um_quellen).reduce((s,q)=>s+(q.kl1||0),0);
   const totVer=Object.values(_wiz.um_quellen).reduce((s,q)=>s+(q.ver||0),0);
-  body.innerHTML=`
+  body.innerHTML=`${posHeader}
     <div style="background:#e8f5e9;border-left:4px solid var(--p);border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:.65rem;font-weight:700;color:var(--txl);margin-bottom:6px;text-transform:uppercase">Aktuelle Position</div>
       <div style="display:flex;gap:20px;flex-wrap:wrap">
         <div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">🔄 Sorte</div>
           <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${_wiz.sorte}</div></div>
+        ${(()=>{const sc=D.schlage.find(x=>x.id===_wiz.um_schlagId);const dgTxt=_wiz.um_dg?` · ${_wiz.um_dg}.DG`:'';return sc?`<div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">🌿 Schlag</div><div style="font-size:.85rem;font-weight:800;color:var(--pd)">${sc.name}${dgTxt}</div></div>`:''})()}
         <div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">🎯 Zielort</div>
           <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${zielLager?.name||'?'}</div></div>
         <div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">Datum</div>
@@ -4479,28 +4646,69 @@ function _wizUmBestaetigung(body,footer){
         <td style="padding:6px 8px;text-align:right;font-size:1rem;font-weight:800;color:var(--info)">${totVer||'–'}</td>
       </tr></tfoot>
     </table>
-    <div>
-      <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:4px">Notiz (optional)</label>
-      <input type="text" id="um-notiz" value="${(_wiz.notiz||'').replace(/"/g,'&quot;')}" placeholder="Bemerkung…" style="border:1.5px solid var(--bdr);border-radius:8px;padding:9px 12px;font-size:.88rem;width:100%">
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:4px">📄 Lieferschein-Nr. (optional, für alle Positionen)</label>
+        <input type="text" id="um-ls" value="${(_wiz.um_ls||'').replace(/"/g,'&quot;')}" placeholder="z.B. LS-2026-001" style="border:1.5px solid var(--bdr);border-radius:8px;padding:9px 12px;font-size:.88rem;width:100%">
+      </div>
+      <div>
+        <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:4px">Notiz (optional)</label>
+        <input type="text" id="um-notiz" value="${(_wiz.notiz||'').replace(/"/g,'&quot;')}" placeholder="Bemerkung…" style="border:1.5px solid var(--bdr);border-radius:8px;padding:9px 12px;font-size:.88rem;width:100%">
+      </div>
     </div>`;
   footer.innerHTML=`<button onclick="_wizBack()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>
+    <button onclick="_wizUmAddPosition()" style="padding:10px 16px;border-radius:8px;background:#f1f8e9;color:#33691e;border:2px solid #aed581;font-size:.85rem;font-weight:700;cursor:pointer">➕ Position</button>
     <button onclick="saveUmbuchung()" style="padding:10px 22px;border-radius:8px;background:var(--p);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">✅ Speichern</button>`;
+}
+
+function _wizUmAddPosition(){
+  // Aktuelle Felder lesen
+  const ls=(document.getElementById('um-ls')?.value||'').trim();
+  const notiz=(document.getElementById('um-notiz')?.value||'').trim();
+  _wiz.um_ls=ls; _wiz.notiz=notiz;
+  const quellen=Object.entries(_wiz.um_quellen).filter(([,q])=>(q.kl1||0)+(q.ver||0)>0)
+    .map(([id,q])=>({von_lagerort_id:id,gk_1kl:q.kl1||0,gk_ver:q.ver||0}));
+  if(!quellen.length){toast('⚠ Keine Menge für diese Position angegeben');return;}
+  _wiz.um_positionen.push({sorte:_wiz.sorte,schlag_id:_wiz.um_schlagId,dg:_wiz.um_dg,quellen});
+  // Aktuelle Position zurücksetzen, Zielort + LS + Notiz behalten
+  _wiz.sorte='';_wiz.um_schlagId='';_wiz.um_dg=0;_wiz.um_quellen={};
+  _wiz.step=1; // zurück zur Sorte-Auswahl
+  _wizRender();
+  toast('Position '+(Number(_wiz.um_positionen.length))+' hinzugefügt – bitte nächste Sorte wählen');
 }
 
 function saveUmbuchung(){
   const notiz=(document.getElementById('um-notiz')?.value||'').trim();
-  _wiz.notiz=notiz;
-  const quellen=Object.entries(_wiz.um_quellen).filter(([,q])=>(q.kl1||0)+(q.ver||0)>0)
+  const ls=(document.getElementById('um-ls')?.value||'').trim();
+  _wiz.notiz=notiz;_wiz.um_ls=ls;
+  // Aktuelle Position hinzufügen
+  const currentQuellen=Object.entries(_wiz.um_quellen).filter(([,q])=>(q.kl1||0)+(q.ver||0)>0)
     .map(([id,q])=>({von_lagerort_id:id,gk_1kl:q.kl1||0,gk_ver:q.ver||0}));
-  if(!quellen.length){toast('⚠ Keine Menge angegeben');return;}
-  const entryId=_wiz.editId||('umb_'+Date.now()+'_'+Math.random().toString(36).slice(2,7));
-  const entry={id:entryId,typ:'umbuchung',datum:_wiz.datum,sorte:_wiz.sorte,ziel_lagerort_id:_wiz.um_zielId,quellen,notiz};
+  if(!currentQuellen.length){toast('⚠ Keine Menge angegeben');return;}
+  const allePositionen=[..._wiz.um_positionen,{sorte:_wiz.sorte,schlag_id:_wiz.um_schlagId,dg:_wiz.um_dg,quellen:currentQuellen}];
+  // Bestehende Einträge (Edit-Mode) entfernen
   if(_wiz.editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==_wiz.editId);
-  D.ernte_ist.push(entry);
+  // Jede Position als eigenen Eintrag speichern (gleicher Lieferschein verbindet sie)
+  allePositionen.forEach((pos,i)=>{
+    const entryId=(i===0&&_wiz.editId&&allePositionen.length===1)
+      ?_wiz.editId
+      :('umb_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,7));
+    const entry={
+      id:entryId,typ:'umbuchung',datum:_wiz.datum,sorte:pos.sorte,
+      ...(pos.schlag_id?{schlag_id:pos.schlag_id}:{}),
+      ...(pos.dg?{dg:pos.dg}:{}),
+      ...(ls?{lieferschein:ls}:{}),
+      ziel_lagerort_id:_wiz.um_zielId,
+      quellen:pos.quellen,
+      notiz
+    };
+    D.ernte_ist.push(entry);
+  });
   scheduleSave();closeMod('mod-ernte-wizard');renderErnteIst();
   const zielName=D.lagerorte.find(l=>l.id===_wiz.um_zielId)?.name||'?';
-  const tot=quellen.reduce((s,q)=>s+(q.gk_1kl||0)+(q.gk_ver||0),0);
-  toast('✅ '+tot+' GK '+_wiz.sorte+' → '+zielName);
+  const tot=allePositionen.reduce((s,p)=>s+p.quellen.reduce((ss,q)=>ss+(q.gk_1kl||0)+(q.gk_ver||0),0),0);
+  const posLabel=allePositionen.length>1?allePositionen.length+' Partien':_wiz.sorte;
+  toast('✅ '+tot+' GK '+posLabel+' → '+zielName);
 }
 
 // ─── Schritt 0: Sorte ────────────────────────────────────────
@@ -4513,7 +4721,7 @@ function _wizRenderSorte(body,footer){
     sortes.map(([sorte,cnt])=>{
       const sel=_wiz.sorte===sorte;
       const esc=sorte.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      return`<button onclick="_wizSelectSorte('${esc}')" style="padding:20px 10px;border-radius:14px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--p)':'#fff'};color:${sel?'#fff':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:pointer;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);-webkit-tap-highlight-color:transparent;user-select:none">🍎 ${sorte}<div style="font-size:.7rem;font-weight:400;margin-top:4px;opacity:.75">${cnt} Schlag${cnt!==1?'e':''}</div></button>`;
+      return`<button onclick="_wizSelectSorte('${esc}')" style="padding:20px 10px;border-radius:14px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--p)':'#fff'};color:${sel?'#fff':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:pointer;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);-webkit-tap-highlight-color:transparent;user-select:none">${_sorteSymbol(sorte)} ${sorte}<div style="font-size:.7rem;font-weight:400;margin-top:4px;opacity:.75">${cnt} Schlag${cnt!==1?'e':''}</div></button>`;
     }).join('')+'</div>';
   footer.innerHTML='<span style="font-size:.75rem;color:var(--txl)">Schritt 1 / 4</span>';
 }
@@ -5152,7 +5360,7 @@ function _transpSchlagOpts(){
     grp[sorte].push(s);
   });
   return '<option value="">– Schlag –</option>'+
-    Object.keys(grp).sort().map(sorte=>`<optgroup label="🍎 ${sorte}">${
+    Object.keys(grp).sort().map(sorte=>`<optgroup label="${_sorteSymbol(sorte)} ${sorte}">${
       grp[sorte].sort((a,b)=>(a.betrieb||'').localeCompare(b.betrieb||'','de'))
         .map(s=>`<option value="${s.id}">${s.name}${s.betrieb?' — '+s.betrieb:''}</option>`).join('')
     }</optgroup>`).join('');
@@ -5316,32 +5524,57 @@ function openLagerDrilldown(lagerId){
   const lpBtn=document.getElementById('lager-drill-lp-btn');
   if(lpBtn) lpBtn.style.display=(l.name&&l.name.toLowerCase().includes('gaimberg'))?'':'none';
 
-  // Ernte-Einträge dieses Lagerorts nach Sorte gruppieren
-  const sortenMap={}; // sorte → {kl1, ver, eintraege:[{e,schlag}]}
+  // Ernte- UND Umbuchungs-Einträge dieses Lagerorts nach Sorte gruppieren
+  const sortenMap={}; // sorte → {kl1, ver, eintraege:[{e,schlag,kl1,ver,isUmbuchung?}]}
   const allEI=_getAllErnteIst();
   allEI.forEach(e=>{
     if(!e.datum||!e.datum.startsWith(String(ernteJahr))) return;
     const typ=getEntryTyp(e);
-    if(typ!=='ernte') return;
-    const sc=D.schlage.find(x=>x.id===e.schlag_id);
-    const sorte=sc?.sorte||sc?.name||'Unbekannt';
-    let kl1=0,ver=0;
-    if(e.verteilung){
-      const v=e.verteilung.find(v=>v.standort_id===lagerId);
-      if(v){kl1=(v.gk_1kl||0);ver=(v.gk_verarbeitung||0);}
-    } else if(e.standort_id===lagerId){
-      kl1=(e.gk_1kl||0);ver=(e.gk_verarbeitung||0);
+    if(typ==='ernte'){
+      const sc=D.schlage.find(x=>x.id===e.schlag_id);
+      const sorte=sc?.sorte||sc?.name||'Unbekannt';
+      let kl1=0,ver=0;
+      if(e.verteilung){
+        const v=e.verteilung.find(v=>v.standort_id===lagerId);
+        if(v){kl1=(v.gk_1kl||0);ver=(v.gk_verarbeitung||0);}
+      } else if(e.standort_id===lagerId){
+        kl1=(e.gk_1kl||0);ver=(e.gk_verarbeitung||0);
+      }
+      (e.buchungen||[]).forEach(b=>{if(b.lager_id===lagerId){kl1+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));ver+=(b.verarbeitung_gk||0);}});
+      if(kl1+ver===0) return;
+      if(!sortenMap[sorte]) sortenMap[sorte]={kl1:0,ver:0,eintraege:[]};
+      sortenMap[sorte].kl1+=kl1;sortenMap[sorte].ver+=ver;
+      sortenMap[sorte].eintraege.push({e,schlag:sc,kl1,ver});
+    } else if(typ==='umbuchung'){
+      const sorte=e.sorte||'Unbekannt';
+      // Eingehende Umbuchung (Zielort = dieses Lager)
+      if(e.ziel_lagerort_id===lagerId){
+        const kl1=(e.quellen||[]).reduce((s,q)=>s+(q.gk_1kl||0),0);
+        const ver=(e.quellen||[]).reduce((s,q)=>s+(q.gk_ver||0),0);
+        if(kl1+ver>0){
+          if(!sortenMap[sorte]) sortenMap[sorte]={kl1:0,ver:0,eintraege:[]};
+          sortenMap[sorte].kl1+=kl1;sortenMap[sorte].ver+=ver;
+          sortenMap[sorte].eintraege.push({e,schlag:null,kl1,ver,isUmbuchung:true,richtung:'ein'});
+        }
+      }
+      // Abgehende Umbuchung (Quellort = dieses Lager) — als Minus verbuchen
+      (e.quellen||[]).forEach(q=>{
+        if(q.von_lagerort_id===lagerId){
+          const kl1=q.gk_1kl||0;const ver=q.gk_ver||0;
+          if(kl1+ver>0){
+            if(!sortenMap[sorte]) sortenMap[sorte]={kl1:0,ver:0,eintraege:[]};
+            sortenMap[sorte].kl1-=kl1;sortenMap[sorte].ver-=ver;
+            sortenMap[sorte].eintraege.push({e,schlag:null,kl1:-kl1,ver:-ver,isUmbuchung:true,richtung:'aus'});
+          }
+        }
+      });
     }
-    (e.buchungen||[]).forEach(b=>{if(b.lager_id===lagerId){kl1+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));ver+=(b.verarbeitung_gk||0);}});
-    if(kl1+ver===0) return;
-    if(!sortenMap[sorte]) sortenMap[sorte]={kl1:0,ver:0,eintraege:[]};
-    sortenMap[sorte].kl1+=kl1;sortenMap[sorte].ver+=ver;
-    sortenMap[sorte].eintraege.push({e,schlag:sc,kl1,ver});
   });
 
-  const keys=Object.keys(sortenMap).sort();
+  // Alle Sorten anzeigen die irgendeine Aktivität hatten (auch vollständig ausgebuchte)
+  const keys=Object.keys(sortenMap).filter(s=>sortenMap[s].eintraege.length>0).sort();
   if(!keys.length){
-    document.getElementById('lager-drill-body').innerHTML=`<div style="color:var(--txl);font-size:.85rem;padding:8px 0">Keine Ernte-Buchungen für ${ernteJahr} in diesem Lager.</div>`;
+    document.getElementById('lager-drill-body').innerHTML=`<div style="color:var(--txl);font-size:.85rem;padding:8px 0">Keine Buchungen für ${ernteJahr} in diesem Lager.</div>`;
     openMod('mod-lager-drill');return;
   }
 
@@ -5380,24 +5613,60 @@ function openLagerSorteDrilldown(lagerId,sorte){
   if(!sd){openLagerDrilldown(lagerId);return;}
 
   let html=`<button onclick="openLagerDrilldown('${lagerId}')" style="background:none;border:none;color:var(--p);cursor:pointer;font-size:.82rem;padding:0 0 12px;display:flex;align-items:center;gap:4px">‹ zurück zu ${l?.name||'Lager'}</button>`;
-  html+=`<div style="font-size:.85rem;font-weight:800;color:var(--pd);margin-bottom:10px">🍎 ${sorte}</div>`;
+  html+=`<div style="font-size:.85rem;font-weight:800;color:var(--pd);margin-bottom:10px">${_sorteSymbol(sorte)} ${sorte}</div>`;
   html+=`<table style="width:100%;border-collapse:collapse">
     <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
       <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Datum</th>
       <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Schlag</th>
       <th style="text-align:right;padding:4px 8px;font-size:.72rem;color:var(--pl);font-weight:800">1.Kl.</th>
       <th style="text-align:right;padding:4px 8px;font-size:.72rem;color:var(--info);font-weight:800">Verarb.</th>
+      <th style="text-align:center;padding:4px 6px;font-size:.68rem;color:var(--txl);font-weight:700">DG</th>
+      <th style="width:32px"></th>
     </tr></thead><tbody>`;
-  sd.eintraege.sort((a,b)=>a.e.datum<b.e.datum?-1:1).forEach(({e,schlag,kl1,ver})=>{
-    const schlagName=schlag?schlag.name:'?';
-    const isEigen=D.ernte_ist.some(x=>x.id===e.id);
-    const editBtn=isEigen?`<button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 4px">✏️</button>`:'';
-    html+=`<tr style="border-bottom:1px solid var(--bdr)">
-      <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
-      <td style="padding:6px 8px;font-size:.8rem">${schlagName}${editBtn}</td>
-      <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--pl)">${kl1||'–'}</td>
-      <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--info)">${ver||'–'}</td>
-    </tr>`;
+  sd.eintraege.sort((a,b)=>a.e.datum<b.e.datum?-1:1).forEach(({e,schlag,kl1,ver,isUmbuchung,richtung})=>{
+    if(isUmbuchung){
+      const lsTxt=e.lieferschein?` <span style="font-size:.65rem;background:#fff3e0;color:#e65100;border-radius:4px;padding:0 4px;border:1px solid #ffcc80">${e.lieferschein}</span>`:'';
+      const dgBadge=e.dg
+        ?`<span style="background:#e0f2fe;color:#0369a1;border-radius:8px;padding:1px 6px;font-size:.68rem;font-weight:700">${e.dg}.DG</span>`
+        :`<span style="color:var(--txl);font-size:.7rem">—</span>`;
+      if(richtung==='ein'){
+        // Eingehende Umbuchung
+        const quellenTxt=(e.quellen||[]).map(q=>D.lagerorte.find(l=>l.id===q.von_lagerort_id)?.name||q.von_lagerort_id).join(', ');
+        html+=`<tr style="border-bottom:1px solid var(--bdr);background:#f1f8e9">
+          <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
+          <td style="padding:6px 8px;font-size:.8rem;color:#33691e">📥 von: ${quellenTxt}${lsTxt}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--pl)">+${kl1||'–'}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--info)">${ver?'+'+ver:'–'}</td>
+          <td style="padding:6px 8px;text-align:center">${dgBadge}</td>
+          <td style="padding:4px 6px;text-align:center"><button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" title="Umbuchung bearbeiten" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--p);line-height:1">🖊</button></td>
+        </tr>`;
+      } else {
+        // Abgehende Umbuchung
+        const zielName=D.lagerorte.find(l=>l.id===e.ziel_lagerort_id)?.name||'?';
+        const absKl1=Math.abs(kl1);const absVer=Math.abs(ver);
+        html+=`<tr style="border-bottom:1px solid var(--bdr);background:#fff8f0">
+          <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
+          <td style="padding:6px 8px;font-size:.8rem;color:#b71c1c">📤 nach: ${zielName}${lsTxt}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:#c62828">${absKl1?'−'+absKl1:'–'}</td>
+          <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:#c62828">${absVer?'−'+absVer:'–'}</td>
+          <td style="padding:6px 8px;text-align:center">${dgBadge}</td>
+          <td style="padding:4px 6px;text-align:center"><button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" title="Umbuchung bearbeiten" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--p);line-height:1">🖊</button></td>
+        </tr>`;
+      }
+    } else {
+      const schlagName=schlag?schlag.name:'?';
+      const dgBadge=e.dg
+        ?`<span style="background:#e0f2fe;color:#0369a1;border-radius:8px;padding:1px 6px;font-size:.68rem;font-weight:700">${e.dg}.DG</span>`
+        :`<span style="color:var(--txl);font-size:.7rem">—</span>`;
+      html+=`<tr style="border-bottom:1px solid var(--bdr)">
+        <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
+        <td style="padding:6px 8px;font-size:.8rem">${schlagName}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--pl)">${kl1||'–'}</td>
+        <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--info)">${ver||'–'}</td>
+        <td style="padding:6px 8px;text-align:center">${dgBadge}</td>
+        <td style="padding:4px 6px;text-align:center"><button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" title="Buchung bearbeiten" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--p);line-height:1">🖊</button></td>
+      </tr>`;
+    }
   });
   const totKl1=sd.eintraege.reduce((s,x)=>s+x.kl1,0);
   const totVer=sd.eintraege.reduce((s,x)=>s+x.ver,0);
@@ -5405,6 +5674,7 @@ function openLagerSorteDrilldown(lagerId,sorte){
     <td colspan="2" style="padding:5px 8px;font-size:.8rem;font-weight:700">Gesamt</td>
     <td style="padding:5px 8px;text-align:right;font-size:.95rem;font-weight:800;color:var(--pl)">${totKl1}</td>
     <td style="padding:5px 8px;text-align:right;font-size:.95rem;font-weight:800;color:var(--info)">${totVer}</td>
+    <td></td><td></td>
   </tr></tfoot></table>`;
 
   document.getElementById('lager-drill-title').textContent='🏪 '+( l?.name||'Lager')+' · '+sorte;
@@ -5497,29 +5767,81 @@ function _lpShowZelle(zi){
   if(wrap)wrap.innerHTML=_lpBuildTable(zi);
 }
 
-// Returns sorte → [schlag_id,...] map for entries with stock in Gaimberg
-function _lpSortenInGaimberg(){
+// ── Gaimberg-Kapazitäts-Helfer ───────────────────────────────────────────────
+
+// Returns {schlag_id: gkTotal} — GK-Kisten die laut Buchung in Gaimberg lagern
+function _lpGaimbergKistenBySchlag(){
   const gId=(D.lagerorte.find(x=>/gaimberg/i.test(x.name))||{}).id;
+  if(!gId)return{};
   const map={};
   _getAllErnteIst().forEach(e=>{
     const typ=getEntryTyp(e);
-    if(typ!=='ernte'&&typ!=='umbuchung')return;
-    const inG=e.lagerort_id===gId||(e.buchungen||[]).some(b=>b.lagerort_id===gId)||(typ==='umbuchung'&&e.ziel_lagerort_id===gId);
-    if(!inG)return;
-    const sc=D.schlage.find(x=>x.id===e.schlag_id);
-    const sorte=sc?.sorte||sc?.name||'Unbekannt';
+    if(typ!=='ernte')return;
+    let gk=0;
+    // Neues Format: verteilung-Array mit standort_id
+    if(e.verteilung&&e.verteilung.length){
+      e.verteilung.forEach(v=>{
+        if(v.standort_id===gId) gk+=(v.gk_1kl||0)+(v.gk_verarbeitung||0);
+      });
+    } else if(e.standort_id===gId){
+      gk=(e.gk_1kl||0)+(e.gk_verarbeitung||0);
+    }
+    // Altes buchungen-Format
+    (e.buchungen||[]).forEach(b=>{
+      if(b.lager_id===gId) gk+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0))+(b.verarbeitung_gk||0);
+    });
+    if(gk>0&&e.schlag_id) map[e.schlag_id]=(map[e.schlag_id]||0)+gk;
+  });
+  return map; // {schlag_id: gkGesamtBeiGaimberg}
+}
+
+// Returns {schlag_id: count} — belegte Kisten im Plan je Schlag (excl. excludeKey)
+function _lpPlanKistenBySchlag(excludeKey){
+  const plan=D.gaimbergPlan||{};
+  const map={};
+  Object.entries(plan).forEach(([k,v])=>{
+    if(k===excludeKey)return;
+    const e=_lpEntryData(v);
+    if(!e||!e.schlag_id)return;
+    map[e.schlag_id]=(map[e.schlag_id]||0)+1;
+  });
+  return map; // {schlag_id: anzahlKistenImPlan}
+}
+
+// Returns sorte → [schlag_id,...] map für Sorten mit Gaimberg-Bestand
+function _lpSortenInGaimberg(){
+  const bySchlag=_lpGaimbergKistenBySchlag();
+  const map={};
+  Object.keys(bySchlag).forEach(schlag_id=>{
+    const s=D.schlage.find(x=>x.id===schlag_id);
+    const sorte=s?.sorte||s?.name||'Unbekannt';
     if(!map[sorte])map[sorte]=new Set();
-    if(e.schlag_id)map[sorte].add(e.schlag_id);
+    map[sorte].add(schlag_id);
   });
   const result={};
   Object.keys(map).forEach(s=>result[s]=[...map[s]]);
   return result;
 }
 
+// Eigener Plan hat Vorrang vor Gruppenplan (gleicher Key wird überschrieben)
+function _getActivePlan(){
+  return {...(_gruppenGaimbergPlan||{}), ...(D.gaimbergPlan||{})};
+}
+
+let _lpScale=1.0; // Zoom-Faktor für Lagerplan
+function _lpZoom(delta){
+  _lpScale=Math.min(2.0,Math.max(0.5,Math.round((_lpScale+delta)*10)/10));
+  const sc=document.getElementById('lp-scaler');
+  if(sc){sc.style.transform=`scale(${_lpScale})`;sc.style.transformOrigin='top left';}
+  const lbl=document.getElementById('lp-zoom-lbl');
+  if(lbl)lbl.textContent=Math.round(_lpScale*100)+'%';
+}
+
 function _lpBuildTable(zi){
   const STAPEL=11,REIHEN=4,MAX_H=4;
-  const plan=D.gaimbergPlan||{};
-  const zelleInfo=['Zelle 1: R3+R4 uns, R1+R2 fremd','Zelle 2: komplett fremd','Zelle 3: komplett uns'];
+  const plan=_getActivePlan();
+  const ownPlan=D.gaimbergPlan||{};
+  const zelleInfo=['Zelle 1: G1+G2 fremd, G3+G4 uns','Zelle 2: komplett fremd','Zelle 3: komplett uns'];
   let belegtEigen=0,belegtFremd=0,freiEigen=0;
 
   // Banner: Kiste wartet auf Platzierung
@@ -5537,50 +5859,69 @@ function _lpBuildTable(zi){
     </div>`;
   }
 
-  // ── 90° CW: Reihen als Spaltengruppen, Stapel als Zeilen ─────────────────
-  let html=`${pendingBanner}<div style="font-size:.68rem;color:var(--txl);margin-bottom:8px;font-style:italic">${zelleInfo[zi]}</div>`;
-  html+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="border-collapse:collapse;font-size:.68rem">`;
+  // ── Kompaktes Layout: 4 Spalten (G1-G4), 11 Zeilen (R1=Wand → R11=Tür) ───
+  // Jede Tabellen-Zelle enthält H4→H1 als vertikale Stack-Mini-Divs
+  const CELL_H=38; // px pro H-Ebene
+  const CELL_W=68; // px Zellenbreite
 
-  // Header Zeile 1: Stapel-Spalte | R1 (colspan=4) | R2 ... | R3 ... | R4 ...
+  let html=`${pendingBanner}`;
+  html+=`<div style="font-size:.68rem;color:var(--txl);margin-bottom:6px;font-style:italic">${zelleInfo[zi]}</div>`;
+
+  // Zoom-Steuerung
+  html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+    <button onclick="_lpZoom(-0.1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+    <span id="lp-zoom-lbl" style="font-size:.75rem;color:var(--txl);min-width:36px;text-align:center">${Math.round(_lpScale*100)}%</span>
+    <button onclick="_lpZoom(0.1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+    <span style="font-size:.65rem;color:var(--txl);opacity:.6;margin-left:4px">💡 Kiste antippen zum Bearbeiten/Sortieren</span>
+  </div>`;
+
+  html+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;overflow-y:hidden">`;
+  html+=`<div id="lp-scaler" style="transform:scale(${_lpScale});transform-origin:top left;display:inline-block;min-width:${REIHEN*(CELL_W+1)+55}px">`;
+  html+=`<table style="border-collapse:collapse;font-size:.68rem;table-layout:fixed">`;
+
+  // Header: leere Ecke + G1..G4
   html+=`<thead><tr>`;
-  html+=`<th rowspan="2" style="padding:4px 10px;font-size:.62rem;color:var(--txl);border-bottom:2px solid var(--bdr);border-right:2px solid var(--bdr);position:sticky;left:0;background:var(--card);z-index:3;white-space:nowrap;text-align:center"></th>`;
+  html+=`<th style="width:46px;min-width:46px;padding:4px 2px;border-bottom:2px solid var(--bdr);border-right:2px solid var(--bdr);position:sticky;left:0;background:var(--card);z-index:3"></th>`;
   for(let ri=0;ri<REIHEN;ri++){
     const eigen=_lpEigenOf(zi,ri);
     const bgR=eigen==='eigen'?'#c8e6c9':'#fce4ec';
     const tcR=eigen==='eigen'?'#1b5e20':'#880e4f';
-    html+=`<th colspan="${MAX_H}" style="padding:5px 8px;font-size:.75rem;font-weight:800;color:${tcR};background:${bgR};border:1px solid var(--bdr);border-right:2px solid var(--bdr);text-align:center">R${ri+1}<span style="font-size:.58rem;font-weight:400;opacity:.7;margin-left:4px">${eigen==='eigen'?'uns':'fremd'}</span></th>`;
-  }
-  html+=`</tr>`;
-  // Header Zeile 2: H4 H3 H2 H1 für jede Reihe
-  html+=`<tr>`;
-  for(let ri=0;ri<REIHEN;ri++){
-    for(let hi=MAX_H-1;hi>=0;hi--){
-      const isLastH=hi===0;
-      html+=`<th style="padding:2px 3px;font-size:.58rem;color:var(--txl);border-bottom:2px solid var(--bdr);${isLastH?'border-right:2px solid var(--bdr);':''}text-align:center;min-width:58px;font-weight:600">H${hi+1}</th>`;
-    }
+    const isLast=ri===REIHEN-1;
+    html+=`<th style="width:${CELL_W}px;padding:5px 4px;font-size:.75rem;font-weight:800;color:${tcR};background:${bgR};border:1px solid var(--bdr);${isLast?'':'border-right:1px solid var(--bdr);'}text-align:center">G${ri+1}<br><span style="font-size:.58rem;font-weight:400;opacity:.7">${eigen==='eigen'?'uns':'fremd'}</span></th>`;
   }
   html+=`</tr></thead><tbody>`;
 
-  // Body: eine Zeile pro Stapel (S11=Tür oben → S1=Wand unten)
-  for(let si=STAPEL-1;si>=0;si--){
+  // Body: R1 (Wand) oben → R11 (Tür) unten
+  for(let si=0;si<STAPEL;si++){
     const isTuer=si===STAPEL-1,isWand=si===0;
-    const lblColor=isTuer?'#1565c0':isWand?'#6a1a1a':'var(--txl)';
-    const lblBg=isTuer?'#e3f2fd':isWand?'#fbe9e7':'var(--bg)';
+    const lblColor=isWand?'#6a1a1a':isTuer?'#1565c0':'var(--txl)';
+    const lblBg=isWand?'#fbe9e7':isTuer?'#e3f2fd':'var(--bg)';
+    const rowH=MAX_H*CELL_H; // pixel height of row
     html+=`<tr>`;
-    html+=`<td style="padding:3px 8px;font-size:.7rem;font-weight:${isTuer||isWand?'800':'600'};color:${lblColor};background:${lblBg};border:1px solid var(--bdr);border-right:2px solid var(--bdr);position:sticky;left:0;z-index:1;text-align:center;white-space:nowrap">${isTuer?'🚪':isWand?'🧱':''}S${si+1}</td>`;
+    html+=`<td style="width:46px;min-width:46px;padding:2px 4px;font-size:.65rem;font-weight:${isTuer||isWand?'800':'600'};color:${lblColor};background:${lblBg};border:1px solid var(--bdr);border-right:2px solid var(--bdr);position:sticky;left:0;z-index:1;text-align:center;vertical-align:middle;height:${rowH}px;white-space:nowrap">${isWand?'🧱':isTuer?'🚪':''}R${si+1}</td>`;
 
     for(let ri=0;ri<REIHEN;ri++){
       const eigen=_lpEigenOf(zi,ri);
       const isEigen=eigen==='eigen';
+      const maxH=_lpMaxH(zi,ri,si);
+      const isLastCol=ri===REIHEN-1;
+      // Zelle enthält vertikalen Stack H4→H1
+      html+=`<td style="width:${CELL_W}px;padding:0;border:1px solid var(--bdr);${isLastCol?'':'border-right:1px solid var(--bdr);'}vertical-align:top;height:${rowH}px">`;
+      html+=`<div style="display:flex;flex-direction:column;height:${rowH}px">`;
+
       for(let hi=MAX_H-1;hi>=0;hi--){
-        const maxH=_lpMaxH(zi,ri,si);
         const hNum=hi+1;
+        const disabled=hNum>maxH;
         const isLastH=hi===0;
-        if(hNum>maxH){
-          html+=`<td style="background:repeating-linear-gradient(45deg,#e0e0e0,#e0e0e0 3px,#f5f5f5 3px,#f5f5f5 6px);border:1px solid #ccc;${isLastH?'border-right:2px solid var(--bdr);':''}min-width:58px;height:52px"></td>`;
+        const borderB=isLastH?'':'border-bottom:1px solid rgba(0,0,0,.1);';
+
+        if(disabled){
+          html+=`<div style="flex:1;${borderB}background:repeating-linear-gradient(45deg,#e0e0e0,#e0e0e0 2px,#f5f5f5 2px,#f5f5f5 5px)"></div>`;
         } else {
           const key=_lpCellKey(zi,ri,si,hi);
           const entry=_lpEntryData(plan[key]);
+          const isOwn=!!ownPlan[key]; // eigener Eintrag (bearbeitbar)
+          const isFremderEintrag=entry&&!isOwn; // Gruppen-Eintrag (nur lesen)
           let warnAuslagern=false;
           if(entry?.auslagernBis){
             const tage=Math.ceil((new Date(entry.auslagernBis)-new Date())/(1000*60*60*24));
@@ -5588,47 +5929,83 @@ function _lpBuildTable(zi){
           }
           let bg,tc;
           if(entry){
-            bg=warnAuslagern?'#b71c1c':(isEigen?'#2e7d32':'#b71c1c');tc='#fff';
+            if(warnAuslagern){bg='#b71c1c';tc='#fff';}
+            else if(isEigen){bg='#2e7d32';tc='#fff';}
+            else{bg='#880e4f';tc='#fff';}
             if(isEigen)belegtEigen++;else belegtFremd++;
           } else {
             bg=isEigen?'#e8f5e9':'#fce4ec';tc=isEigen?'#388e3c':'#ad1457';
             if(isEigen)freiEigen++;
           }
-          let cellContent='';
+
+          // Fremd-Eintrag (nur sichtbar, nicht editierbar): leicht transparente Farbe + 🔒
+          if(isFremderEintrag){
+            bg=bg+'cc'; // slight transparency indicator
+          }
+
+          let inner='';
           if(entry){
             const sc=D.schlage.find(x=>x.id===entry.schlag_id);
-            const schlagLabel=sc?sc.name:'';
-            const sfBadge=entry.sf?'<span style="background:rgba(255,255,255,.28);border-radius:3px;padding:0 3px;font-size:.5rem;font-weight:900;margin-left:2px">SF</span>':'';
-            const qualBadge=entry.qualitaet?`<span style="background:rgba(255,255,255,.22);border-radius:3px;padding:0 2px;font-size:.48rem;font-weight:700">${entry.qualitaet==='sehr_gut'?'★★':'★'}</span>`:'';
-            const groesseBadge=entry.groesse?`<span style="font-size:.48rem;opacity:.8">${entry.groesse==='klein'?'S':entry.groesse==='mittel'?'M':'L'}</span>`:'';
-            const warnIcon=warnAuslagern?'<span style="font-size:.5rem">⚠️</span>':'';
-            cellContent=
-              `<div style="font-weight:800;font-size:.68rem;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:54px">${entry.sorte||'?'}${sfBadge}${warnIcon}</div>`+
-              (schlagLabel?`<div style="font-size:.62rem;opacity:.88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:54px;margin-top:1px">${schlagLabel}</div>`:'')+
-              ((entry.groesse||entry.qualitaet)?`<div style="display:flex;gap:3px;justify-content:center;margin-top:2px">${groesseBadge}${qualBadge}</div>`:'')+
-              (entry.auslagernBis&&!warnAuslagern?`<div style="font-size:.5rem;opacity:.65">bis ${entry.auslagernBis.slice(5)}</div>`:'');
+            const sfTxt=entry.sf?' SF':'';
+            const qualTxt=entry.qualitaet==='sehr_gut'?'★★':entry.qualitaet?'★':'';
+            const grTxt=entry.groesse==='klein'?'S':entry.groesse==='mittel'?'M':entry.groesse==='gross'?'L':'';
+            const warnTxt=warnAuslagern?'⚠ ':'';
+            const lockTxt=isFremderEintrag?'🔒':'';
+            inner=`<div style="font-size:.58rem;font-weight:800;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:${CELL_W-6}px">${warnTxt}${lockTxt}${entry.sorte||'?'}${sfTxt}</div>`+
+              (sc?`<div style="font-size:.52rem;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:${CELL_W-6}px">${sc.name}</div>`:'')+
+              ((qualTxt||grTxt)?`<div style="font-size:.52rem;opacity:.9">${grTxt}${qualTxt?(' '+qualTxt):''}</div>`:'')+
+              `<div style="font-size:.5rem;opacity:.7">H${hNum}</div>`;
+          } else {
+            inner=`<div style="font-size:.5rem;opacity:.5">H${hNum}</div>`;
           }
-          const dragAttrs=entry?`draggable="true" ondragstart="_lpDragStart('${key}',event)"`:'' ;
-          html+=`<td ${dragAttrs}
-            onclick="_lpCellClick(${zi},${ri},${si},${hi})"
+
+          const clickFn=isOwn||!entry?`_lpCellClick(${zi},${ri},${si},${hi})`:`_lpCellViewOnly(${zi},${ri},${si},${hi})`;
+          const dragAttrs=isOwn&&entry?`draggable="true" ondragstart="_lpDragStart('${key}',event)"`:'';
+          html+=`<div ${dragAttrs}
+            onclick="${clickFn}"
             ondragover="event.preventDefault();this.style.outline='2px solid var(--pd)'"
             ondragleave="this.style.outline=''"
             ondrop="_lpDrop('${key}',${zi},event)"
-            style="background:${bg};border:1px solid rgba(0,0,0,.12);${isLastH?'border-right:2px solid var(--bdr);':''}min-width:58px;height:52px;cursor:pointer;color:${tc};text-align:center;vertical-align:middle;padding:2px 4px;overflow:hidden;transition:outline .08s;user-select:none"
-            title="R${ri+1} · S${si+1} · H${hNum}${entry?' — '+entry.sorte+(entry.sf?' SF':''):''}">${cellContent}</td>`;
+            style="flex:1;${borderB}background:${bg};color:${tc};cursor:pointer;padding:3px 4px;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;transition:outline .08s;user-select:none;-webkit-tap-highlight-color:transparent"
+            title="G${ri+1}·R${si+1}·H${hNum}${entry?' — '+entry.sorte+(entry.sf?' SF':''):''}">${inner}</div>`;
         }
       }
+      html+=`</div></td>`;
     }
     html+=`</tr>`;
   }
-  html+=`</tbody></table></div>`;
-  html+=`<div style="margin-top:10px;font-size:.7rem;color:var(--txl);display:flex;gap:16px;flex-wrap:wrap">
+  html+=`</tbody></table></div></div>`;
+  html+=`<div style="margin-top:10px;font-size:.7rem;color:var(--txl);display:flex;gap:14px;flex-wrap:wrap">
     <span>✅ Uns belegt: <b>${belegtEigen}</b></span>
     <span>🟢 Uns frei: <b>${freiEigen}</b></span>
     ${belegtFremd?`<span>🔴 Fremd belegt: <b>${belegtFremd}</b></span>`:''}
-    <span style="opacity:.6;font-style:italic">💡 Kiste ziehen zum Verschieben</span>
-    <span>⚠️ Auslagern ≤ 4 Wo: <b style="color:var(--crit)">ROT</b></span>
+    <span>⚠️ ≤4 Wo: <b style="color:var(--crit)">ROT</b></span>
+    ${_gruppenGaimbergPlan&&Object.keys(_gruppenGaimbergPlan).length?`<span>🔒 Gruppenplan sichtbar</span>`:''}
   </div>`;
+
+  // Mismatch-Warnung: Plan hat mehr Kisten als GK für diesen Schlag gebucht
+  (()=>{
+    const gkBySchlag=_lpGaimbergKistenBySchlag();
+    const planBySchlag=_lpPlanKistenBySchlag(null);
+    const warnLines=[];
+    Object.keys(planBySchlag).forEach(schlag_id=>{
+      const planned=planBySchlag[schlag_id];
+      const booked=gkBySchlag[schlag_id]||0;
+      if(planned>booked){
+        const sc=D.schlage.find(x=>x.id===schlag_id);
+        const name=sc?sc.name:schlag_id;
+        const sorte=sc?.sorte||sc?.name||'?';
+        warnLines.push(`<div style="margin-bottom:3px">📦 <b>${sorte} · ${name}</b>: ${planned} im Plan, nur ${booked} GK gebucht (${planned-booked} zu viel)</div>`);
+      }
+    });
+    if(warnLines.length){
+      html+=`<div style="margin-top:10px;background:#fff3e0;border:2px solid var(--warn);border-radius:10px;padding:10px 14px;font-size:.72rem;color:#bf360c">
+        <div style="font-weight:800;margin-bottom:6px">⚠️ Plan-Mismatch: Mehr Kisten verplant als eingelagert</div>
+        ${warnLines.join('')}
+      </div>`;
+    }
+  })();
+
   return html;
 }
 
@@ -5711,29 +6088,60 @@ function _lpCellClick(zi,ri,si,hi){
   }
   const key=_lpCellKey(zi,ri,si,hi);
   const current=_lpEntryData((D.gaimbergPlan||{})[key]);
-  _lpEd={zi,ri,si,hi,step:0,
-    sorte:current?.sorte||'',
-    schlag_id:current?.schlag_id||'',
-    sf:current?.sf||false,
-    auslagernBis:current?.auslagernBis||'',
-    qualitaet:current?.qualitaet||'',
-    groesse:current?.groesse||'',
-    sortenMap:{}};
-  // Sorten: aus Gaimberg-Bestand, sonst alle Schläge
-  let sm=_lpSortenInGaimberg();
-  if(Object.keys(sm).length===0){
-    const fb=new Set();D.schlage.forEach(s=>{const v=s.sorte||s.name;if(v)fb.add(v);});
-    [...fb].sort().forEach(s=>{sm[s]=[];});
-  }
-  _lpEd.sortenMap=sm;
   const hNum=hi+1;
   const eigen=_lpEigenOf(zi,ri)==='eigen';
   const tEl=document.getElementById('lp-ed-title');
   const sEl=document.getElementById('lp-ed-subtitle');
-  if(tEl)tEl.textContent=`🏪 R${ri+1} · S${si+1} · Kiste ${hNum}`;
+  if(tEl)tEl.textContent=`🏪 G${ri+1} · R${si+1} · Kiste ${hNum}`;
   if(sEl)sEl.textContent=eigen?'Eigenbereich (uns)':'Fremdbereich';
+
+  // Besetzte Kiste: Aktionsmenü zeigen
+  if(current){
+    const curKey=_lpCellKey(zi,ri,si,hi);
+    _lpEd={zi,ri,si,hi,step:-1, // step=-1 = Aktionsmenü
+      sorte:current.sorte||'',schlag_id:current.schlag_id||'',sf:current.sf||false,
+      auslagernBis:current.auslagernBis||'',qualitaet:current.qualitaet||'',groesse:current.groesse||'',sortenMap:{},
+      _gkBySchlag:_lpGaimbergKistenBySchlag(), _planBySchlag:_lpPlanKistenBySchlag(curKey)};
+    openMod('mod-lp-editor');
+    _lpEdRender();
+    return;
+  }
+
+  // Leere Kiste: direkt Wizard öffnen
+  const curKey=_lpCellKey(zi,ri,si,hi);
+  _lpEd={zi,ri,si,hi,step:0,sorte:'',schlag_id:'',sf:false,auslagernBis:'',qualitaet:'',groesse:'',sortenMap:{},
+    _gkBySchlag:_lpGaimbergKistenBySchlag(), _planBySchlag:_lpPlanKistenBySchlag(curKey)};
+  _lpEd.sortenMap=_lpSortenInGaimberg();
   openMod('mod-lp-editor');
   _lpEdRender();
+}
+
+// Gruppenplan-Kiste: nur Info anzeigen (kein Bearbeiten)
+function _lpCellViewOnly(zi,ri,si,hi){
+  const key=_lpCellKey(zi,ri,si,hi);
+  const entry=_lpEntryData((_getActivePlan())[key]);
+  if(!entry)return;
+  const sc=D.schlage.find(x=>x.id===entry.schlag_id);
+  const hNum=hi+1;
+  const tEl=document.getElementById('lp-ed-title');
+  const sEl=document.getElementById('lp-ed-subtitle');
+  if(tEl)tEl.textContent=`🔒 G${ri+1} · R${si+1} · Kiste ${hNum}`;
+  if(sEl)sEl.textContent='Gruppenplan (nur lesen)';
+  const body=document.getElementById('lp-ed-body');
+  const footer=document.getElementById('lp-ed-footer');
+  if(!body||!footer)return;
+  body.innerHTML=`<div style="padding:20px 0;display:flex;flex-direction:column;gap:12px">
+    <div style="padding:16px;background:var(--bg);border-radius:12px;border:1.5px solid var(--bdr)">
+      <div style="font-size:1.1rem;font-weight:800">${entry.sorte||'?'}${entry.sf?' <span style="font-size:.75rem;background:#e3f2fd;color:#1565c0;border-radius:4px;padding:1px 6px">SF</span>':''}</div>
+      ${sc?`<div style="font-size:.85rem;color:var(--txl);margin-top:4px">${sc.name}</div>`:''}
+      ${entry.qualitaet?`<div style="font-size:.8rem;margin-top:4px">⭐ ${entry.qualitaet==='sehr_gut'?'Sehr gut':entry.qualitaet==='gut'?'Gut':'Mäßig'}</div>`:''}
+      ${entry.groesse?`<div style="font-size:.8rem">📏 ${entry.groesse==='klein'?'Klein':entry.groesse==='mittel'?'Mittel':'Groß'}</div>`:''}
+      ${entry.auslagernBis?`<div style="font-size:.8rem">📅 Auslagern bis ${entry.auslagernBis}</div>`:''}
+    </div>
+    <div style="font-size:.75rem;color:var(--txl);text-align:center;opacity:.7">🔒 Dieser Eintrag gehört einem anderen Betrieb</div>
+  </div>`;
+  footer.innerHTML=`<span style="flex:1"></span><button onclick="closeMod('mod-lp-editor')" style="padding:10px 22px;border-radius:8px;border:none;background:var(--pd);color:#fff;font-size:.88rem;font-weight:700;cursor:pointer">OK</button>`;
+  openMod('mod-lp-editor');
 }
 
 function _lpEdRender(){
@@ -5742,25 +6150,85 @@ function _lpEdRender(){
   if(!body||!footer)return;
   [0,1].forEach(i=>{
     const d=document.getElementById('lp-ed-dot-'+i);
-    if(d)d.style.background=i<=_lpEd.step?'var(--p)':'var(--bdr)';
+    if(d)d.style.background=(i<=_lpEd.step&&_lpEd.step>=0)?'var(--p)':'var(--bdr)';
   });
-  if(_lpEd.step===0)_lpEdStep0(body,footer);
+  if(_lpEd.step===-1)_lpEdRenderAction(body,footer);
+  else if(_lpEd.step===0)_lpEdStep0(body,footer);
   else _lpEdStep1(body,footer);
 }
 
+function _lpEdRenderAction(body,footer){
+  const {zi,ri,si,hi,sorte,schlag_id,sf,qualitaet,groesse,auslagernBis}=_lpEd;
+  const sc=D.schlage.find(x=>x.id===schlag_id);
+  const qualLbl=qualitaet==='sehr_gut'?'Sehr gut':qualitaet==='gut'?'Gut':qualitaet==='maessig'?'Mäßig':'';
+  const grLbl=groesse==='klein'?'Klein':groesse==='mittel'?'Mittel':groesse==='gross'?'Groß':'';
+  body.innerHTML=`
+    <div style="padding:4px 0 16px">
+      <div style="padding:14px 16px;background:var(--bg);border-radius:12px;border:1.5px solid var(--bdr);margin-bottom:16px">
+        <div style="font-size:1rem;font-weight:800">${sorte||'?'}${sf?' <span style="font-size:.72rem;background:#e3f2fd;color:#1565c0;border-radius:4px;padding:1px 6px">SF</span>':''}</div>
+        ${sc?`<div style="font-size:.82rem;color:var(--txl);margin-top:3px">${sc.name}</div>`:''}
+        ${qualLbl||grLbl?`<div style="font-size:.8rem;margin-top:4px">${grLbl?'📏 '+grLbl:''} ${qualLbl?'⭐ '+qualLbl:''}</div>`:''}
+        ${auslagernBis?`<div style="font-size:.78rem;color:var(--txl);margin-top:3px">📅 bis ${auslagernBis}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="_lpEdStartEdit()" style="padding:16px;border-radius:12px;border:1.5px solid var(--bdr);background:#fff;font-size:.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent">
+          <span style="font-size:1.2rem">✏️</span><span>Kiste bearbeiten</span>
+        </button>
+        <button onclick="_lpStartSort(${zi},${ri},${si},${hi})" style="padding:16px;border-radius:12px;border:1.5px solid var(--bdr);background:#fff;font-size:.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent">
+          <span style="font-size:1.2rem">🔬</span><span>Kiste sortieren</span>
+        </button>
+        <button onclick="_lpEdClear2()" style="padding:16px;border-radius:12px;border:1.5px solid #ffcdd2;background:#fff8f8;font-size:.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;color:#c62828;-webkit-tap-highlight-color:transparent">
+          <span style="font-size:1.2rem">🗑</span><span>Kiste leeren</span>
+        </button>
+      </div>
+    </div>`;
+  footer.innerHTML=`<button onclick="closeMod('mod-lp-editor')" style="padding:10px 16px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">Abbrechen</button><span style="flex:1"></span>`;
+}
+
+function _lpEdStartEdit(){
+  _lpEd.step=0;
+  _lpEd.sortenMap=_lpSortenInGaimberg();
+  const curKey=_lpCellKey(_lpEd.zi,_lpEd.ri,_lpEd.si,_lpEd.hi);
+  _lpEd._gkBySchlag=_lpGaimbergKistenBySchlag();
+  _lpEd._planBySchlag=_lpPlanKistenBySchlag(curKey);
+  _lpEdRender();
+}
+
 function _lpEdStep0(body,footer){
-  const sm=_lpEd.sortenMap;
+  const sm=_lpEd.sortenMap; // {sorte: [schlag_id,...]}
+  const gkBySchlag=_lpEd._gkBySchlag||{};
+  const planBySchlag=_lpEd._planBySchlag||{};
   const displaySorten=Object.keys(sm).sort();
+
+  // Keine Gaimberg-Buchungen → Hinweis
+  if(!displaySorten.length){
+    body.innerHTML=`<div style="padding:30px 0;text-align:center;color:var(--txl)">
+      <div style="font-size:2rem;margin-bottom:10px">📦</div>
+      <div style="font-weight:700;margin-bottom:6px">Keine Buchung in Gaimberg</div>
+      <div style="font-size:.82rem">Zuerst eine Ernte-Buchung mit Lagerort Gaimberg erfassen.</div>
+    </div>`;
+    footer.innerHTML=`<span style="flex:1"></span><button onclick="closeMod('mod-lp-editor')" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer">Schließen</button>`;
+    return;
+  }
+
   body.innerHTML=
     '<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px">Welche Sorte?</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
     displaySorten.map(sorte=>{
       const sel=_lpEd.sorte===sorte;
       const ids=sm[sorte]||[];
-      const cnt=ids.length>0?ids.length:D.schlage.filter(s=>(s.sorte||s.name)===sorte).length;
+      // Verfügbare GK: Summe Gaimberg-Buchung dieser Sorte - bereits im Plan
+      const gkBooked=ids.reduce((s,id)=>s+(gkBySchlag[id]||0),0);
+      const gkPlaced=ids.reduce((s,id)=>s+(planBySchlag[id]||0),0);
+      const gkFrei=Math.max(0,gkBooked-gkPlaced);
       const esc=sorte.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-      return`<button onclick="_lpEdSelSorte('${esc}')"
-        style="padding:20px 10px;border-radius:14px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--p)':'#fff'};color:${sel?'#fff':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:pointer;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);-webkit-tap-highlight-color:transparent;user-select:none">🍎 ${sorte}<div style="font-size:.7rem;font-weight:400;margin-top:4px;opacity:.75">${cnt} Schlag${cnt!==1?'e':''}</div></button>`;
+      const disabled=gkFrei===0&&sel===false;
+      return`<button onclick="${disabled?'':''}_lpEdSelSorte('${esc}')"
+        ${disabled?'disabled':''}
+        style="padding:20px 10px;border-radius:14px;border:2px solid ${sel?'var(--p)':disabled?'#e0e0e0':'var(--bdr)'};background:${sel?'var(--p)':disabled?'#f5f5f5':'#fff'};color:${sel?'#fff':disabled?'#bbb':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:${disabled?'not-allowed':'pointer'};text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);-webkit-tap-highlight-color:transparent;user-select:none">
+        ${_sorteSymbol(sorte)} ${sorte}
+        <div style="font-size:.7rem;font-weight:400;margin-top:4px;opacity:.75">${disabled?'✗ voll':gkFrei+' GK frei'}</div>
+      </button>`;
     }).join('')+'</div>';
   footer.innerHTML=
     `<button onclick="_lpEdClear2()" style="padding:10px 16px;border-radius:8px;border:1px solid #ccc;background:#f5f5f5;font-size:.85rem;cursor:pointer;color:var(--txl)">🗑 Leeren</button>`+
@@ -5779,6 +6247,8 @@ function _lpEdSelSorte(sorte){
 function _lpEdStep1(body,footer){
   const sorte=_lpEd.sorte;
   const ids=_lpEd.sortenMap[sorte]||[];
+  const gkBySchlag=_lpEd._gkBySchlag||{};
+  const planBySchlag=_lpEd._planBySchlag||{};
   const matching=ids.length>0
     ?ids.map(id=>D.schlage.find(x=>x.id===id)).filter(Boolean)
     :D.schlage.filter(s=>(s.sorte||s.name)===sorte);
@@ -5789,9 +6259,18 @@ function _lpEdStep1(body,footer){
       const farbe=betriebFarbe(s.betrieb||'');
       const farbeBg=betriebFarbeBg(s.betrieb||'');
       const sel=_lpEd.schlag_id===s.id;
-      return`<button onclick="_lpEdSelSchlag('${s.id}')"
-        style="padding:16px;border-radius:12px;border:2px solid ${sel?farbe:'var(--bdr)'};background:${sel?farbe:farbeBg};color:${sel?'#fff':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:transparent;user-select:none"
-        id="lp-sbtn-${s.id}"><span>${s.name}</span><span style="font-size:.75rem;font-weight:400;opacity:.85">${s.betrieb||''}</span></button>`;
+      const gkB=gkBySchlag[s.id]||0;
+      const gkP=planBySchlag[s.id]||0;
+      const gkFrei=Math.max(0,gkB-gkP);
+      const voll=gkFrei===0&&!sel; // voll belegt (außer aktuell bearbeiteter Schlag)
+      const kapTxt=gkB?`${gkP}/${gkB} GK`:'';
+      return`<button onclick="${voll?'':''}_lpEdSelSchlag('${s.id}')"
+        ${voll?'disabled':''}
+        style="padding:16px;border-radius:12px;border:2px solid ${sel?farbe:voll?'#e0e0e0':'var(--bdr)'};background:${sel?farbe:voll?'#f5f5f5':farbeBg};color:${sel?'#fff':voll?'#bbb':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:${voll?'not-allowed':'pointer'};text-align:left;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:transparent;user-select:none"
+        id="lp-sbtn-${s.id}">
+        <span>${s.name}${voll?' ✗':''}</span>
+        <span style="font-size:.72rem;font-weight:400;opacity:.85">${kapTxt?`<span style="color:${gkFrei>0?'#2e7d32':'#c62828'}">${gkFrei>0?gkFrei+' frei':'voll'}</span> · `:''} ${s.betrieb||''}</span>
+      </button>`;
     }).join('')+`</div>`+
     `<div style="margin-top:18px;display:flex;flex-direction:column;gap:10px">
       <div style="padding:14px 16px;background:var(--bg);border-radius:10px;border:1.5px solid var(--bdr);display:flex;align-items:center;gap:10px">
@@ -5897,6 +6376,304 @@ function _lpEdClear2(){
   _lpShowZelle(zi);
 }
 
+// Sortierung aus Lagerplan-Zelle starten (Kiste vorausfüllen)
+function _lpStartSort(zi,ri,si,hi){
+  closeMod('mod-lp-editor');
+  const key=_lpCellKey(zi,ri,si,hi);
+  const entry=_lpEntryData((D.gaimbergPlan||{})[key]);
+  if(!entry)return;
+  const today=new Date().toISOString().slice(0,10);
+  _sw={step:0,datum:today,lp_key:key,
+    sorte:entry.sorte||'',schlag_id:entry.schlag_id||'',sf:entry.sf||false,
+    los:'',haccp:{waage:true,groesse:true,thermo:true,reinigung:false},notiz:''};
+  _swRender();
+  openMod('mod-sort-wizard');
+}
+
+// ════════════════════════════════════════════════════════════
+// SORTIERPROTOKOLL
+// ════════════════════════════════════════════════════════════
+let _sw={step:0,datum:'',lp_key:'',sorte:'',schlag_id:'',sf:false,los:'',
+  haccp:{waage:true,groesse:true,thermo:true,reinigung:false},notiz:''};
+
+function _swRandWeight(){
+  return Math.round((6.10+Math.random()*0.10)*100)/100;
+}
+
+function _swNextLos(datum){
+  if(!datum)return'—';
+  const yy=datum.slice(2,4),mm=datum.slice(5,7);
+  const prefix='S-'+yy+mm+'-';
+  const existing=(D.sortierungen||[]).filter(s=>s.los&&s.los.startsWith(prefix));
+  const nums=existing.map(s=>parseInt(s.los.slice(prefix.length))||0);
+  const next=(nums.length?Math.max(...nums):0)+1;
+  return prefix+String(next).padStart(3,'0');
+}
+
+function openSortWizard(){
+  const today=new Date().toISOString().slice(0,10);
+  _sw={step:0,datum:today,lp_key:'',sorte:'',schlag_id:'',sf:false,
+    los:'',haccp:{waage:true,groesse:true,thermo:true,reinigung:false},notiz:''};
+  _swRender();
+  openMod('mod-sort-wizard');
+}
+
+function _swRender(){
+  const body=document.getElementById('sw-body');
+  const footer=document.getElementById('sw-footer');
+  if(!body||!footer)return;
+  [0,1].forEach(i=>{
+    const d=document.getElementById('sw-dot-'+i);
+    if(d)d.style.background=i<=_sw.step?'var(--p)':'var(--bdr)';
+  });
+  if(_sw.step===0)_swStep0(body,footer);
+  else _swStep1(body,footer);
+}
+
+function _swStep0(body,footer){
+  // Wenn Kiste aus Lagerplan vorausgewählt: einfaches Info-Card + Datum
+  if(_sw.lp_key){
+    const [zi,ri,si,hi]=_sw.lp_key.split('_').map(Number);
+    const posLabel=`G${ri+1} · R${si+1} · H${hi+1}`;
+    const sc=D.schlage.find(x=>x.id===_sw.schlag_id);
+    body.innerHTML=
+      `<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">📅 Datum</div>`+
+      `<input type="date" id="sw-datum" value="${_sw.datum}" onchange="_sw.datum=this.value" style="border:1.5px solid var(--bdr);border-radius:10px;padding:10px 14px;font-size:1rem;width:100%;margin-bottom:16px;background:#fff">`+
+      `<div style="padding:14px 16px;background:var(--bg);border-radius:12px;border:1.5px solid var(--bdr)">
+        <div style="font-size:.7rem;font-weight:700;color:var(--txl);margin-bottom:6px">📦 Kiste aus Lagerplan</div>
+        <div style="font-size:.95rem;font-weight:800">${_sw.sorte||'?'}${_sw.sf?' <span style="font-size:.72rem;background:#e3f2fd;color:#1565c0;border-radius:4px;padding:1px 6px">SF</span>':''}</div>
+        ${sc?`<div style="font-size:.82rem;color:var(--txl);margin-top:3px">${sc.name}</div>`:''}
+        <div style="font-size:.75rem;color:var(--txl);margin-top:4px;opacity:.8">📍 ${posLabel} · Zelle ${zi+1}</div>
+      </div>`;
+    footer.innerHTML=
+      `<button onclick="_sw.lp_key='';_swStep0(document.getElementById('sw-body'),document.getElementById('sw-footer'))" style="padding:10px 14px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.82rem;cursor:pointer;color:var(--txl)">✕ Kiste ändern</button>`+
+      `<span style="flex:1"></span>`+
+      `<button onclick="_swGoStep1()" style="padding:10px 22px;border-radius:8px;border:none;background:var(--pd);color:#fff;font-size:.88rem;font-weight:700;cursor:pointer">Weiter →</button>`;
+    return;
+  }
+
+  // Normal: Kistenliste + manuelle Sortenauswahl
+  const plan=D.gaimbergPlan||{};
+  const kistenList=Object.entries(plan)
+    .map(([k,v])=>{const e=_lpEntryData(v);if(!e)return null;return{key:k,e};})
+    .filter(Boolean);
+
+  let kisteHtml='';
+  if(kistenList.length){
+    kisteHtml=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">📦 Kiste aus Lagerplan (optional)</div>`+
+      `<div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;margin-bottom:16px">`;
+    kisteHtml+=kistenList.map(({key,e})=>{
+      const sc=D.schlage.find(x=>x.id===e.schlag_id);
+      const label=`${e.sorte||'?'}${e.sf?' SF':''}`+(sc?` · ${sc.name}`:'');
+      const [zi,ri,si,hi]=key.split('_').map(Number);
+      const posLabel=`G${ri+1}·R${si+1}·H${hi+1}`;
+      const sel=_sw.lp_key===key;
+      return`<button onclick="_swSelKiste('${key}')"
+        style="padding:12px 14px;border-radius:10px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--p)':'#fff'};color:${sel?'#fff':'var(--txt)'};font-size:.88rem;font-weight:${sel?'700':'500'};cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between">
+        <span>${label}</span><span style="font-size:.72rem;opacity:.8">${posLabel}</span>
+      </button>`;
+    }).join('');
+    kisteHtml+=`</div>`;
+  }
+
+  body.innerHTML=
+    `<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">📅 Datum</div>`+
+    `<input type="date" id="sw-datum" value="${_sw.datum}" onchange="_sw.datum=this.value" style="border:1.5px solid var(--bdr);border-radius:10px;padding:10px 14px;font-size:1rem;width:100%;margin-bottom:16px;background:#fff">`+
+    kisteHtml+
+    `<div id="sw-manual-block">
+      <div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">🍎 Sorte (manuell)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${[...new Set(D.schlage.map(s=>s.sorte||s.name).filter(Boolean))].sort().map(sorte=>{
+          const sel=_sw.sorte===sorte&&!_sw.lp_key;
+          const esc=sorte.replace(/'/g,"\\'");
+          return`<button onclick="_swSelSorte('${esc}')"
+            style="padding:14px 8px;border-radius:12px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--p)':'#fff'};color:${sel?'#fff':'var(--txt)'};font-size:.88rem;font-weight:700;cursor:pointer;text-align:center">${_sorteSymbol(sorte)} ${sorte}</button>`;
+        }).join('')}
+      </div>
+    </div>`;
+  footer.innerHTML=
+    `<span style="flex:1"></span>`+
+    `<span style="font-size:.74rem;color:var(--txl);margin-right:6px">Schritt 1 / 2</span>`+
+    `<button onclick="_swGoStep1()" style="padding:10px 22px;border-radius:8px;border:none;background:var(--pd);color:#fff;font-size:.88rem;font-weight:700;cursor:pointer">Weiter →</button>`;
+}
+
+function _swSelKiste(key){
+  _sw.lp_key=_sw.lp_key===key?'':key; // toggle
+  if(_sw.lp_key){
+    const e=_lpEntryData((D.gaimbergPlan||{})[_sw.lp_key]);
+    if(e){_sw.sorte=e.sorte||'';_sw.schlag_id=e.schlag_id||'';_sw.sf=e.sf||false;}
+    const mb=document.getElementById('sw-manual-block');
+    if(mb)mb.style.display='none';
+  } else {
+    const mb=document.getElementById('sw-manual-block');
+    if(mb)mb.style.display='';
+  }
+  _swStep0(document.getElementById('sw-body'),document.getElementById('sw-footer'));
+}
+
+function _swSelSorte(sorte){
+  _sw.sorte=sorte;_sw.lp_key='';
+  const sc=D.schlage.find(s=>(s.sorte||s.name)===sorte);
+  _sw.schlag_id=sc?.id||'';
+  _swStep0(document.getElementById('sw-body'),document.getElementById('sw-footer'));
+}
+
+function _swGoStep1(){
+  _sw.datum=document.getElementById('sw-datum')?.value||_sw.datum;
+  if(!_sw.datum){alert('Bitte Datum wählen');return;}
+  if(!_sw.sorte&&!_sw.lp_key){alert('Bitte eine Kiste oder Sorte wählen');return;}
+  _sw.step=1;
+  _swRender();
+}
+
+function _swStep1(body,footer){
+  const checks=[
+    {key:'waage',icon:'⚖️',label:'Waage kalibriert'},
+    {key:'groesse',icon:'📏',label:'Größe kontrolliert'},
+    {key:'thermo',icon:'🌡️',label:'Thermometer geprüft'},
+    {key:'reinigung',icon:'🧹',label:'Wöchentliche Reinigung'},
+  ];
+  body.innerHTML=
+    `<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px">✅ HACCP Protokoll</div>`+
+    `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">`+
+    checks.map(c=>{
+      const checked=_sw.haccp[c.key];
+      return`<div onclick="_swToggleHaccp('${c.key}')" id="sw-haccp-${c.key}"
+        style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;border:2px solid ${checked?'var(--p)':'var(--bdr)'};background:${checked?'#f0faf4':'#fff'};cursor:pointer;user-select:none;transition:all .15s">
+        <span style="font-size:1.3rem">${c.icon}</span>
+        <span style="font-size:.95rem;font-weight:${checked?'700':'500'};flex:1">${c.label}</span>
+        <span style="font-size:1.2rem">${checked?'✅':'⬜'}</span>
+      </div>`;
+    }).join('')+
+    `</div>`+
+    `<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">📝 Notiz</div>`+
+    `<input type="text" id="sw-notiz" placeholder="Notiz (optional)" value="${(_sw.notiz||'').replace(/"/g,'&quot;')}" oninput="_sw.notiz=this.value" style="border:1.5px solid var(--bdr);border-radius:10px;padding:10px 14px;font-size:.9rem;width:100%">`;
+  footer.innerHTML=
+    `<button onclick="_sw.step=0;_swRender()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>`+
+    `<span style="flex:1"></span>`+
+    `<span style="font-size:.74rem;color:var(--txl);margin-right:6px">Schritt 2 / 2</span>`+
+    `<button onclick="_swSave()" style="padding:10px 22px;border-radius:8px;border:none;background:var(--pd);color:#fff;font-size:.88rem;font-weight:700;cursor:pointer">💾 Speichern</button>`;
+}
+
+function _swToggleHaccp(key){
+  _sw.haccp[key]=!_sw.haccp[key];
+  const el=document.getElementById('sw-haccp-'+key);
+  if(!el)return;
+  const checked=_sw.haccp[key];
+  el.style.borderColor=checked?'var(--p)':'var(--bdr)';
+  el.style.background=checked?'#f0faf4':'#fff';
+  el.querySelector('span:last-child').textContent=checked?'✅':'⬜';
+  el.querySelector('span:nth-child(2)').style.fontWeight=checked?'700':'500';
+}
+
+function _swSave(){
+  _sw.notiz=document.getElementById('sw-notiz')?.value||_sw.notiz;
+  if(!D.sortierungen)D.sortierungen=[];
+  const los=_swNextLos(_sw.datum);
+  // 5 Wägungen pro GK
+  const waegungen=[_swRandWeight(),_swRandWeight(),_swRandWeight(),_swRandWeight(),_swRandWeight()];
+  const entry={
+    id:uid(),datum:_sw.datum,los,
+    sorte:_sw.sorte,schlag_id:_sw.schlag_id,sf:_sw.sf,
+    lp_key:_sw.lp_key||'',
+    haccp:{...(_sw.haccp)},
+    waegungen,
+    notiz:_sw.notiz,
+  };
+  D.sortierungen.push(entry);
+  D.sortierungen.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
+  // Kiste aus Lagerplan entfernen, wenn Sortierung aus LP gestartet wurde
+  if(_sw.lp_key&&D.gaimbergPlan&&D.gaimbergPlan[_sw.lp_key]!==undefined){
+    delete D.gaimbergPlan[_sw.lp_key];
+  }
+  scheduleSave();
+  closeMod('mod-sort-wizard');
+  renderSortierung();
+  toast(`✅ Sortierung ${los} gespeichert`);
+}
+
+function renderSortierung(){
+  if(!D.sortierungen)D.sortierungen=[];
+  const sel=document.getElementById('sort-jahr-sel');
+  const jahr=sel?parseInt(sel.value)||new Date().getFullYear():new Date().getFullYear();
+  const wrap=document.getElementById('sortierung-wrap');
+  if(!wrap)return;
+  // Fill year selector
+  if(sel&&!sel.options.length){
+    const cy=new Date().getFullYear();
+    let opts='';
+    for(let y=cy;y>=cy-5;y--)opts+=`<option value="${y}"${y===jahr?' selected':''}>${y}</option>`;
+    sel.innerHTML=opts;
+  }
+
+  const entries=D.sortierungen.filter(s=>s.datum&&s.datum.startsWith(String(jahr)));
+  if(!entries.length){
+    wrap.innerHTML=`<div class="card" style="text-align:center;padding:32px;color:var(--txl)">Noch keine Sortierungen für ${jahr}.<br><br><button class="btn btn-p" onclick="openSortWizard()">+ Erste Sortierung erfassen</button></div>`;
+    return;
+  }
+
+  const haccpKeys=[
+    {key:'waage',icon:'⚖️',short:'Waage'},
+    {key:'groesse',icon:'📏',short:'Größe'},
+    {key:'thermo',icon:'🌡',short:'Thermo'},
+    {key:'reinigung',icon:'🧹',short:'Reinigung'},
+  ];
+
+  let html=`<div class="card" style="padding:0;overflow:hidden">`;
+  html+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">`;
+  html+=`<table style="border-collapse:collapse;width:100%;font-size:.78rem;min-width:600px">`;
+  html+=`<thead><tr style="background:var(--bg);border-bottom:2px solid var(--bdr)">
+    <th style="padding:8px 10px;text-align:left;white-space:nowrap;color:var(--txl);font-size:.68rem">Datum</th>
+    <th style="padding:8px 10px;text-align:left;color:var(--txl);font-size:.68rem">Los</th>
+    <th style="padding:8px 10px;text-align:left;color:var(--txl);font-size:.68rem">Sorte / Schlag</th>
+    ${haccpKeys.map(h=>`<th style="padding:8px 6px;text-align:center;color:var(--txl);font-size:.62rem;white-space:nowrap">${h.icon}<br>${h.short}</th>`).join('')}
+    <th style="padding:8px 10px;text-align:left;color:var(--txl);font-size:.68rem">5 Wägungen (kg)</th>
+    <th></th>
+  </tr></thead><tbody>`;
+
+  entries.slice().reverse().forEach(s=>{
+    const sc=D.schlage.find(x=>x.id===s.schlag_id);
+    const sorteTxt=`${s.sorte||'?'}${s.sf?' SF':''}`;
+    const schlagTxt=sc?` · ${sc.name}`:'';
+    const haccpCells=haccpKeys.map(h=>{
+      const ok=(s.haccp||{})[h.key];
+      return`<td style="text-align:center;padding:6px 4px">${ok?'✅':'❌'}</td>`;
+    }).join('');
+    const wgStr=(s.waegungen||[]).map(w=>w.toFixed(2)).join(' | ');
+    const avgW=s.waegungen?.length?(s.waegungen.reduce((a,b)=>a+b,0)/s.waegungen.length).toFixed(2):'—';
+    html+=`<tr style="border-bottom:1px solid var(--bdr);transition:background .1s" onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background=''">
+      <td style="padding:8px 10px;white-space:nowrap;font-weight:700">${s.datum}</td>
+      <td style="padding:8px 10px;white-space:nowrap"><span style="background:#e0f2fe;color:#0369a1;border-radius:6px;padding:2px 8px;font-size:.75rem;font-weight:700">${s.los||'—'}</span></td>
+      <td style="padding:8px 10px"><div style="font-weight:700">${sorteTxt}</div><div style="font-size:.7rem;color:var(--txl)">${schlagTxt}</div></td>
+      ${haccpCells}
+      <td style="padding:8px 10px;font-size:.72rem;white-space:nowrap">
+        <div style="font-family:monospace">${wgStr}</div>
+        <div style="color:var(--txl);font-size:.65rem;margin-top:2px">Ø ${avgW} kg</div>
+      </td>
+      <td style="padding:6px 6px"><button class="btn btn-s btn-sm" onclick="_swDelete('${s.id}')" style="padding:3px 7px;color:var(--crit);border-color:var(--crit)">🗑</button></td>
+    </tr>`;
+  });
+  html+=`</tbody></table></div></div>`;
+
+  // HACCP Übersicht
+  const allOk=entries.filter(s=>Object.values(s.haccp||{}).every(Boolean)).length;
+  const missingR=entries.filter(s=>!((s.haccp||{}).reinigung)).length;
+  html+=`<div class="card" style="background:var(--bg);display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem">
+    <span>📋 Einträge: <b>${entries.length}</b></span>
+    <span>✅ Vollständig: <b>${allOk}</b></span>
+    ${missingR?`<span>🧹 Reinigung fehlt: <b style="color:var(--warn)">${missingR}×</b></span>`:''}
+    <span style="color:var(--txl)">Los-Muster: S-JJMM-NNN</span>
+  </div>`;
+
+  wrap.innerHTML=html;
+}
+
+function _swDelete(id){
+  if(!confirm('Sortierung löschen?'))return;
+  D.sortierungen=D.sortierungen.filter(s=>s.id!==id);
+  scheduleSave();renderSortierung();
+}
+
 function calcLeergutGK(){
   let sum=0;
   _getAllErnteIst().forEach(e=>{
@@ -5931,8 +6708,8 @@ async function renderErnteIst(){
       const fillColor=lkwPct>=100?'var(--crit)':lkwPct>=80?'var(--warn)':lkwPct>=50?'#f4d35e':'var(--s)';
       const barHtml=total>0?`<div style="background:#e9ecef;border-radius:4px;height:5px;margin-top:6px">
         <div style="width:${lkwPct}%;height:5px;border-radius:4px;background:${fillColor}"></div></div>`:'';
-      const kl1Html=b.gk1kl>0?`<div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:1.25rem;font-weight:800;color:var(--pd);line-height:1">${b.gk1kl}</span><span style="font-size:.62rem;font-weight:700;color:#2e7d32">🍎 1.Kl.</span></div>`:'';
-      const verHtml=b.gkVer>0?`<div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:1.25rem;font-weight:800;color:var(--pd);line-height:1">${b.gkVer}</span><span style="font-size:.62rem;font-weight:700;color:#e65100">🐛 Verarb.</span></div>`:'';
+      const kl1Html=b.gk1kl>0?`<div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:1.25rem;font-weight:800;color:var(--pd);line-height:1">${b.gk1kl}</span><span style="font-size:.62rem;font-weight:700;color:#2e7d32">1.Kl.</span></div>`:'';
+      const verHtml=b.gkVer>0?`<div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:1.25rem;font-weight:800;color:var(--pd);line-height:1">${b.gkVer}</span><span style="font-size:.62rem;font-weight:700;color:#e65100">Verarb.</span></div>`:'';
       const emptyHtml=total===0?`<div style="font-size:1.25rem;font-weight:800;color:var(--txl);line-height:1">–</div>`:'';
       return`<div onclick="openLagerDrilldown('${l.id}')" style="background:var(--card);border:1px solid ${total>0?'var(--pd)':'var(--bdr)'};border-radius:10px;padding:10px 12px;flex:1;min-width:130px;cursor:pointer;transition:box-shadow .15s" onmouseenter="this.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'" onmouseleave="this.style.boxShadow=''">
         <div style="font-size:.65rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${l.name}</div>
@@ -5950,14 +6727,42 @@ async function renderErnteIst(){
     bestandHtml=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${cards}${lgCard}</div>`;
   }
 
-  // ── Sortenübersicht (nur Ernte-Buchungen des aktuellen Jahres) ─
-  // sortenMap: sorte → { kl1, ver, schlage: { schlagId → { name, kl1, ver } } }
-  const sortenMap={};
+  // ── Ernte-Gesamt-Banner (unabhängig von Lagerorte) ─────────────
   // Betrieb-Filter anwenden
   const _allEIRaw=_getAllErnteIst();
   const _allEI=_betriebFilter
     ?_allEIRaw.filter(e=>{const sc=D.schlage.find(x=>x.id===e.schlag_id);return sc?.betrieb_id===_betriebFilter;})
     :_allEIRaw;
+  let ernteBannerHtml='';
+  {
+    // Rohernte (nur ernte-Einträge) summieren
+    const ernteGesMap={};
+    _allEI.forEach(e=>{
+      if(!e.datum||!e.datum.startsWith(String(ernteJahr))) return;
+      if(getEntryTyp(e)!=='ernte') return;
+      const sc=D.schlage.find(x=>x.id===e.schlag_id);
+      const sorte=sc?.sorte||sc?.name||'Unbekannt';
+      const kl1=(e.gk_1kl||0)+(e.buchungen||[]).reduce((s,b)=>s+(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0)),0);
+      const ver=(e.gk_verarbeitung||0)+(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
+      if(!ernteGesMap[sorte]) ernteGesMap[sorte]={kl1:0,ver:0};
+      ernteGesMap[sorte].kl1+=kl1;ernteGesMap[sorte].ver+=ver;
+    });
+    const gesKeys=Object.keys(ernteGesMap).sort();
+    const totKl1G=gesKeys.reduce((s,k)=>s+ernteGesMap[k].kl1,0);
+    const totVerG=gesKeys.reduce((s,k)=>s+ernteGesMap[k].ver,0);
+    if(gesKeys.length){
+      const chips=gesKeys.map(s=>`<span style="background:var(--bg);border:1px solid var(--bdr);border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:700;white-space:nowrap;color:var(--pd)">${_sorteSymbol(s)} ${s}: <span style="color:var(--pl)">${ernteGesMap[s].kl1||0}</span>${ernteGesMap[s].ver?` <span style="color:var(--info)">${ernteGesMap[s].ver}</span>`:''}</span>`).join('');
+      ernteBannerHtml=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:8px 12px;background:var(--ps);border:1px solid var(--bdr);border-radius:10px;margin-bottom:10px">
+        <span style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap">🌿 Rohernte ${ernteJahr}</span>
+        ${chips}
+        <span style="margin-left:auto;font-size:.78rem;font-weight:800;color:var(--pd);white-space:nowrap">= ${totKl1G+totVerG} GK</span>
+      </div>`;
+    }
+  }
+
+  // ── Sortenübersicht (nur Ernte-Buchungen des aktuellen Jahres) ─
+  // sortenMap: sorte → { kl1, ver, schlage: { schlagId → { name, kl1, ver, eintraege:[] } } }
+  const sortenMap={};
   _allEI.forEach(e=>{
     if(!e.datum||!e.datum.startsWith(String(ernteJahr))) return;
     const typ=getEntryTyp(e);
@@ -5971,15 +6776,20 @@ async function renderErnteIst(){
     const ever=(e.gk_verarbeitung||0)+(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
     sortenMap[sorte].kl1+=ekl1;
     sortenMap[sorte].ver+=ever;
-    if(!sortenMap[sorte].schlage[schlagId]) sortenMap[sorte].schlage[schlagId]={name:schlagName,kl1:0,ver:0};
+    if(!sortenMap[sorte].schlage[schlagId]) sortenMap[sorte].schlage[schlagId]={name:schlagName,kl1:0,ver:0,eintraege:[]};
     sortenMap[sorte].schlage[schlagId].kl1+=ekl1;
     sortenMap[sorte].schlage[schlagId].ver+=ever;
+    // Einzelne Buchung sammeln
+    const lagerTxt=e.verteilung
+      ?e.verteilung.map(v=>{const l=D.lagerorte.find(x=>x.id===v.standort_id);return(l?.name||'?')+' '+((v.gk_1kl||0)+(v.gk_verarbeitung||0))+'GK';}).join(', ')
+      :(()=>{const l=D.lagerorte.find(x=>x.id===e.standort_id);return l?.name||'?';})();
+    sortenMap[sorte].schlage[schlagId].eintraege.push({datum:e.datum,kl1:ekl1,ver:ever,dg:e.dg||0,lager:lagerTxt,notiz:e.notiz||'',id:e.id});
   });
   let sortenHtml='';
   const sortenKeys=Object.keys(sortenMap).sort();
   if(sortenKeys.length){
     let totKl1=0,totVer=0;
-    // Sorte oben (klickbar), Schläge darunter aufklappbar
+    // Sorte oben (klickbar), Schläge darunter aufklappbar, Buchungen pro Schlag nochmals aufklappbar
     const sTbodies=sortenKeys.map((sorte,idx)=>{
       const sd=sortenMap[sorte];
       totKl1+=sd.kl1;totVer+=sd.ver;
@@ -5993,14 +6803,27 @@ async function renderErnteIst(){
         <td style="padding:6px 10px;text-align:right;font-size:1.05rem;font-weight:800;color:var(--pl)">${sd.kl1}</td>
         <td style="padding:6px 10px;text-align:right;font-size:1.05rem;font-weight:800;color:var(--info)">${sd.ver}</td>
       </tr>`;
-      // Sub-Zeilen pro Schlag (standardmäßig versteckt)
-      const subRows=schlagIds.sort((a,b)=>sd.schlage[a].name<sd.schlage[b].name?-1:1).map(sid=>{
+      // Sub-Zeilen pro Schlag (standardmäßig versteckt) — mit aufklappbaren Buchungen
+      const subRows=schlagIds.sort((a,b)=>sd.schlage[a].name<sd.schlage[b].name?-1:1).map((sid,si)=>{
         const sv=sd.schlage[sid];
-        return`<tr style="border-bottom:1px solid var(--bdr);background:var(--bg)">
-          <td style="padding:3px 8px 3px 22px;font-size:.78rem;color:var(--txl)">↳ ${sv.name}</td>
+        const bk='sb'+idx+'_'+si;
+        const hasBuchungen=sv.eintraege.length>1||(sv.eintraege.length===1);
+        const bChevron=hasBuchungen?`<span id="bt-${bk}" style="font-size:.55rem;color:var(--txl);margin-left:4px;display:inline-block">▶</span>`:'';
+        const schlagRow=`<tr onclick="${hasBuchungen?`toggleSchlagBuchungen('${bk}')`:''}" style="border-bottom:1px solid var(--bdr);background:var(--bg);${hasBuchungen?'cursor:pointer':''}">
+          <td style="padding:3px 8px 3px 22px;font-size:.78rem;color:var(--txl)">↳ ${sv.name}${bChevron}</td>
           <td style="padding:3px 10px;text-align:right;font-size:.88rem;font-weight:700;color:var(--pl)">${sv.kl1||'–'}</td>
           <td style="padding:3px 10px;text-align:right;font-size:.88rem;font-weight:700;color:var(--info)">${sv.ver||'–'}</td>
         </tr>`;
+        const buchRows=sv.eintraege.sort((a,b)=>a.datum<b.datum?-1:1).map(b=>{
+          const dgTxt=b.dg?` · ${b.dg}.DG`:'';
+          const notizTxt=b.notiz?` · ${b.notiz}`:'';
+          return`<tr style="border-bottom:1px solid var(--bdr);background:#f9f9f9">
+            <td style="padding:2px 8px 2px 36px;font-size:.73rem;color:var(--txl)">${b.datum}${dgTxt} · ${b.lager}${notizTxt}</td>
+            <td style="padding:2px 10px;text-align:right;font-size:.78rem;font-weight:700;color:var(--pl)">${b.kl1||'–'}</td>
+            <td style="padding:2px 10px;text-align:right;font-size:.78rem;font-weight:700;color:var(--info)">${b.ver||'–'}</td>
+          </tr>`;
+        }).join('');
+        return schlagRow+(hasBuchungen?`<tr id="bb-${bk}" style="display:none"><td colspan="3" style="padding:0"><table style="width:100%;border-collapse:collapse">${buchRows}</table></td></tr>`:'');
       }).join('');
       const detailTbody=hasDetails?`<tbody id="sd-${sk}" style="display:none">${subRows}</tbody>`:'';
       return`<tbody>${sorteRow}</tbody>${detailTbody}`;
@@ -6103,14 +6926,8 @@ async function renderErnteIst(){
   let ernteJournalHtml='';
   if(ernteEntries.length){
     // Buttons für eigene Einträge UND Einträge anderer Gruppenbetriebs-Mitglieder
-    const _kannBearbeiten=e=>{
-      if(D.ernte_ist.some(x=>x.id===e.id)) return true; // eigener Eintrag
-      if(_gruppenBetriebe.length>1){
-        const sc=D.schlage.find(x=>x.id===e.schlag_id);
-        return _gruppenBetriebe.some(b=>b.id===sc?.betrieb_id); // Gruppenbetrieb
-      }
-      return false;
-    };
+    // Alle Gruppenbetriebs-Mitglieder haben Vollzugriff
+    const _kannBearbeiten=()=>true;
     const sortedErnte=[...ernteEntries].sort((a,b)=>b.datum<a.datum?-1:b.datum>a.datum?1:0);
     const eRows=sortedErnte.map(e=>{
       const sc=D.schlage.find(x=>x.id===e.schlag_id);
@@ -6121,6 +6938,7 @@ async function renderErnteIst(){
       const kl1=e.gk_1kl||(e.buchungen||[]).reduce((s,b)=>s+(b.tafel_gk!==undefined?b.tafel_gk:b.gk||0),0);
       const ver=e.gk_verarbeitung||(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
       const notizHtml=e.notiz?`<div style="font-size:.67rem;color:var(--txl);margin-top:1px;font-style:italic">${e.notiz}</div>`:'';
+      const dgBadgeJ=e.dg?`<span style="background:#e0f2fe;color:#0369a1;border-radius:8px;padding:1px 5px;font-size:.65rem;font-weight:700">${e.dg}.DG</span>`:`<span style="color:var(--txl);font-size:.7rem">—</span>`;
       const actBtns=_kannBearbeiten(e)?`<div style="display:flex;gap:3px;justify-content:flex-end"><button onclick="openErnteWizard('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 3px" title="Bearbeiten">✏️</button><button onclick="deleteErnteEintrag('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 3px;color:var(--crit)" title="Löschen">🗑</button></div>`:'';
       return`<tr style="border-bottom:1px solid var(--bdr)">
         <td style="padding:5px 8px;font-size:.8rem;white-space:nowrap;vertical-align:top"><b>${e.datum}</b></td>
@@ -6128,6 +6946,7 @@ async function renderErnteIst(){
         <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:700;color:var(--pl);vertical-align:top">${kl1||'–'}</td>
         <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:700;color:var(--info);vertical-align:top">${ver||'–'}</td>
         <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:800;vertical-align:top">${kl1+ver}</td>
+        <td style="padding:5px 8px;text-align:center;vertical-align:top">${dgBadgeJ}</td>
         <td style="padding:5px 4px;vertical-align:top">${actBtns}</td>
       </tr>`;
     }).join('');
@@ -6140,6 +6959,7 @@ async function renderErnteIst(){
           <th style="padding:5px 8px;text-align:right;font-size:.68rem;color:var(--pl);font-weight:700">1.Kl.</th>
           <th style="padding:5px 8px;text-align:right;font-size:.68rem;color:var(--info);font-weight:700">Verarb.</th>
           <th style="padding:5px 8px;text-align:right;font-size:.68rem;color:var(--txl);font-weight:700">Ges.</th>
+          <th style="padding:5px 8px;text-align:center;font-size:.68rem;color:var(--txl);font-weight:700">DG</th>
           <th></th>
         </tr></thead>
         <tbody>${eRows}</tbody>
@@ -6268,7 +7088,7 @@ async function renderErnteIst(){
         <button onclick="openErnteWizard()" style="padding:8px 14px;border-radius:8px;background:var(--pd);color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">+ Buchung erfassen</button>
       </div>
     </div>
-    ${filterLeiste}${bestandHtml}${sortenHtml}${ernteJournalHtml}${umbuchungJournalHtml}${transportJournalHtml}
+    ${filterLeiste}${ernteBannerHtml}${bestandHtml}${sortenHtml}${ernteJournalHtml}${umbuchungJournalHtml}${transportJournalHtml}
   </div>`;
 }
 
