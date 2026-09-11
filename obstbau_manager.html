@@ -1669,7 +1669,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.20.2";
+const APP_VERSION="v2.20.3";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1677,6 +1677,7 @@ let _meinBetriebName=null;   // Anzeigename
 let _meineGruppeId=null;     // UUID der Betriebsgruppe (z.B. Familie Kuenz)
 let _gruppenBetriebe=[];     // [{id, name, kuerzel}] aller Betriebe in meiner Gruppe
 let _gruppenErnteIst=null;   // null=nicht geladen, []=geladen (ernte_ist anderer Betriebe)
+let _gruppenErnteByBetrieb={}; // betrieb_id → ernte_ist[] (für Fremd-Speichern)
 let _cloudSaveTimer=null;
 let _cloudDirty=false;
 
@@ -1815,7 +1816,46 @@ async function _loadGruppenErnte(force=false){
     if(!r.ok){_gruppenErnteIst=[];return;}
     const rows=await r.json();
     _gruppenErnteIst=rows.flatMap(row=>(row.data?.ernte_ist||[]));
-  }catch(e){console.warn('Gruppen-Ernte laden:',e.message);_gruppenErnteIst=[];}
+    _gruppenErnteByBetrieb={};
+    rows.forEach(row=>{_gruppenErnteByBetrieb[row.betrieb_id]=row.data?.ernte_ist||[];});
+  }catch(e){console.warn('Gruppen-Ernte laden:',e.message);_gruppenErnteIst=[];_gruppenErnteByBetrieb={};}
+}
+
+// Ernte-Eintrag im betrieb_data eines Fremdbetriebs speichern (Gruppe Vollzugriff)
+async function _saveToFremdBetrieb(betriebId,entry,editId){
+  const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data?betrieb_id=eq.'+betriebId+'&select=data',{headers:supaHeaders()});
+  if(!r.ok) throw new Error('Fremd-Daten laden: HTTP '+r.status);
+  const rows=await r.json();
+  const blob=JSON.parse(JSON.stringify(rows[0]?.data||{}));
+  let ei=blob.ernte_ist||[];
+  if(editId) ei=ei.filter(e=>e.id!==editId);
+  const idx=ei.findIndex(e=>e.id===entry.id);
+  if(idx>=0) ei[idx]=entry; else ei.push(entry);
+  ei.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
+  blob.ernte_ist=ei;
+  const r2=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data',{
+    method:'POST',
+    headers:{...supaHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},
+    body:JSON.stringify({betrieb_id:betriebId,data:blob,updated_at:new Date().toISOString()})
+  });
+  if(!r2.ok){const t=await r2.text();throw new Error('Fremd-Speichern: HTTP '+r2.status+' '+t);}
+  _gruppenErnteIst=null;_gruppenErnteByBetrieb={};
+}
+
+// Ernte-Eintrag im betrieb_data eines Fremdbetriebs löschen
+async function _deleteFromFremdBetrieb(betriebId,id){
+  const r=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data?betrieb_id=eq.'+betriebId+'&select=data',{headers:supaHeaders()});
+  if(!r.ok) throw new Error('Fremd-Daten laden: HTTP '+r.status);
+  const rows=await r.json();
+  const blob=JSON.parse(JSON.stringify(rows[0]?.data||{}));
+  blob.ernte_ist=(blob.ernte_ist||[]).filter(e=>e.id!==id);
+  const r2=await _supaFetch(SUPA_URL+'/rest/v1/betrieb_data',{
+    method:'POST',
+    headers:{...supaHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},
+    body:JSON.stringify({betrieb_id:betriebId,data:blob,updated_at:new Date().toISOString()})
+  });
+  if(!r2.ok){const t=await r2.text();throw new Error('Fremd-Löschen: HTTP '+r2.status+' '+t);}
+  _gruppenErnteIst=null;_gruppenErnteByBetrieb={};
 }
 
 function _getAllErnteIst(){
@@ -4175,7 +4215,7 @@ function openErnteWizard(editId){
   const today=new Date().toISOString().slice(0,10);
   _wiz={step:0,datum:today,sorte:'',schlagId:'',einheit:'gk',gk1kl:0,gkVer:0,kg1kl:0,kgVer:0,notiz:'',verteilung:{},editId:editId||''};
   if(editId){
-    const e=D.ernte_ist.find(x=>x.id===editId);
+    const e=D.ernte_ist.find(x=>x.id===editId)||(_gruppenErnteIst||[]).find(x=>x.id===editId);
     if(!e) return;
     const t=getEntryTyp(e);
     if(t==='transport'){openTransportMod(editId);return;}
@@ -4466,7 +4506,7 @@ function _wizAdjLager(lagerId,field,delta){
 }
 
 // ─── Speichern ────────────────────────────────────────────────
-function saveErnteWizard(){
+async function saveErnteWizard(){
   const datum=document.getElementById('wiz-datum').value;
   if(!datum){alert('Bitte Datum ausfüllen');return;}
   if(!_wiz.schlagId){alert('Bitte Schlag auswählen');return;}
@@ -4488,6 +4528,26 @@ function saveErnteWizard(){
     const verteilung=Object.keys(_wiz.verteilung).map(sid=>({standort_id:sid,gk_1kl:0,gk_verarbeitung:0,kg_1kl:_wiz.kg1kl,kg_verarbeitung:_wiz.kgVer}));
     entry={id:_wiz.editId||uid(),typ:'ernte',datum,schlag_id:_wiz.schlagId,gk_1kl:0,gk_verarbeitung:0,kg_1kl:_wiz.kg1kl,kg_verarbeitung:_wiz.kgVer,verteilung,notiz:_wiz.notiz};
   }
+  const menge=isGk?((_wiz.gk1kl||0)+(_wiz.gkVer||0)+' GK'):((_wiz.kg1kl||0)+(_wiz.kgVer||0)).toFixed(1)+' kg';
+  // Ziel-Betrieb aus Schlag bestimmen
+  const sc=D.schlage.find(x=>x.id===_wiz.schlagId);
+  const zielBetriebId=sc?.betrieb_id;
+  if(zielBetriebId&&zielBetriebId!==_meinBetriebId){
+    // Fremder Gruppenbetrieb
+    try{
+      await _saveToFremdBetrieb(zielBetriebId,entry,_wiz.editId||null);
+      // Falls Eintrag vorher fälschlich im eigenen D war, bereinigen
+      if(_wiz.editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==_wiz.editId);
+      scheduleSave();
+      await _loadGruppenErnte(true);
+      closeMod('mod-ernte-wizard');
+      renderErnteIst();
+      const bName=_gruppenBetriebe.find(b=>b.id===zielBetriebId)?.name||'Fremd';
+      toast('✅ '+menge+' bei '+bName+' gespeichert');
+    }catch(err){toast('⚠ '+err.message);}
+    return;
+  }
+  // Eigener Betrieb
   if(_wiz.editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==_wiz.editId);
   const idx=D.ernte_ist.findIndex(e=>e.id===entry.id);
   if(idx>=0) D.ernte_ist[idx]=entry; else D.ernte_ist.push(entry);
@@ -4495,7 +4555,6 @@ function saveErnteWizard(){
   scheduleSave();
   closeMod('mod-ernte-wizard');
   renderErnteIst();
-  const menge=isGk?((_wiz.gk1kl||0)+(_wiz.gkVer||0)+' GK'):((_wiz.kg1kl||0)+(_wiz.kgVer||0)).toFixed(1)+' kg';
   toast('✅ '+menge+' gespeichert');
 }
 
@@ -4786,13 +4845,23 @@ function _twDelete(){
 
 // Ernte-Eintrag löschen (Journal-Papierkorb)
 function deleteErnteEintrag(id){
-  const e=D.ernte_ist.find(x=>x.id===id);
+  const e=D.ernte_ist.find(x=>x.id===id)||(_gruppenErnteIst||[]).find(x=>x.id===id);
   if(!e)return;
   const sc=D.schlage.find(x=>x.id===e.schlag_id);
   const label=sc?sc.name+' ('+e.datum+')':e.datum;
   if(!confirm('Ernte-Buchung "'+label+'" wirklich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.'))return;
-  D.ernte_ist=D.ernte_ist.filter(x=>x.id!==id);
-  scheduleSave();renderErnteIst();
+  const isEigenEntry=D.ernte_ist.some(x=>x.id===id);
+  if(isEigenEntry){
+    D.ernte_ist=D.ernte_ist.filter(x=>x.id!==id);
+    scheduleSave();renderErnteIst();
+  } else {
+    const fremdBetriebId=sc?.betrieb_id;
+    if(!fremdBetriebId){toast('⚠ Betrieb nicht erkennbar');return;}
+    _deleteFromFremdBetrieb(fremdBetriebId,id)
+      .then(()=>_loadGruppenErnte(true))
+      .then(()=>{renderErnteIst();toast('🗑 Gelöscht');})
+      .catch(err=>toast('⚠ '+err.message));
+  }
 }
 
 // ── Alte Transport-Hilfsfunktionen (werden durch Wizard ersetzt) ───────────
@@ -5466,19 +5535,29 @@ async function renderErnteIst(){
   const ernteEntries=_allEI.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='ernte');
   let ernteJournalHtml='';
   if(ernteEntries.length){
-    const isEigen=e=>D.ernte_ist.some(x=>x.id===e.id);
+    // Buttons für eigene Einträge UND Einträge anderer Gruppenbetriebs-Mitglieder
+    const _kannBearbeiten=e=>{
+      if(D.ernte_ist.some(x=>x.id===e.id)) return true; // eigener Eintrag
+      if(_gruppenBetriebe.length>1){
+        const sc=D.schlage.find(x=>x.id===e.schlag_id);
+        return _gruppenBetriebe.some(b=>b.id===sc?.betrieb_id); // Gruppenbetrieb
+      }
+      return false;
+    };
     const sortedErnte=[...ernteEntries].sort((a,b)=>b.datum<a.datum?-1:b.datum>a.datum?1:0);
     const eRows=sortedErnte.map(e=>{
       const sc=D.schlage.find(x=>x.id===e.schlag_id);
       const sorte=sc?.sorte||sc?.name||'–';
       const schlagName=sc?sc.name:'?';
+      const bName=_gruppenBetriebe.length>1&&sc?.betrieb_id&&sc.betrieb_id!==_meinBetriebId
+        ?(_gruppenBetriebe.find(b=>b.id===sc.betrieb_id)?.kuerzel||''):'';
       const kl1=e.gk_1kl||(e.buchungen||[]).reduce((s,b)=>s+(b.tafel_gk!==undefined?b.tafel_gk:b.gk||0),0);
       const ver=e.gk_verarbeitung||(e.buchungen||[]).reduce((s,b)=>s+(b.verarbeitung_gk||0),0);
       const notizHtml=e.notiz?`<div style="font-size:.67rem;color:var(--txl);margin-top:1px;font-style:italic">${e.notiz}</div>`:'';
-      const actBtns=isEigen(e)?`<div style="display:flex;gap:3px;justify-content:flex-end"><button onclick="openErnteWizard('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 3px" title="Bearbeiten">✏️</button><button onclick="deleteErnteEintrag('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 3px;color:var(--crit)" title="Löschen">🗑</button></div>`:'';
+      const actBtns=_kannBearbeiten(e)?`<div style="display:flex;gap:3px;justify-content:flex-end"><button onclick="openErnteWizard('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 3px" title="Bearbeiten">✏️</button><button onclick="deleteErnteEintrag('${e.id}')" style="background:none;border:none;font-size:.9rem;cursor:pointer;padding:2px 3px;color:var(--crit)" title="Löschen">🗑</button></div>`:'';
       return`<tr style="border-bottom:1px solid var(--bdr)">
         <td style="padding:5px 8px;font-size:.8rem;white-space:nowrap;vertical-align:top"><b>${e.datum}</b></td>
-        <td style="padding:5px 8px;font-size:.8rem;vertical-align:top">${schlagName} <span style="font-size:.72rem;color:var(--txl)">${sorte}</span>${notizHtml}</td>
+        <td style="padding:5px 8px;font-size:.8rem;vertical-align:top">${schlagName} <span style="font-size:.72rem;color:var(--txl)">${sorte}</span>${bName?` <span style="font-size:.67rem;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;padding:0 4px;color:var(--txl)">${bName}</span>`:''}${notizHtml}</td>
         <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:700;color:var(--pl);vertical-align:top">${kl1||'–'}</td>
         <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:700;color:var(--info);vertical-align:top">${ver||'–'}</td>
         <td style="padding:5px 8px;text-align:right;font-size:.88rem;font-weight:800;vertical-align:top">${kl1+ver}</td>
