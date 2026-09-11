@@ -1669,7 +1669,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.20.3";
+const APP_VERSION="v2.20.4";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -1678,6 +1678,7 @@ let _meineGruppeId=null;     // UUID der Betriebsgruppe (z.B. Familie Kuenz)
 let _gruppenBetriebe=[];     // [{id, name, kuerzel}] aller Betriebe in meiner Gruppe
 let _gruppenErnteIst=null;   // null=nicht geladen, []=geladen (ernte_ist anderer Betriebe)
 let _gruppenErnteByBetrieb={}; // betrieb_id → ernte_ist[] (für Fremd-Speichern)
+let _betriebFilter=null;       // null=überbetrieblich, betrieb_id=Einzelbetrieb
 let _cloudSaveTimer=null;
 let _cloudDirty=false;
 
@@ -2278,6 +2279,11 @@ function renderRecent(){
 // ── Kompakte Schläge-Startseite (mit Betrieb-Gruppierung) ─────────────────
 
 // ── Betrieb- und Sortenfarben ─────────────────────────────
+function setBetriebFilter(betriebId){
+  _betriebFilter=betriebId;
+  renderErnteIst();
+}
+
 function betriebFarbe(betrieb){
   const map={
     'Johannes Kuenz':'#2563eb',
@@ -4537,12 +4543,11 @@ async function saveErnteWizard(){
     try{
       await _saveToFremdBetrieb(zielBetriebId,entry,_wiz.editId||null);
       // Falls Eintrag vorher fälschlich im eigenen D war, bereinigen
-      if(_wiz.editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==_wiz.editId);
-      scheduleSave();
-      await _loadGruppenErnte(true);
-      closeMod('mod-ernte-wizard');
-      renderErnteIst();
+      if(_wiz.editId){D.ernte_ist=D.ernte_ist.filter(e=>e.id!==_wiz.editId);scheduleSave();}
+      _gruppenErnteIst=null; // Cache leeren → renderErnteIst lädt neu
       const bName=_gruppenBetriebe.find(b=>b.id===zielBetriebId)?.name||'Fremd';
+      closeMod('mod-ernte-wizard');
+      await renderErnteIst();
       toast('✅ '+menge+' bei '+bName+' gespeichert');
     }catch(err){toast('⚠ '+err.message);}
     return;
@@ -5396,7 +5401,11 @@ async function renderErnteIst(){
   // ── Sortenübersicht (nur Ernte-Buchungen des aktuellen Jahres) ─
   // sortenMap: sorte → { kl1, ver, schlage: { schlagId → { name, kl1, ver } } }
   const sortenMap={};
-  const _allEI=_getAllErnteIst();
+  // Betrieb-Filter anwenden
+  const _allEIRaw=_getAllErnteIst();
+  const _allEI=_betriebFilter
+    ?_allEIRaw.filter(e=>{const sc=D.schlage.find(x=>x.id===e.schlag_id);return sc?.betrieb_id===_betriebFilter;})
+    :_allEIRaw;
   _allEI.forEach(e=>{
     if(!e.datum||!e.datum.startsWith(String(ernteJahr))) return;
     const typ=getEntryTyp(e);
@@ -5646,9 +5655,16 @@ async function renderErnteIst(){
     </div>`;
   }
 
+  // Betrieb-Filter-Leiste (nur bei Gruppe mit mehreren Betrieben)
+  const hasGruppe=_gruppenBetriebe.length>1;
+  const filterLeiste=hasGruppe?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--bdr)">
+    <button onclick="setBetriebFilter(null)" style="padding:5px 12px;border-radius:20px;border:2px solid ${_betriebFilter===null?'var(--pd)':'var(--bdr)'};background:${_betriebFilter===null?'var(--pd)':'transparent'};color:${_betriebFilter===null?'#fff':'var(--txl)'};font-size:.78rem;font-weight:700;cursor:pointer;transition:.15s">📊 Überbetrieblich</button>
+    ${_gruppenBetriebe.map(b=>`<button onclick="setBetriebFilter('${b.id}')" style="padding:5px 12px;border-radius:20px;border:2px solid ${_betriebFilter===b.id?betriebFarbe(b.name):'var(--bdr)'};background:${_betriebFilter===b.id?betriebFarbe(b.name):'transparent'};color:${_betriebFilter===b.id?'#fff':'var(--txl)'};font-size:.78rem;font-weight:700;cursor:pointer;transition:.15s">${b.kuerzel||b.name}</button>`).join('')}
+  </div>`:'';
+
   el.innerHTML=`<div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:1rem;font-weight:700;color:var(--pd)">🌾 Ernte ${ernteJahr}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${hasGruppe?'10':'14'}px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:1rem;font-weight:700;color:var(--pd)">🌾 Ernte ${ernteJahr}${hasGruppe&&_betriebFilter?` · <span style="font-size:.85rem;color:var(--txl)">${_gruppenBetriebe.find(b=>b.id===_betriebFilter)?.name||''}</span>`:''}${hasGruppe&&!_betriebFilter?' · <span style="font-size:.8rem;color:var(--txl);font-weight:400">überbetrieblich</span>':''}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-s btn-sm" onclick="openLagerMod()">⚙️ Standorte</button>
         <button class="btn btn-s btn-sm" onclick="openLagerplan()">🗺 Lagerplan</button>
@@ -5656,7 +5672,7 @@ async function renderErnteIst(){
         <button onclick="openErnteWizard()" style="padding:8px 14px;border-radius:8px;background:var(--pd);color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">+ Buchung erfassen</button>
       </div>
     </div>
-    ${bestandHtml}${sortenHtml}${ernteJournalHtml}${transportJournalHtml}
+    ${filterLeiste}${bestandHtml}${sortenHtml}${ernteJournalHtml}${transportJournalHtml}
   </div>`;
 }
 
