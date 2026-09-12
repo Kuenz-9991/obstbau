@@ -388,6 +388,20 @@ tr:hover td{background:#f9fcfa}
   </div>
 </div>
 
+<!-- MODAL: Lagerplan Analyse -->
+<div class="mov" id="mod-lp-analyse">
+  <div class="mod" style="max-width:480px;max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:16px">
+    <div style="padding:14px 16px 12px;border-bottom:1px solid var(--bdr);flex-shrink:0;background:var(--card);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:.95rem;font-weight:800;color:#e65100">🔍 Lagerplan-Analyse</div>
+      <button onclick="closeMod('mod-lp-analyse')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1">✕</button>
+    </div>
+    <div id="lp-analyse-body" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch"></div>
+    <div style="padding:12px 16px;border-top:1px solid var(--bdr);flex-shrink:0;background:var(--card)">
+      <button onclick="closeMod('mod-lp-analyse')" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--bdr);background:#fff;font-size:.9rem;font-weight:700;cursor:pointer">Schließen</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Familien-Gruppe anlegen/bearbeiten -->
 <div class="mov" id="mod-gruppe">
   <div class="mod" style="max-width:460px">
@@ -1717,7 +1731,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.29.4";
+const APP_VERSION="v2.30.3";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -5613,6 +5627,18 @@ function openLagerSorteDrilldown(lagerId,sorte){
   if(!sd){openLagerDrilldown(lagerId);return;}
 
   let html=`<button onclick="openLagerDrilldown('${lagerId}')" style="background:none;border:none;color:var(--p);cursor:pointer;font-size:.82rem;padding:0 0 12px;display:flex;align-items:center;gap:4px">‹ zurück zu ${l?.name||'Lager'}</button>`;
+  // Netto-Bestand (Ernte + eingehende Umbuchung − abgehende Umbuchung)
+  const netKl1=sd.eintraege.reduce((s,x)=>s+(x.kl1||0),0);
+  const netVer=sd.eintraege.reduce((s,x)=>s+(x.ver||0),0);
+  const netTotal=netKl1+netVer;
+  const netColor=netTotal>0?'#2e7d32':netTotal<0?'#c62828':'var(--txl)';
+  html+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 14px;background:${netTotal>0?'#e8f5e9':netTotal<0?'#ffebee':'var(--bg)'};border:1.5px solid ${netTotal>0?'#a5d6a7':netTotal<0?'#ef9a9a':'var(--bdr)'};border-radius:10px;margin-bottom:12px">
+    <span style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em">📦 Lagerbestand</span>
+    ${netKl1!==0?`<span style="font-size:.92rem;font-weight:800;color:${netColor}">${netKl1} <span style="font-size:.65rem;font-weight:600">1.Kl.</span></span>`:''}
+    ${netVer!==0?`<span style="font-size:.92rem;font-weight:800;color:${netTotal>=0?'#e65100':'#c62828'}">${netVer} <span style="font-size:.65rem;font-weight:600">Verarb.</span></span>`:''}
+    ${netTotal===0?`<span style="font-size:.85rem;font-weight:700;color:var(--txl)">– (alles ausgelagert)</span>`:''}
+    <span style="margin-left:auto;font-size:.78rem;font-weight:800;color:${netColor}">${netTotal>=0?'':''} ${netTotal} GK</span>
+  </div>`;
   html+=`<div style="font-size:.85rem;font-weight:800;color:var(--pd);margin-bottom:10px">${_sorteSymbol(sorte)} ${sorte}</div>`;
   html+=`<table style="width:100%;border-collapse:collapse">
     <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
@@ -5734,6 +5760,142 @@ function calcStandortBestand(lagerId){
 
 // ── Gaimberg Lagerplan (2D) ──────────────────────────────────────────────────
 let _lpZelle=0,_lpDragKey=null;
+// ── Undo / Redo ──────────────────────────────────────────────────────────────
+const _LP_MAX_HIST=40;
+let _lpUndoStack=[],_lpRedoStack=[];
+function _lpPushHistory(){
+  _lpUndoStack.push(JSON.stringify(D.gaimbergPlan||{}));
+  if(_lpUndoStack.length>_LP_MAX_HIST)_lpUndoStack.shift();
+  _lpRedoStack=[];
+  _lpRefreshUndoBtns();
+}
+function _lpUndo(){
+  if(!_lpUndoStack.length)return;
+  _lpRedoStack.push(JSON.stringify(D.gaimbergPlan||{}));
+  D.gaimbergPlan=JSON.parse(_lpUndoStack.pop());
+  scheduleSave();_lpShowZelle(_lpZelle);toast('↩ Rückgängig');
+}
+function _lpRedo(){
+  if(!_lpRedoStack.length)return;
+  _lpUndoStack.push(JSON.stringify(D.gaimbergPlan||{}));
+  D.gaimbergPlan=JSON.parse(_lpRedoStack.pop());
+  scheduleSave();_lpShowZelle(_lpZelle);toast('↪ Wiederholt');
+}
+function _lpRefreshUndoBtns(){
+  const u=document.getElementById('lp-undo-btn'),r=document.getElementById('lp-redo-btn');
+  if(u){u.disabled=!_lpUndoStack.length;u.style.opacity=_lpUndoStack.length?'1':'.35';}
+  if(r){r.disabled=!_lpRedoStack.length;r.style.opacity=_lpRedoStack.length?'1':'.35';}
+}
+
+function _lpAnalyse(){
+  const plan=_getActivePlan();
+  const STAPEL=11,REIHEN=4,MAX_H=4;
+  const zelleNames=['Zelle 1','Zelle 2','Zelle 3'];
+
+  // 1) Unvollständige Kisten (belegt, aber fehlende Attribute)
+  const incomplete=[];
+  for(let zi=0;zi<3;zi++){
+    for(let si=0;si<STAPEL;si++){
+      for(let ri=0;ri<REIHEN;ri++){
+        const maxH=_lpMaxH(zi,ri,si);
+        for(let hi=0;hi<maxH;hi++){
+          const key=_lpCellKey(zi,ri,si,hi);
+          const entry=_lpEntryData(plan[key]);
+          if(!entry)continue;
+          const missing=[];
+          if(!entry.schlag_id)missing.push('Schlag');
+          if(!entry.dg)missing.push('DG');
+          if(!entry.qualitaet)missing.push('Qualität');
+          if(!entry.groesse)missing.push('Größe');
+          if(missing.length){
+            const sc=entry.schlag_id?D.schlage.find(x=>x.id===entry.schlag_id):null;
+            incomplete.push({zi,ri,si,hi,sorte:entry.sorte||'?',schlag:sc?sc.name:'—',missing,key});
+          }
+        }
+      }
+    }
+  }
+
+  // 2) Nicht platzierte GK (Gaimberg-Buchung ohne Lagerplanposition)
+  const gkBySchlag=_lpGaimbergKistenBySchlag();
+  const planBySchlag=_lpPlanKistenBySchlag(null);
+  const unplaced=[];
+  Object.keys(gkBySchlag).forEach(schlag_id=>{
+    const booked=gkBySchlag[schlag_id]||0;
+    const placed=planBySchlag[schlag_id]||0;
+    const diff=booked-placed;
+    if(diff>0){
+      const sc=D.schlage.find(x=>x.id===schlag_id);
+      unplaced.push({name:sc?sc.name:schlag_id,sorte:sc?.sorte||sc?.name||'?',diff,booked,placed});
+    }
+  });
+
+  // Modal aufbauen
+  let html=`<div style="padding:4px 0 20px;display:flex;flex-direction:column;gap:16px">`;
+
+  // Nicht platzierte GK
+  html+=`<div>
+    <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">📦 Nicht platzierte GK in Gaimberg</div>`;
+  if(!unplaced.length){
+    html+=`<div style="padding:10px 14px;background:#e8f5e9;border-radius:8px;font-size:.82rem;color:#2e7d32;font-weight:600">✅ Alle GK haben einen Lagerplatz</div>`;
+  } else {
+    html+=`<div style="display:flex;flex-direction:column;gap:6px">`;
+    unplaced.forEach(u=>{
+      html+=`<div style="padding:10px 14px;background:#fff3e0;border:1.5px solid #ffb74d;border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div>
+          <div style="font-size:.85rem;font-weight:700">${u.sorte} · ${u.name}</div>
+          <div style="font-size:.72rem;color:#bf360c;margin-top:2px">${u.placed} von ${u.booked} GK platziert</div>
+        </div>
+        <div style="font-size:1.2rem;font-weight:800;color:#e65100;white-space:nowrap">+${u.diff} GK</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+
+  // Unvollständige Kisten
+  html+=`<div>
+    <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🟠 Kisten mit fehlenden Attributen <span style="font-weight:400;opacity:.7">(oranger Punkt im Grid)</span></div>`;
+  if(!incomplete.length){
+    html+=`<div style="padding:10px 14px;background:#e8f5e9;border-radius:8px;font-size:.82rem;color:#2e7d32;font-weight:600">✅ Alle Kisten vollständig befüllt</div>`;
+  } else {
+    // Gruppiert nach Sorte
+    const bySorte={};
+    incomplete.forEach(c=>{(bySorte[c.sorte]=bySorte[c.sorte]||[]).push(c);});
+    Object.keys(bySorte).sort().forEach(sorte=>{
+      const rows=bySorte[sorte];
+      html+=`<div style="margin-bottom:8px">
+        <div style="font-size:.8rem;font-weight:800;margin-bottom:4px">${_sorteSymbol(sorte)} ${sorte} <span style="font-size:.7rem;font-weight:400;color:#e65100">(${rows.length} Kiste${rows.length>1?'n':''})</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px">`;
+      rows.forEach(c=>{
+        const pos=`${zelleNames[c.zi]} · G${c.ri+1} · R${c.si+1} · H${c.hi+1}`;
+        html+=`<div onclick="_lpJumpToCell(${c.zi},${c.ri},${c.si},${c.hi})" style="padding:8px 12px;background:#fff;border:1.5px solid #ffb74d;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;-webkit-tap-highlight-color:transparent">
+          <div>
+            <div style="font-size:.78rem;font-weight:700">${pos}</div>
+            <div style="font-size:.7rem;color:#e65100;margin-top:1px">Fehlt: ${c.missing.join(', ')}</div>
+            ${c.schlag!=='—'?`<div style="font-size:.68rem;color:var(--txl)">${c.schlag}</div>`:''}
+          </div>
+          <span style="font-size:1rem;color:#ff9800">→</span>
+        </div>`;
+      });
+      html+=`</div></div>`;
+    });
+  }
+  html+=`</div></div>`;
+
+  openMod('mod-lp-analyse');
+  const body=document.getElementById('lp-analyse-body');
+  if(body)body.innerHTML=html;
+}
+
+function _lpJumpToCell(zi,ri,si,hi){
+  closeMod('mod-lp-analyse');
+  _lpShowZelle(zi);
+  // Zelle antippen nach kurzem Delay damit der Scroll stimmt
+  setTimeout(()=>{
+    _lpCellClick(zi,ri,si,hi);
+  },300);
+}
 // si=0=S1(Wand), si=10=S11(Tür); ri=0=R1..ri=3=R4; hi=0=unten..hi=3=oben
 function _lpMaxH(zi,ri,si){return(si<=1&&ri>=1&&ri<=2)?3:4;}
 function _lpEigenOf(zi,ri){
@@ -5765,6 +5927,7 @@ function _lpShowZelle(zi){
   });
   const wrap=document.getElementById('lp-table-wrap');
   if(wrap)wrap.innerHTML=_lpBuildTable(zi);
+  _lpRefreshUndoBtns();
 }
 
 // ── Gaimberg-Kapazitäts-Helfer ───────────────────────────────────────────────
@@ -5861,19 +6024,63 @@ function _lpBuildTable(zi){
 
   // ── Kompaktes Layout: 4 Spalten (G1-G4), 11 Zeilen (R1=Wand → R11=Tür) ───
   // Jede Tabellen-Zelle enthält H4→H1 als vertikale Stack-Mini-Divs
-  const CELL_H=38; // px pro H-Ebene
-  const CELL_W=68; // px Zellenbreite
+  const CELL_H=62; // px pro H-Ebene
+  const CELL_W=78; // px Zellenbreite
 
   let html=`${pendingBanner}`;
   html+=`<div style="font-size:.68rem;color:var(--txl);margin-bottom:6px;font-style:italic">${zelleInfo[zi]}</div>`;
 
   // Zoom-Steuerung
-  html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+  html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
     <button onclick="_lpZoom(-0.1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
     <span id="lp-zoom-lbl" style="font-size:.75rem;color:var(--txl);min-width:36px;text-align:center">${Math.round(_lpScale*100)}%</span>
     <button onclick="_lpZoom(0.1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
-    <span style="font-size:.65rem;color:var(--txl);opacity:.6;margin-left:4px">💡 Kiste antippen zum Bearbeiten/Sortieren</span>
+    <div style="width:1px;height:22px;background:var(--bdr);margin:0 2px"></div>
+    <button id="lp-undo-btn" onclick="_lpUndo()" title="Rückgängig" ${!_lpUndoStack.length?'disabled':''} style="height:32px;padding:0 10px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;opacity:${_lpUndoStack.length?'1':'.35'}">↩ <span style="font-size:.7rem">Rückgängig</span></button>
+    <button id="lp-redo-btn" onclick="_lpRedo()" title="Wiederholen" ${!_lpRedoStack.length?'disabled':''} style="height:32px;padding:0 10px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:.85rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;opacity:${_lpRedoStack.length?'1':'.35'}">↪ <span style="font-size:.7rem">Wiederholen</span></button>
+    <div style="width:1px;height:22px;background:var(--bdr);margin:0 2px"></div>
+    <button onclick="_lpAnalyse()" style="height:32px;padding:0 12px;border-radius:8px;border:1.5px solid #ff9800;background:#fff8f0;font-size:.82rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;color:#e65100">🔍 <span>Analyse</span></button>
   </div>`;
+
+  // ── Permanentes Banner: nicht platzierte GK ──────────────────────────────
+  (()=>{
+    const gkBySchlag=_lpGaimbergKistenBySchlag();
+    const planBySchlag=_lpPlanKistenBySchlag(null);
+    const unplaced=[];
+    Object.keys(gkBySchlag).forEach(schlag_id=>{
+      const diff=(gkBySchlag[schlag_id]||0)-(planBySchlag[schlag_id]||0);
+      if(diff>0){
+        const sc=D.schlage.find(x=>x.id===schlag_id);
+        unplaced.push({name:sc?sc.name:schlag_id,sorte:sc?.sorte||sc?.name||'?',diff});
+      }
+    });
+    if(unplaced.length){
+      const chips=unplaced.map(u=>`<span style="background:rgba(255,255,255,.7);border-radius:6px;padding:2px 8px;font-size:.72rem;font-weight:700;color:#bf360c;white-space:nowrap">${u.sorte} · ${u.name}: <b>+${u.diff} GK</b></span>`).join('');
+      html+=`<div onclick="_lpAnalyse()" style="margin-bottom:8px;padding:10px 14px;background:#fff3e0;border:2px solid #ff9800;border-radius:10px;cursor:pointer;display:flex;align-items:flex-start;gap:10px;-webkit-tap-highlight-color:transparent">
+        <span style="font-size:1.1rem;flex-shrink:0">📦</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:800;color:#e65100;margin-bottom:5px">Nicht platzierte GK — tippen für Details</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px">${chips}</div>
+        </div>
+      </div>`;
+    }
+    // Unvollständige Kisten zählen
+    const plan=_getActivePlan();
+    let incCount=0;
+    for(let z=0;z<3;z++) for(let s=0;s<11;s++) for(let r=0;r<4;r++){
+      const mH=_lpMaxH(z,r,s);
+      for(let h=0;h<mH;h++){
+        const e=_lpEntryData(plan[_lpCellKey(z,r,s,h)]);
+        if(e&&(!e.schlag_id||!e.dg||!e.qualitaet||!e.groesse))incCount++;
+      }
+    }
+    if(incCount){
+      html+=`<div onclick="_lpAnalyse()" style="margin-bottom:8px;padding:8px 14px;background:#fff8e1;border:1.5px solid #ffc107;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:10px;-webkit-tap-highlight-color:transparent">
+        <span style="font-size:1rem">🟠</span>
+        <span style="font-size:.8rem;font-weight:700;color:#e65100">${incCount} Kiste${incCount>1?'n':''} mit fehlenden Attributen — tippen für Details</span>
+      </div>`;
+    }
+  })();
 
   html+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;overflow-y:hidden">`;
   html+=`<div id="lp-scaler" style="transform:scale(${_lpScale});transform-origin:top left;display:inline-block;min-width:${REIHEN*(CELL_W+1)+55}px">`;
@@ -5881,13 +6088,13 @@ function _lpBuildTable(zi){
 
   // Header: leere Ecke + G1..G4
   html+=`<thead><tr>`;
-  html+=`<th style="width:46px;min-width:46px;padding:4px 2px;border-bottom:2px solid var(--bdr);border-right:2px solid var(--bdr);position:sticky;left:0;background:var(--card);z-index:3"></th>`;
+  html+=`<th style="width:46px;min-width:46px;padding:4px 2px;border-bottom:3px solid #888;border-right:3px solid #888;position:sticky;left:0;background:var(--card);z-index:3"></th>`;
   for(let ri=0;ri<REIHEN;ri++){
     const eigen=_lpEigenOf(zi,ri);
     const bgR=eigen==='eigen'?'#c8e6c9':'#fce4ec';
     const tcR=eigen==='eigen'?'#1b5e20':'#880e4f';
     const isLast=ri===REIHEN-1;
-    html+=`<th style="width:${CELL_W}px;padding:5px 4px;font-size:.75rem;font-weight:800;color:${tcR};background:${bgR};border:1px solid var(--bdr);${isLast?'':'border-right:1px solid var(--bdr);'}text-align:center">G${ri+1}<br><span style="font-size:.58rem;font-weight:400;opacity:.7">${eigen==='eigen'?'uns':'fremd'}</span></th>`;
+    html+=`<th style="width:${CELL_W}px;padding:5px 4px;font-size:.75rem;font-weight:800;color:${tcR};background:${bgR};border:2px solid #aaa;${isLast?'':'border-right:2px solid #aaa;'}text-align:center">G${ri+1}<br><span style="font-size:.58rem;font-weight:400;opacity:.7">${eigen==='eigen'?'uns':'fremd'}</span></th>`;
   }
   html+=`</tr></thead><tbody>`;
 
@@ -5898,7 +6105,7 @@ function _lpBuildTable(zi){
     const lblBg=isWand?'#fbe9e7':isTuer?'#e3f2fd':'var(--bg)';
     const rowH=MAX_H*CELL_H; // pixel height of row
     html+=`<tr>`;
-    html+=`<td style="width:46px;min-width:46px;padding:2px 4px;font-size:.65rem;font-weight:${isTuer||isWand?'800':'600'};color:${lblColor};background:${lblBg};border:1px solid var(--bdr);border-right:2px solid var(--bdr);position:sticky;left:0;z-index:1;text-align:center;vertical-align:middle;height:${rowH}px;white-space:nowrap">${isWand?'🧱':isTuer?'🚪':''}R${si+1}</td>`;
+    html+=`<td style="width:46px;min-width:46px;padding:2px 4px;font-size:.65rem;font-weight:${isTuer||isWand?'800':'600'};color:${lblColor};background:${lblBg};border:2px solid #aaa;border-right:3px solid #888;position:sticky;left:0;z-index:1;text-align:center;vertical-align:middle;height:${rowH}px;white-space:nowrap">${isWand?'🧱':isTuer?'🚪':''}R${si+1}</td>`;
 
     for(let ri=0;ri<REIHEN;ri++){
       const eigen=_lpEigenOf(zi,ri);
@@ -5906,22 +6113,23 @@ function _lpBuildTable(zi){
       const maxH=_lpMaxH(zi,ri,si);
       const isLastCol=ri===REIHEN-1;
       // Zelle enthält vertikalen Stack H4→H1
-      html+=`<td style="width:${CELL_W}px;padding:0;border:1px solid var(--bdr);${isLastCol?'':'border-right:1px solid var(--bdr);'}vertical-align:top;height:${rowH}px">`;
+      html+=`<td style="width:${CELL_W}px;padding:0;border:2px solid #aaa;${isLastCol?'':'border-right:2px solid #aaa;'}vertical-align:top;height:${rowH}px">`;
       html+=`<div style="display:flex;flex-direction:column;height:${rowH}px">`;
 
       for(let hi=MAX_H-1;hi>=0;hi--){
         const hNum=hi+1;
         const disabled=hNum>maxH;
         const isLastH=hi===0;
-        const borderB=isLastH?'':'border-bottom:1px solid rgba(0,0,0,.1);';
+        const borderB=isLastH?'':'border-bottom:1.5px solid rgba(0,0,0,.25);';
 
         if(disabled){
           html+=`<div style="flex:1;${borderB}background:repeating-linear-gradient(45deg,#e0e0e0,#e0e0e0 2px,#f5f5f5 2px,#f5f5f5 5px)"></div>`;
         } else {
           const key=_lpCellKey(zi,ri,si,hi);
           const entry=_lpEntryData(plan[key]);
-          const isOwn=!!ownPlan[key]; // eigener Eintrag (bearbeitbar)
-          const isFremderEintrag=entry&&!isOwn; // Gruppen-Eintrag (nur lesen)
+          const hasGruppe=(_gruppenBetriebe||[]).length>0;
+          const isOwn=!!ownPlan[key]||hasGruppe; // Vollzugriff bei Familiengruppe
+          const isFremderEintrag=false; // Alle Familienmitglieder haben Vollzugriff
           let warnAuslagern=false;
           if(entry?.auslagernBis){
             const tage=Math.ceil((new Date(entry.auslagernBis)-new Date())/(1000*60*60*24));
@@ -5945,18 +6153,40 @@ function _lpBuildTable(zi){
 
           let inner='';
           if(entry){
-            const sc=D.schlage.find(x=>x.id===entry.schlag_id);
-            const sfTxt=entry.sf?' SF':'';
-            const qualTxt=entry.qualitaet==='sehr_gut'?'★★':entry.qualitaet?'★':'';
-            const grTxt=entry.groesse==='klein'?'S':entry.groesse==='mittel'?'M':entry.groesse==='gross'?'L':'';
+            const sfBadge=entry.sf?` <span style="background:rgba(255,255,255,.25);border-radius:3px;padding:0 3px;font-size:.46rem;font-weight:700;letter-spacing:.02em">SF</span>`:'';
+            const dgBadge=entry.dg?`<span style="background:rgba(255,255,255,.22);border-radius:3px;padding:0 2px;font-size:.46rem;font-weight:700">${entry.dg}.DG</span>`:'';
+            const qualMap={'Mäßig':'★','Gut':'★★','Sehr gut':'★★★'};
+            const qualAbbr=qualMap[entry.qualitaet]||'';
+            const qualBadge=qualAbbr?`<span style="background:rgba(255,255,255,.18);border-radius:3px;padding:0 2px;font-size:.46rem;font-weight:600">${qualAbbr}</span>`:'';
+            const grMap={'Klein':'kl','Mittel':'mi','Groß':'gr'};
+            const grAbbr=grMap[entry.groesse]||'';
+            const grBadge=grAbbr?`<span style="background:rgba(255,255,255,.18);border-radius:3px;padding:0 2px;font-size:.46rem;font-weight:600">${grAbbr}</span>`:'';
             const warnTxt=warnAuslagern?'⚠ ':'';
-            const lockTxt=isFremderEintrag?'🔒':'';
-            inner=`<div style="font-size:.58rem;font-weight:800;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:${CELL_W-6}px">${warnTxt}${lockTxt}${entry.sorte||'?'}${sfTxt}</div>`+
-              (sc?`<div style="font-size:.52rem;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:${CELL_W-6}px">${sc.name}</div>`:'')+
-              ((qualTxt||grTxt)?`<div style="font-size:.52rem;opacity:.9">${grTxt}${qualTxt?(' '+qualTxt):''}</div>`:'')+
-              `<div style="font-size:.5rem;opacity:.7">H${hNum}</div>`;
+            const lockTxt=isFremderEintrag?'🔒 ':'';
+            // Short sorte name (max ~8 chars)
+            const sorteShort=(entry.sorte||'?').length>9?(entry.sorte||'?').slice(0,8)+'…':(entry.sorte||'?');
+            // Full schlag name (wrap allowed)
+            const sc2=entry.schlag_id?D.schlage.find(x=>x.id===entry.schlag_id):null;
+            const schlagName=sc2?sc2.name:'';
+            const bisTxt=entry.auslagernBis?`bis ${entry.auslagernBis.slice(0,7)}`:'';
+            const badges=[dgBadge,qualBadge,grBadge].filter(Boolean).join(' ');
+            // Vollständigkeits-Check
+            const missing=[];
+            if(!entry.schlag_id)missing.push('Schlag');
+            if(!entry.dg)missing.push('DG');
+            if(!entry.qualitaet)missing.push('Qual.');
+            if(!entry.groesse)missing.push('Größe');
+            const incompleteDot=missing.length?`<span style="position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:#ff9800;border:1px solid #fff;flex-shrink:0"></span>`:'';
+            inner=`<div style="position:relative;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center">`+
+              incompleteDot+
+              `<div style="font-size:.6rem;font-weight:800;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:${CELL_W-10}px">${warnTxt}${lockTxt}${sorteShort}${sfBadge}</div>`+
+              (badges?`<div style="font-size:.5rem;opacity:.9;line-height:1.25;display:flex;gap:2px;flex-wrap:wrap">${badges}${bisTxt?` <span style="opacity:.8">${bisTxt}</span>`:''}</div>`:
+               bisTxt?`<div style="font-size:.5rem;opacity:.85;line-height:1.2">${bisTxt}</div>`:'')+
+              (schlagName?`<div style="font-size:.5rem;opacity:.85;line-height:1.2;overflow:hidden;word-break:break-word;max-width:${CELL_W-6}px">${schlagName}</div>`:'')+
+              `<div style="font-size:.45rem;opacity:.55">H${hNum}</div>`+
+              `</div>`;
           } else {
-            inner=`<div style="font-size:.5rem;opacity:.5">H${hNum}</div>`;
+            inner=`<div style="font-size:.5rem;opacity:.4">H${hNum}</div>`;
           }
 
           const clickFn=isOwn||!entry?`_lpCellClick(${zi},${ri},${si},${hi})`:`_lpCellViewOnly(${zi},${ri},${si},${hi})`;
@@ -5966,7 +6196,7 @@ function _lpBuildTable(zi){
             ondragover="event.preventDefault();this.style.outline='2px solid var(--pd)'"
             ondragleave="this.style.outline=''"
             ondrop="_lpDrop('${key}',${zi},event)"
-            style="flex:1;${borderB}background:${bg};color:${tc};cursor:pointer;padding:3px 4px;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;transition:outline .08s;user-select:none;-webkit-tap-highlight-color:transparent"
+            style="flex:1;${borderB}background:${bg};color:${tc};cursor:pointer;padding:3px 4px;overflow:hidden;position:relative;transition:outline .08s;user-select:none;-webkit-tap-highlight-color:transparent"
             title="G${ri+1}·R${si+1}·H${hNum}${entry?' — '+entry.sorte+(entry.sf?' SF':''):''}">${inner}</div>`;
         }
       }
@@ -6054,6 +6284,7 @@ function _lpDrop(targetKey,zi,e){
   // Wenn Platzierung ausstehend (cross-Zellen): hier ablegen
   if(_lpPendingDrag){
     if(!D.gaimbergPlan)D.gaimbergPlan={};
+    _lpPushHistory();
     D.gaimbergPlan[targetKey]=_lpPendingDrag.entry;
     delete D.gaimbergPlan[_lpPendingDrag.srcKey];
     _lpPendingDrag=null;
@@ -6063,6 +6294,7 @@ function _lpDrop(targetKey,zi,e){
   if(!D.gaimbergPlan)D.gaimbergPlan={};
   const src=D.gaimbergPlan[_lpDragKey];
   if(!src)return;
+  _lpPushHistory();
   D.gaimbergPlan[targetKey]=src;
   delete D.gaimbergPlan[_lpDragKey];
   _lpDragKey=null;
@@ -6081,6 +6313,7 @@ function _lpCellClick(zi,ri,si,hi){
   // Cross-Zellen Platzierung: Kiste per Tap ablegen
   if(_lpPendingDrag){
     if(!D.gaimbergPlan)D.gaimbergPlan={};
+    _lpPushHistory();
     D.gaimbergPlan[_lpCellKey(zi,ri,si,hi)]=_lpPendingDrag.entry;
     delete D.gaimbergPlan[_lpPendingDrag.srcKey];
     _lpPendingDrag=null;
@@ -6099,7 +6332,7 @@ function _lpCellClick(zi,ri,si,hi){
   if(current){
     const curKey=_lpCellKey(zi,ri,si,hi);
     _lpEd={zi,ri,si,hi,step:-1, // step=-1 = Aktionsmenü
-      sorte:current.sorte||'',schlag_id:current.schlag_id||'',sf:current.sf||false,
+      sorte:current.sorte||'',schlag_id:current.schlag_id||'',sf:current.sf||false,dg:current.dg||0,
       auslagernBis:current.auslagernBis||'',qualitaet:current.qualitaet||'',groesse:current.groesse||'',sortenMap:{},
       _gkBySchlag:_lpGaimbergKistenBySchlag(), _planBySchlag:_lpPlanKistenBySchlag(curKey)};
     openMod('mod-lp-editor');
@@ -6109,7 +6342,7 @@ function _lpCellClick(zi,ri,si,hi){
 
   // Leere Kiste: direkt Wizard öffnen
   const curKey=_lpCellKey(zi,ri,si,hi);
-  _lpEd={zi,ri,si,hi,step:0,sorte:'',schlag_id:'',sf:false,auslagernBis:'',qualitaet:'',groesse:'',sortenMap:{},
+  _lpEd={zi,ri,si,hi,step:0,sorte:'',schlag_id:'',sf:false,dg:0,auslagernBis:'',qualitaet:'',groesse:'',sortenMap:{},
     _gkBySchlag:_lpGaimbergKistenBySchlag(), _planBySchlag:_lpPlanKistenBySchlag(curKey)};
   _lpEd.sortenMap=_lpSortenInGaimberg();
   openMod('mod-lp-editor');
@@ -6132,7 +6365,7 @@ function _lpCellViewOnly(zi,ri,si,hi){
   if(!body||!footer)return;
   body.innerHTML=`<div style="padding:20px 0;display:flex;flex-direction:column;gap:12px">
     <div style="padding:16px;background:var(--bg);border-radius:12px;border:1.5px solid var(--bdr)">
-      <div style="font-size:1.1rem;font-weight:800">${entry.sorte||'?'}${entry.sf?' <span style="font-size:.75rem;background:#e3f2fd;color:#1565c0;border-radius:4px;padding:1px 6px">SF</span>':''}</div>
+      <div style="font-size:1.1rem;font-weight:800">${entry.sorte||'?'}${entry.sf?' <span style="font-size:.75rem;background:#e3f2fd;color:#1565c0;border-radius:4px;padding:1px 6px">SF</span>':''}${entry.dg?` <span style="font-size:.75rem;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 6px">${entry.dg}.DG</span>`:''}</div>
       ${sc?`<div style="font-size:.85rem;color:var(--txl);margin-top:4px">${sc.name}</div>`:''}
       ${entry.qualitaet?`<div style="font-size:.8rem;margin-top:4px">⭐ ${entry.qualitaet==='sehr_gut'?'Sehr gut':entry.qualitaet==='gut'?'Gut':'Mäßig'}</div>`:''}
       ${entry.groesse?`<div style="font-size:.8rem">📏 ${entry.groesse==='klein'?'Klein':entry.groesse==='mittel'?'Mittel':'Groß'}</div>`:''}
@@ -6158,22 +6391,61 @@ function _lpEdRender(){
 }
 
 function _lpEdRenderAction(body,footer){
-  const {zi,ri,si,hi,sorte,schlag_id,sf,qualitaet,groesse,auslagernBis}=_lpEd;
+  const {zi,ri,si,hi,sorte,schlag_id,sf,dg,qualitaet,groesse,auslagernBis}=_lpEd;
   const sc=D.schlage.find(x=>x.id===schlag_id);
-  const qualLbl=qualitaet==='sehr_gut'?'Sehr gut':qualitaet==='gut'?'Gut':qualitaet==='maessig'?'Mäßig':'';
-  const grLbl=groesse==='klein'?'Klein':groesse==='mittel'?'Mittel':groesse==='gross'?'Groß':'';
+  const qualLbl=qualitaet||'';
+  const grLbl=groesse||'';
   body.innerHTML=`
     <div style="padding:4px 0 16px">
       <div style="padding:14px 16px;background:var(--bg);border-radius:12px;border:1.5px solid var(--bdr);margin-bottom:16px">
-        <div style="font-size:1rem;font-weight:800">${sorte||'?'}${sf?' <span style="font-size:.72rem;background:#e3f2fd;color:#1565c0;border-radius:4px;padding:1px 6px">SF</span>':''}</div>
-        ${sc?`<div style="font-size:.82rem;color:var(--txl);margin-top:3px">${sc.name}</div>`:''}
-        ${qualLbl||grLbl?`<div style="font-size:.8rem;margin-top:4px">${grLbl?'📏 '+grLbl:''} ${qualLbl?'⭐ '+qualLbl:''}</div>`:''}
-        ${auslagernBis?`<div style="font-size:.78rem;color:var(--txl);margin-top:3px">📅 bis ${auslagernBis}</div>`:''}
+        <div style="font-size:1rem;font-weight:800;margin-bottom:10px">${sorte||'?'}${sf?' <span style="font-size:.72rem;background:#e3f2fd;color:#1565c0;border-radius:4px;padding:1px 6px">SF</span>':''}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div style="background:#fff;border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
+            <div style="font-size:.58rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px">🌿 Schlag</div>
+            <div style="font-size:.8rem;font-weight:700;color:${sc?'var(--txt)':'var(--txl)'}">${sc?sc.name:'—'}</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
+            <div style="font-size:.58rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px">🔢 Durchgang</div>
+            <div style="font-size:.9rem;font-weight:800;color:${dg?'#2e7d32':'var(--txl)'}">${dg?dg+'.DG':'—'}</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
+            <div style="font-size:.58rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px">⭐ Qualität</div>
+            <div style="font-size:.9rem;font-weight:800;color:${qualLbl?'#e65100':'var(--txl)'}">${qualLbl||'—'}</div>
+          </div>
+          <div style="background:#fff;border-radius:8px;padding:8px 10px;border:1px solid var(--bdr)">
+            <div style="font-size:.58rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px">📏 Größe</div>
+            <div style="font-size:.9rem;font-weight:800;color:${grLbl?'var(--pd)':'var(--txl)'}">${grLbl||'—'}</div>
+          </div>
+        </div>
+        ${auslagernBis?`<div style="font-size:.78rem;color:var(--txl);margin-top:8px">📅 Auslagern bis ${auslagernBis}</div>`:''}
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <button onclick="_lpEdStartEdit()" style="padding:16px;border-radius:12px;border:1.5px solid var(--bdr);background:#fff;font-size:.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent">
           <span style="font-size:1.2rem">✏️</span><span>Kiste bearbeiten</span>
         </button>
+        ${(()=>{
+          // Auf Stapel kopieren: nur anzeigen wenn leere Slots vorhanden UND genug freie GK
+          const activePlan=_getActivePlan();
+          const maxH=_lpMaxH(zi,ri,si);
+          const emptySlots=[];
+          for(let h=0;h<maxH;h++){
+            if(h===hi)continue;
+            if(!activePlan[_lpCellKey(zi,ri,si,h)])emptySlots.push(h);
+          }
+          if(!emptySlots.length)return'';
+          const srcEntry=_lpEntryData(activePlan[_lpCellKey(zi,ri,si,hi)]);
+          const gkBySchlag=_lpGaimbergKistenBySchlag();
+          const planBySchlag=_lpPlanKistenBySchlag(null);
+          const booked=srcEntry?.schlag_id?(gkBySchlag[srcEntry.schlag_id]||0):0;
+          const placed=srcEntry?.schlag_id?(planBySchlag[srcEntry.schlag_id]||0):0;
+          const free=booked-placed;
+          const canFill=Math.min(emptySlots.length,free);
+          if(canFill<=0)return`<div style="padding:10px 14px;border-radius:10px;background:#f5f5f5;font-size:.78rem;color:#999;display:flex;align-items:center;gap:8px"><span>📋</span><span>Stapel kopieren — kein freies GK mehr für diesen Schlag</span></div>`;
+          const lbl=canFill===emptySlots.length?`${canFill} leere Kiste${canFill>1?'n':''} befüllen`:`${canFill} von ${emptySlots.length} Kisten (Kapazität)`;
+          return`<button onclick="_lpCopyToStack()" style="padding:16px;border-radius:12px;border:1.5px solid #c8e6c9;background:#f1f8f1;font-size:.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent">
+            <span style="font-size:1.2rem">📋</span><div><div>Auf Stapel kopieren</div><div style="font-size:.72rem;font-weight:400;color:#388e3c;margin-top:2px">${lbl}</div></div>
+          </button>`;
+        })()}
         <button onclick="_lpStartSort(${zi},${ri},${si},${hi})" style="padding:16px;border-radius:12px;border:1.5px solid var(--bdr);background:#fff;font-size:.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent">
           <span style="font-size:1.2rem">🔬</span><span>Kiste sortieren</span>
         </button>
@@ -6187,11 +6459,44 @@ function _lpEdRenderAction(body,footer){
 
 function _lpEdStartEdit(){
   _lpEd.step=0;
+  if(_lpEd.dg===undefined)_lpEd.dg=0;
   _lpEd.sortenMap=_lpSortenInGaimberg();
   const curKey=_lpCellKey(_lpEd.zi,_lpEd.ri,_lpEd.si,_lpEd.hi);
   _lpEd._gkBySchlag=_lpGaimbergKistenBySchlag();
   _lpEd._planBySchlag=_lpPlanKistenBySchlag(curKey);
   _lpEdRender();
+}
+
+function _lpCopyToStack(){
+  const {zi,ri,si,hi}=_lpEd;
+  const activePlan=_getActivePlan();
+  const srcData=activePlan[_lpCellKey(zi,ri,si,hi)];
+  if(!srcData)return;
+  const srcEntry={..._lpEntryData(srcData)};
+  // Kapazität prüfen
+  const gkBySchlag=_lpGaimbergKistenBySchlag();
+  const planBySchlag=_lpPlanKistenBySchlag(null);
+  const booked=srcEntry.schlag_id?(gkBySchlag[srcEntry.schlag_id]||0):0;
+  const placed=srcEntry.schlag_id?(planBySchlag[srcEntry.schlag_id]||0):0;
+  let free=booked-placed;
+  // Leere Slots im Stapel befüllen (bis Kapazität reicht)
+  const maxH=_lpMaxH(zi,ri,si);
+  if(!D.gaimbergPlan)D.gaimbergPlan={};
+  _lpPushHistory();
+  let filled=0;
+  for(let h=0;h<maxH;h++){
+    if(h===hi)continue; // Quell-Kiste überspringen
+    const k=_lpCellKey(zi,ri,si,h);
+    if(!activePlan[k]&&free>0){
+      D.gaimbergPlan[k]={...srcEntry};
+      filled++;free--;
+    }
+  }
+  if(!filled){toast('📋 Keine freien Kisten im Stapel');return;}
+  scheduleSave();
+  closeMod('mod-lp-editor');
+  _lpShowZelle(zi);
+  toast(`📋 ${filled} Kiste${filled>1?'n':''} im Stapel kopiert`);
 }
 
 function _lpEdStep0(body,footer){
@@ -6239,8 +6544,16 @@ function _lpEdStep0(body,footer){
 function _lpEdSelSorte(sorte){
   _lpEd.sorte=sorte;
   _lpEd.schlag_id='';
-  // Auto-advance: immer Schritt 2 zeigen für Schlag-Auswahl
   _lpEd.step=1;
+  // Auto-preselect if only 1 schlag available for this sorte
+  const ids=(_lpEd.sortenMap||{})[sorte]||[];
+  const gkBySchlag=_lpEd._gkBySchlag||{};
+  const planBySchlag=_lpEd._planBySchlag||{};
+  const available=(ids.length>0
+    ?ids.map(id=>D.schlage.find(x=>x.id===id)).filter(Boolean)
+    :D.schlage.filter(s=>(s.sorte||s.name)===sorte))
+    .filter(s=>Math.max(0,(gkBySchlag[s.id]||0)-(planBySchlag[s.id]||0))>0||(gkBySchlag[s.id]||0)===0);
+  if(available.length===1)_lpEd.schlag_id=available[0].id;
   _lpEdRender();
 }
 
@@ -6271,8 +6584,22 @@ function _lpEdStep1(body,footer){
         <span>${s.name}${voll?' ✗':''}</span>
         <span style="font-size:.72rem;font-weight:400;opacity:.85">${kapTxt?`<span style="color:${gkFrei>0?'#2e7d32':'#c62828'}">${gkFrei>0?gkFrei+' frei':'voll'}</span> · `:''} ${s.betrieb||''}</span>
       </button>`;
-    }).join('')+`</div>`+
+    }).join('')+
+    `<div id="lp-schlag-err" style="display:none;padding:10px 14px;background:#fff3e0;border:1.5px solid #ff9800;border-radius:8px;font-size:.82rem;font-weight:700;color:#e65100">⚠️ Bitte zuerst einen Schlag auswählen!</div>`+
+    `</div>`+
     `<div style="margin-top:18px;display:flex;flex-direction:column;gap:10px">
+      <div style="padding:14px 16px;background:var(--bg);border-radius:10px;border:1.5px solid var(--bdr)">
+        <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">🔢 Erntedurchgang</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${[0,1,2].map(d=>{
+            const sel=(_lpEd.dg||0)===d;
+            const lbl=d===0?'—':d+'.DG';
+            return`<button onclick="_lpEd.dg=${d};document.querySelectorAll('.lp-dg-btn').forEach(b=>b.style.background=b.dataset.dg=='${d}'?'var(--p)':'#fff');document.querySelectorAll('.lp-dg-btn').forEach(b=>b.style.color=b.dataset.dg=='${d}'?'#fff':'var(--txt)');document.querySelectorAll('.lp-dg-btn').forEach(b=>b.style.borderColor=b.dataset.dg=='${d}'?'var(--p)':'var(--bdr)')"
+              class="lp-dg-btn" data-dg="${d}"
+              style="padding:9px 18px;border-radius:20px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--p)':'#fff'};color:${sel?'#fff':'var(--txt)'};font-size:.88rem;font-weight:${sel?'700':'500'};cursor:pointer;white-space:nowrap">${lbl}</button>`;
+          }).join('')}
+        </div>
+      </div>
       <div style="padding:14px 16px;background:var(--bg);border-radius:10px;border:1.5px solid var(--bdr);display:flex;align-items:center;gap:10px">
         <input type="checkbox" id="lp-sf-cb" ${_lpEd.sf?'checked':''} onchange="_lpEd.sf=this.checked" style="width:22px;height:22px;accent-color:var(--pd);flex-shrink:0;cursor:pointer">
         <span style="font-size:1rem;font-weight:800;cursor:pointer" onclick="const cb=document.getElementById('lp-sf-cb');cb.checked=!cb.checked;_lpEd.sf=cb.checked">SF</span>
@@ -6314,6 +6641,8 @@ function _lpEdStep1(body,footer){
 
 function _lpEdSelSchlag(id){
   _lpEd.schlag_id=id;
+  const errEl=document.getElementById('lp-schlag-err');
+  if(errEl)errEl.style.display='none';
   // Update button visuals
   const sm=_lpEd.sortenMap[_lpEd.sorte]||[];
   const matching=sm.length>0
@@ -6357,9 +6686,16 @@ function _lpEdSetGroesse(g){
 }
 function _lpEdSave2(){
   if(!_lpEd.sorte)return;
-  const {zi,ri,si,hi,sorte,schlag_id,sf,auslagernBis,qualitaet,groesse}=_lpEd;
+  if(!_lpEd.schlag_id){
+    const errEl=document.getElementById('lp-schlag-err');
+    if(errEl){errEl.style.display='';errEl.scrollIntoView({behavior:'smooth',block:'center'});}
+    return;
+  }
+  const {zi,ri,si,hi,sorte,schlag_id,sf,dg,auslagernBis,qualitaet,groesse}=_lpEd;
   if(!D.gaimbergPlan)D.gaimbergPlan={};
+  _lpPushHistory();
   const obj={sorte,schlag_id,sf};
+  if(dg)obj.dg=dg;
   if(auslagernBis)obj.auslagernBis=auslagernBis;
   if(qualitaet)obj.qualitaet=qualitaet;
   if(groesse)obj.groesse=groesse;
@@ -6370,6 +6706,7 @@ function _lpEdSave2(){
 }
 function _lpEdClear2(){
   const {zi,ri,si,hi}=_lpEd;
+  _lpPushHistory();
   if(D.gaimbergPlan)delete D.gaimbergPlan[_lpCellKey(zi,ri,si,hi)];
   scheduleSave();
   closeMod('mod-lp-editor');
@@ -6584,6 +6921,7 @@ function _swSave(){
   D.sortierungen.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
   // Kiste aus Lagerplan entfernen, wenn Sortierung aus LP gestartet wurde
   if(_sw.lp_key&&D.gaimbergPlan&&D.gaimbergPlan[_sw.lp_key]!==undefined){
+    _lpPushHistory();
     delete D.gaimbergPlan[_sw.lp_key];
   }
   scheduleSave();
