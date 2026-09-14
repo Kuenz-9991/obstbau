@@ -362,8 +362,9 @@ tr:hover td{background:#f9fcfa}
     <!-- Zellen-Tabs -->
     <div style="padding:8px 16px 0;flex-shrink:0;display:flex;gap:6px;flex-wrap:wrap;background:var(--bg)">
       <button id="lp-tab-0" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:var(--pd);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer" onclick="_lpShowZelle(0)" ondragover="event.preventDefault();_lpTabDragOver(0,this)" ondragleave="_lpTabDragLeave(0,this)" ondrop="_lpDropOnTab(0,event)" ontouchstart="_lpTabTouchStart(0,this)" ontouchend="_lpTabTouchEnd(0,this)" ontouchcancel="_lpTabTouchEnd(0,this)">Zelle 1 · links</button>
-      <button id="lp-tab-1" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(1)" ondragover="event.preventDefault();_lpTabDragOver(1,this)" ondragleave="_lpTabDragLeave(1,this)" ondrop="_lpDropOnTab(1,event)" ontouchstart="_lpTabTouchStart(1,this)" ontouchend="_lpTabTouchEnd(1,this)" ontouchcancel="_lpTabTouchEnd(1,this)">Zelle 2 · mitte (fremd)</button>
+      <button id="lp-tab-1" style="display:none;padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(1)" ondragover="event.preventDefault();_lpTabDragOver(1,this)" ondragleave="_lpTabDragLeave(1,this)" ondrop="_lpDropOnTab(1,event)" ontouchstart="_lpTabTouchStart(1,this)" ontouchend="_lpTabTouchEnd(1,this)" ontouchcancel="_lpTabTouchEnd(1,this)">Zelle 2 · mitte (fremd)</button>
       <button id="lp-tab-2" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(2)" ondragover="event.preventDefault();_lpTabDragOver(2,this)" ondragleave="_lpTabDragLeave(2,this)" ondrop="_lpDropOnTab(2,event)" ontouchstart="_lpTabTouchStart(2,this)" ontouchend="_lpTabTouchEnd(2,this)" ontouchcancel="_lpTabTouchEnd(2,this)">Zelle 3 · rechts</button>
+      <button onclick="openLagerabbauplan()" style="margin-left:auto;padding:6px 14px;border-radius:6px;border:1.5px solid #0369a1;background:#e0f2fe;color:#0369a1;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">📈 Abbauplan</button>
     </div>
     <!-- Tabelle -->
     <div id="lp-table-wrap" style="flex:1;overflow:auto;padding:10px 16px 16px;-webkit-overflow-scrolling:touch;background:var(--bg)"></div>
@@ -1732,7 +1733,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.34.1";
+const APP_VERSION="v2.36.4";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -4677,7 +4678,7 @@ function _wizUmBestaetigung(body,footer){
         <div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">🎯 Zielort</div>
           <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${zielLager?.name||'?'}</div></div>
         <div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">Datum</div>
-          <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${_wiz.datum}</div></div>
+          <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${fmtD(_wiz.datum)}</div></div>
       </div>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
@@ -5327,7 +5328,7 @@ function _twStep3(body,footer){
     <div style="background:#fff3e0;border-left:4px solid #e65100;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:14px">
       <div style="display:flex;gap:20px">
         <div><div style="font-size:.68rem;font-weight:700;color:#e65100;margin-bottom:2px">Datum</div>
-          <div style="font-size:.95rem;font-weight:800;color:#bf360c">${_tw.datum}</div></div>
+          <div style="font-size:.95rem;font-weight:800;color:#bf360c">${fmtD(_tw.datum)}</div></div>
         <div><div style="font-size:.68rem;font-weight:700;color:#e65100;margin-bottom:2px">🎯 Lieferziel</div>
           <div style="font-size:.95rem;font-weight:800;color:#bf360c">${verw?verw.name:'?'}</div></div>
       </div>
@@ -5417,7 +5418,7 @@ function deleteErnteEintrag(id){
   const e=D.ernte_ist.find(x=>x.id===id)||(_gruppenErnteIst||[]).find(x=>x.id===id);
   if(!e)return;
   const sc=_getAllSchlage().find(x=>x.id===e.schlag_id);
-  const label=sc?sc.name+' ('+e.datum+')':e.datum;
+  const label=sc?sc.name+' ('+fmtD(e.datum)+')':fmtD(e.datum);
   if(!confirm('Ernte-Buchung "'+label+'" wirklich löschen?\nDiese Aktion kann nicht rückgängig gemacht werden.'))return;
   const fremdBetriebId=_getEintragBetriebId(id);
   if(!fremdBetriebId){
@@ -5561,9 +5562,9 @@ function printLieferschein(entryId){
     @media print{body{padding:16px}}
   </style></head><body>
   <h1>🚛 Lieferschein</h1>
-  <div class="sub">Obstbaumanager · Kuenz · erstellt: ${new Date().toLocaleDateString('de-AT')}</div>
+  <div class="sub">Obstbaumanager · Kuenz · erstellt: ${fmtD(new Date().toISOString().slice(0,10))}</div>
   <div class="meta">
-    <div class="meta-item"><div class="meta-label">Datum</div><div class="meta-value">${e.datum}</div></div>
+    <div class="meta-item"><div class="meta-label">Datum</div><div class="meta-value">${fmtD(e.datum)}</div></div>
     <div class="meta-item"><div class="meta-label">Lieferziel</div><div class="meta-value">${zielName}</div></div>
   </div>
   <table>
@@ -5717,7 +5718,7 @@ function openLagerDrilldown(lagerId){
         const dgTxt=sv.herkunft?.dg?`<span style="font-size:.63rem;background:#e3f2fd;color:#1565c0;border-radius:3px;padding:0 3px;margin-left:2px">${sv.herkunft.dg}.DG</span>`:'';
         const gk=sv.gk_kisten||1;
         html+=`<tr style="border-bottom:1px solid var(--bdr)">
-          <td style="padding:5px 8px;white-space:nowrap">${sv.datum}</td>
+          <td style="padding:5px 8px;white-space:nowrap">${fmtD(sv.datum)}</td>
           <td style="padding:5px 8px"><span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 5px;font-weight:700">${sv.los||'—'}</span></td>
           <td style="padding:5px 8px">${sv.sorte||'?'}${dgTxt} ${schlagTxt}</td>
           <td style="padding:5px 8px;text-align:right;font-weight:700;color:#2e7d32">${gk} GK</td>
@@ -5806,6 +5807,7 @@ function openLagerSorteDrilldown(lagerId,sorte){
   html+=`<div style="font-size:.85rem;font-weight:800;color:var(--pd);margin-bottom:10px">${_sorteSymbol(sorte)} ${sorte}</div>`;
   html+=`<table style="width:100%;border-collapse:collapse">
     <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
+      <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">#</th>
       <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Datum</th>
       <th style="text-align:left;padding:4px 8px;font-size:.68rem;color:var(--txl);font-weight:700">Schlag</th>
       <th style="text-align:right;padding:4px 8px;font-size:.72rem;color:var(--pl);font-weight:800">1.Kl.</th>
@@ -5813,7 +5815,9 @@ function openLagerSorteDrilldown(lagerId,sorte){
       <th style="text-align:center;padding:4px 6px;font-size:.68rem;color:var(--txl);font-weight:700">DG</th>
       <th style="width:32px"></th>
     </tr></thead><tbody>`;
+  let _buchNr=0;
   sd.eintraege.sort((a,b)=>a.e.datum<b.e.datum?-1:1).forEach(({e,schlag,kl1,ver,isUmbuchung,richtung})=>{
+    _buchNr++;
     if(isUmbuchung){
       const lsTxt=e.lieferschein?` <span style="font-size:.65rem;background:#fff3e0;color:#e65100;border-radius:4px;padding:0 4px;border:1px solid #ffcc80">${e.lieferschein}</span>`:'';
       const dgBadge=e.dg
@@ -5823,7 +5827,8 @@ function openLagerSorteDrilldown(lagerId,sorte){
         // Eingehende Umbuchung
         const quellenTxt=(e.quellen||[]).map(q=>D.lagerorte.find(l=>l.id===q.von_lagerort_id)?.name||q.von_lagerort_id).join(', ');
         html+=`<tr style="border-bottom:1px solid var(--bdr);background:#f1f8e9">
-          <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
+          <td style="padding:6px 8px;font-size:.75rem;color:var(--txl);white-space:nowrap">${_buchNr}</td>
+          <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${fmtD(e.datum)}</b></td>
           <td style="padding:6px 8px;font-size:.8rem;color:#33691e">📥 von: ${quellenTxt}${lsTxt}</td>
           <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--pl)">+${kl1||'–'}</td>
           <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--info)">${ver?'+'+ver:'–'}</td>
@@ -5835,7 +5840,8 @@ function openLagerSorteDrilldown(lagerId,sorte){
         const zielName=D.lagerorte.find(l=>l.id===e.ziel_lagerort_id)?.name||'?';
         const absKl1=Math.abs(kl1);const absVer=Math.abs(ver);
         html+=`<tr style="border-bottom:1px solid var(--bdr);background:#fff8f0">
-          <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
+          <td style="padding:6px 8px;font-size:.75rem;color:var(--txl);white-space:nowrap">${_buchNr}</td>
+          <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${fmtD(e.datum)}</b></td>
           <td style="padding:6px 8px;font-size:.8rem;color:#b71c1c">📤 nach: ${zielName}${lsTxt}</td>
           <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:#c62828">${absKl1?'−'+absKl1:'–'}</td>
           <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:#c62828">${absVer?'−'+absVer:'–'}</td>
@@ -5849,7 +5855,8 @@ function openLagerSorteDrilldown(lagerId,sorte){
         ?`<span style="background:#e0f2fe;color:#0369a1;border-radius:8px;padding:1px 6px;font-size:.68rem;font-weight:700">${e.dg}.DG</span>`
         :`<span style="color:var(--txl);font-size:.7rem">—</span>`;
       html+=`<tr style="border-bottom:1px solid var(--bdr)">
-        <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${e.datum}</b></td>
+        <td style="padding:6px 8px;font-size:.75rem;color:var(--txl);white-space:nowrap">${_buchNr}</td>
+        <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${fmtD(e.datum)}</b></td>
         <td style="padding:6px 8px;font-size:.8rem">${schlagName}</td>
         <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--pl)">${kl1||'–'}</td>
         <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--info)">${ver||'–'}</td>
@@ -6298,8 +6305,32 @@ function _lpBuildTable(zi){
         <button onclick="_lpSortMode=false;closeMod('mod-lagerplan')" style="padding:5px 10px;border-radius:6px;border:1px solid #388e3c;background:#fff;color:#388e3c;font-size:.78rem;font-weight:700;cursor:pointer;flex-shrink:0">✕ Abbrechen</button>
       </div>`
     :'';
+  // ── Sortenübersicht für diese Zelle ──────────────────────────────────────────
+  // plan ist bereits oben als _getActivePlan() deklariert
+  const sortenMap={};
+  Object.entries(plan).forEach(([key,val])=>{
+    const parts=key.split('_');
+    if(parseInt(parts[0])!==zi)return;
+    const e=_lpEntryData(val);
+    if(!e)return;
+    const k=(e.sorte||'?')+(e.sf?' SF':'');
+    sortenMap[k]=(sortenMap[k]||0)+1;
+  });
+  const sortenChips=Object.entries(sortenMap).sort((a,b)=>b[1]-a[1]).map(([k,n])=>{
+    const isSF=k.endsWith(' SF');
+    return`<span style="background:${isSF?'#fff3e0':'#e8f4ee'};color:${isSF?'#e65100':'var(--pd)'};border-radius:10px;padding:2px 9px;font-size:.72rem;font-weight:700;white-space:nowrap">${k} <b>${n}</b> GK</span>`;
+  }).join('');
+  const totalGK=Object.values(sortenMap).reduce((a,b)=>a+b,0);
+  const sortenOverview=totalGK>0
+    ?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 10px;background:var(--card);border:1px solid var(--bdr);border-radius:9px;margin-bottom:8px">
+        <span style="font-size:.7rem;font-weight:700;color:var(--txl);white-space:nowrap">📦 ${totalGK} GK:</span>
+        ${sortenChips}
+      </div>`
+    :'';
+
   let html=`${sortModeBanner}${pendingBanner}`;
-  html+=`<div style="font-size:.68rem;color:var(--txl);margin-bottom:6px;font-style:italic">${zelleInfo[zi]}</div>`;
+  html+=`<div style="font-size:.68rem;color:var(--txl);margin-bottom:4px;font-style:italic">${zelleInfo[zi]}</div>`;
+  html+=sortenOverview;
 
   // Zoom-Steuerung
   html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
@@ -7219,17 +7250,10 @@ function _swRandWaegungen(){
 
 function _swNextLos(datum){
   if(!datum)return'—';
-  // Format: L.NNN DD-MM-YYYY (globaler Zähler über alle Sortierungen)
-  const all=(D.sortierungen||[]);
-  const nums=all.map(s=>{
-    if(!s.los)return 0;
-    const m=s.los.match(/^L\.(\d+)/);
-    return m?parseInt(m[1]):0;
-  });
-  const next=(nums.length?Math.max(...nums):0)+1;
+  // Format: L.001 DD-MM-YYYY (fixer Präfix)
   const [y,mo,d]=datum.split('-');
   const dateStr=`${d}-${mo}-${y}`;
-  return`L.${String(next).padStart(3,'0')} ${dateStr}`;
+  return`L.001 ${dateStr}`;
 }
 
 function openSortWizard(){
@@ -7571,8 +7595,66 @@ function renderSortierung(){
   }
 
   const entries=D.sortierungen.filter(s=>s.datum&&s.datum.startsWith(String(jahr)));
+
+  // ── Sorten-Übersicht (Lagerstand + Sortiert gesamt) ────────────────────────
+  let _sortenOverviewHtml='';
+  try{
+    const _activePlan=_getActivePlan();
+    // SF ist nur ein Lagerattribut → immer nach Basissorte (ohne " SF") gruppieren
+    const _stripSF=s=>(s||'?').replace(/\s*SF\s*$/i,'').trim();
+    const _lagerByS={};
+    Object.values(_activePlan).forEach(val=>{
+      const e=_lpEntryData(val);if(!e)return;
+      const k=_stripSF(e.sorte);
+      _lagerByS[k]=(_lagerByS[k]||0)+1;
+    });
+    const _sortiertByS={};
+    (D.sortierungen||[]).forEach(s=>{
+      const k=_stripSF(s.sorte);
+      _sortiertByS[k]=(_sortiertByS[k]||0)+(s.gk_kisten||1);
+    });
+    // Ernte-Daten (nur 1.Kl.) für das ausgewählte Jahr aus ernte_ist
+    const _gaimbergId=(D.lagerorte||[]).find(l=>/gaimberg/i.test(l.name))?.id||'gaimberg_1kl';
+    const _ernteByS={};
+    (D.ernte_ist||[]).filter(e=>e.datum&&e.datum.startsWith(String(jahr))).forEach(e=>{
+      try{if(typeof getEntryTyp==='function'&&getEntryTyp(e)!=='ernte')return;}catch(_){}
+      const sorte=_stripSF(e.sorte);
+      if(!_ernteByS[sorte])_ernteByS[sorte]={kl1:0};
+      if(e.verteilung){
+        e.verteilung.forEach(v=>{
+          if(v.standort_id===_gaimbergId){_ernteByS[sorte].kl1+=(v.gk_1kl||0);}
+        });
+      } else if(e.standort_id===_gaimbergId||!e.standort_id){
+        _ernteByS[sorte].kl1+=(e.gk_1kl||0);
+      }
+    });
+    const _allSorten=new Set([...Object.keys(_lagerByS),...Object.keys(_sortiertByS),...Object.keys(_ernteByS)]);
+    if(_allSorten.size){
+      const _cards=[..._allSorten].sort().map(k=>{
+        const em=_sorteSymbol(k);
+        const ls=_lagerByS[k]||0;const so=_sortiertByS[k]||0;
+        const ed=_ernteByS[k]||null;
+        const ernteStr=ed&&ed.kl1
+          ?`<span style="font-size:.68rem;color:var(--txl)">Ernte: <b style="color:#1565c0">${ed.kl1}</b> GK</span>`
+          :'';
+        return`<div style="display:flex;flex-direction:column;gap:3px;padding:8px 12px;background:var(--bg);border:1px solid var(--bdr);border-radius:10px;min-width:130px">
+          <div style="font-weight:800;font-size:.82rem">${em} ${k}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:.72rem;color:var(--txl)">Lager: <b style="color:var(--pd)">${ls}</b> GK</span>
+            <span style="font-size:.72rem;color:var(--txl)">Sortiert: <b style="color:#16a34a">${so}</b> GK</span>
+          </div>
+          ${ernteStr?`<div>${ernteStr}</div>`:''}
+        </div>`;
+      }).join('');
+      _sortenOverviewHtml=`<div class="card" style="padding:10px 12px;margin-bottom:10px">
+        <div style="font-size:.68rem;font-weight:800;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">📊 Sortenübersicht ${jahr}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">${_cards}</div>
+      </div>`;
+    }
+  }catch(_sortenErr){console.warn('Sortenübersicht Fehler:',_sortenErr);}
+
   if(!entries.length){
-    wrap.innerHTML=`<div class="card" style="text-align:center;padding:32px;color:var(--txl)">Noch keine Sortierungen für ${jahr}.<br><br><button class="btn btn-p" onclick="openSortWizard()">+ Erste Sortierung erfassen</button></div>`;
+    wrap.innerHTML=_sortenOverviewHtml+`<div class="card" style="text-align:center;padding:32px;color:var(--txl)">Noch keine Sortierungen für ${jahr}.<br><br><button class="btn btn-p" onclick="openSortWizard()">+ Erste Sortierung erfassen</button></div>`;
     return;
   }
 
@@ -7583,7 +7665,8 @@ function renderSortierung(){
     {key:'reinigung',icon:'🧹',short:'Reinigung'},
   ];
 
-  let html=`<div class="card" style="padding:0;overflow:hidden">`;
+  let html=_sortenOverviewHtml;
+  html+=`<div class="card" style="padding:0;overflow:hidden">`;
   html+=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">`;
   html+=`<table style="border-collapse:collapse;width:100%;font-size:.78rem;min-width:600px">`;
   html+=`<thead><tr style="background:var(--bg);border-bottom:2px solid var(--bdr)">
@@ -7645,7 +7728,10 @@ function renderSortierung(){
         ${wgSummary}
         <div id="wg-det-${sid}" hidden style="margin-top:6px;padding:6px 8px;background:#f8fafc;border-radius:7px;border:1px solid var(--bdr)">${wgDetail}</div>
       </td>
-      <td style="padding:6px 6px"><button class="btn btn-s btn-sm" onclick="_swDelete('${s.id}')" style="padding:3px 7px;color:var(--crit);border-color:var(--crit)">🗑</button></td>
+      <td style="padding:6px 6px;white-space:nowrap">
+        <button onclick="_swEditOpen('${sid}')" style="padding:3px 7px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;cursor:pointer;margin-right:4px" title="Bearbeiten">✏️</button>
+        <button onclick="_swDelete('${sid}')" style="padding:3px 7px;border-radius:6px;border:1.5px solid var(--crit);background:#fff;font-size:.78rem;cursor:pointer;color:var(--crit)" title="Löschen">🗑</button>
+      </td>
     </tr>`;
   });
   html+=`</tbody></table></div></div>`;
@@ -7657,16 +7743,105 @@ function renderSortierung(){
     <span>📋 Einträge: <b>${entries.length}</b></span>
     <span>✅ Vollständig: <b>${allOk}</b></span>
     ${missingR?`<span>🧹 Reinigung fehlt: <b style="color:var(--warn)">${missingR}×</b></span>`:''}
-    <span style="color:var(--txl)">Los-Format: L.NNN DD-MM-YYYY</span>
+    <span style="color:var(--txl)">Los-Format: L.001 DD-MM-YYYY</span>
   </div>`;
 
   wrap.innerHTML=html;
 }
 
 function _swDelete(id){
-  if(!confirm('Sortierung löschen?'))return;
+  const sv=(D.sortierungen||[]).find(s=>s.id===id);
+  if(!sv)return;
+  const losInfo=sv.los?` (${sv.los})`:'';
+  if(!confirm(`Sortierung${losInfo} löschen?\n\nDie Großkiste(n) werden als „nicht platziert" im Lager zurückgebucht.`))return;
   D.sortierungen=D.sortierungen.filter(s=>s.id!==id);
-  scheduleSave();renderSortierung();
+  scheduleSave();
+  renderSortierung();
+  _lpShowZelle(_lpZelle);
+  toast('↩ Sortierung gelöscht – GK zurück als nicht platziert');
+}
+
+function _swEditOpen(id){
+  const sv=(D.sortierungen||[]).find(s=>s.id===id);
+  if(!sv)return;
+  const schlage=_getAllSchlage();
+  const schlagOpts=schlage.map(s=>`<option value="${s.id}"${s.id===sv.schlag_id?' selected':''}>${s.name} (${s.sorte||'?'})</option>`).join('');
+  const h=sv.haccp||{};
+  const html=`
+  <div id="mod-sort-edit" style="position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="background:var(--card);border-radius:14px;padding:20px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-weight:800;font-size:.95rem;color:var(--pd)">✏️ Sortierung bearbeiten</div>
+        <button onclick="document.getElementById('mod-sort-edit').remove()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--txl)">✕</button>
+      </div>
+      <div style="display:grid;gap:10px">
+        <div>
+          <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:3px">Losnummer</label>
+          <input id="se-los" value="${sv.los||''}" style="width:100%;padding:7px 10px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.85rem">
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:3px">Datum</label>
+          <input id="se-datum" type="date" value="${sv.datum||''}" style="width:100%;padding:7px 10px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.85rem">
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:3px">Sorte</label>
+          <input id="se-sorte" value="${sv.sorte||''}" style="width:100%;padding:7px 10px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.85rem">
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:3px">Schlag</label>
+          <select id="se-schlag" style="width:100%;padding:7px 10px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.85rem">
+            <option value="">– kein Schlag –</option>
+            ${schlagOpts}
+          </select>
+        </div>
+        <div style="display:flex;gap:16px;align-items:center">
+          <label style="font-size:.8rem;font-weight:600;display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input id="se-sf" type="checkbox"${sv.sf?' checked':''}> Schimmelfäule (SF)
+          </label>
+        </div>
+        <div>
+          <div style="font-size:.72rem;font-weight:700;color:var(--txl);margin-bottom:6px">HACCP</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+            ${[['waage','⚖️ Waage'],['groesse','📏 Größe'],['thermo','🌡 Thermo'],['reinigung','🧹 Reinigung']].map(([k,lbl])=>`
+            <label style="font-size:.8rem;display:flex;align-items:center;gap:5px;cursor:pointer">
+              <input type="checkbox" id="se-h-${k}"${h[k]?' checked':''}> ${lbl}
+            </label>`).join('')}
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:3px">Notiz</label>
+          <textarea id="se-notiz" style="width:100%;padding:7px 10px;border:1.5px solid var(--bdr);border-radius:8px;font-size:.85rem;min-height:60px;resize:vertical">${sv.notiz||''}</textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="document.getElementById('mod-sort-edit').remove()" style="flex:1;padding:9px;border-radius:8px;border:1.5px solid var(--bdr);background:#fff;font-size:.85rem;font-weight:600;cursor:pointer">Abbrechen</button>
+        <button onclick="_swEditSave('${id}')" style="flex:2;padding:9px;border-radius:8px;border:none;background:var(--p);color:#fff;font-size:.85rem;font-weight:700;cursor:pointer">💾 Speichern</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+}
+
+function _swEditSave(id){
+  const sv=(D.sortierungen||[]).find(s=>s.id===id);
+  if(!sv)return;
+  const g=id=>document.getElementById(id);
+  sv.los=g('se-los').value.trim();
+  sv.datum=g('se-datum').value;
+  sv.sorte=g('se-sorte').value.trim();
+  sv.schlag_id=g('se-schlag').value;
+  sv.sf=g('se-sf').checked;
+  sv.haccp={
+    waage:g('se-h-waage').checked,
+    groesse:g('se-h-groesse').checked,
+    thermo:g('se-h-thermo').checked,
+    reinigung:g('se-h-reinigung').checked,
+  };
+  sv.notiz=g('se-notiz').value;
+  document.getElementById('mod-sort-edit')?.remove();
+  scheduleSave();
+  renderSortierung();
+  toast('✅ Sortierung aktualisiert');
 }
 
 function calcLeergutGK(){
@@ -8019,70 +8194,8 @@ async function renderErnteIst(){
     </div>`;
   }
 
-  // ── Transport-Journal ─────────────────────────────────────────
-  const transportEntries=_allEI.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='transport');
-  const leergutEntries=_allEI.filter(e=>e.datum&&e.datum.startsWith(String(ernteJahr))&&getEntryTyp(e)==='leergut');
-  let transportJournalHtml='';
-  if(!transportEntries.length&&!leergutEntries.length){
-    transportJournalHtml=`<div style="margin-bottom:16px">
-      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🚛 Transport-Journal ${ernteJahr}</div>
-      <div style="font-size:.82rem;color:var(--txl);padding:8px 0">Noch keine Transport-Buchungen für ${ernteJahr}.</div>
-    </div>`;
-  } else {
-    const tRows=[...transportEntries,...leergutEntries].sort((a,b)=>b.datum<a.datum?-1:b.datum>a.datum?1:0).map(e=>{
-      const typ=getEntryTyp(e);
-      const icon=typ==='transport'?'🚛':'📦';
-      let detailHtml='';
-      if(typ==='transport'){
-        const _zId=e.ziel_lagerort_id||e.verwendung_id;
-        const verwendung=D.lagerorte.find(x=>x.id===_zId)||verwendungen.find(x=>x.id===_zId);
-        const zielBadge=`<span style="background:#fff3e0;color:#e65100;border-radius:4px;padding:1px 6px;font-size:.73rem;font-weight:700">${verwendung?verwendung.name:'?'}</span>`;
-        const positionen=getTransportPositionen(e);
-        const posLines=positionen.map(p=>{
-          const sc=D.schlage.find(x=>x.id===p.schlag_id);
-          const standort=D.lagerorte.find(x=>x.id===p.von_standort_id);
-          const schlagTxt=sc?`${sc.name}${sc.betrieb?' <span style="color:#94a3b8;font-size:.68rem">('+sc.betrieb+')</span>':''}`:'';
-          const standortTxt=standort?standort.name:'?';
-          const kl1=p.gk_1kl||0;const ver=p.gk_verarbeitung||0;
-          const mengeHtml=kl1&&ver?`<b>${kl1}</b> 1.Kl + <b>${ver}</b> V`:(kl1?`<b>${kl1}</b> GK 1.Kl`:`<b>${ver}</b> GK V`);
-          return`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.75rem;margin-top:2px">
-            <span style="color:var(--txl)">${standortTxt}</span>
-            ${schlagTxt?`<span style="color:#94a3b8">›</span><span>${schlagTxt}</span>`:''}
-            <span style="color:#94a3b8">·</span><span style="color:#e65100">${mengeHtml}</span>
-          </div>`;
-        }).join('');
-        let totalKl1=0,totalVer=0;
-        positionen.forEach(p=>{totalKl1+=(p.gk_1kl||0);totalVer+=(p.gk_verarbeitung||0);});
-        const totalHtml=positionen.length>1?`<div style="font-size:.72rem;font-weight:700;color:#e65100;margin-top:3px">∑ ${totalKl1+totalVer} GK gesamt</div>`:'';
-        detailHtml=`<div style="margin-bottom:2px">${zielBadge}</div>${posLines}${totalHtml}`;
-      } else {
-        const gk=e.gk_anzahl!==undefined?e.gk_anzahl:(e.leergut?.grosskisten||0);
-        detailHtml=`<b>+${gk} GK</b> Leergut zurück`;
-      }
-      const notizHtml=e.notiz?`<div style="font-size:.68rem;color:var(--txl);margin-top:2px;font-style:italic">${e.notiz}</div>`:'';
-      return`<tr style="border-bottom:1px solid var(--bdr)">
-        <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap;vertical-align:top"><b>${e.datum}</b></td>
-        <td style="padding:6px 8px;font-size:.8rem;vertical-align:top">${detailHtml}${notizHtml}</td>
-        <td style="padding:6px 4px;white-space:nowrap;vertical-align:top">
-          <div style="display:flex;gap:3px">
-            <button class="btn btn-s btn-sm" onclick="openTransportMod('${e.id}')" style="padding:2px 6px" title="Bearbeiten">✏️</button>
-            ${typ==='transport'?`<button class="btn btn-s btn-sm" onclick="printLieferschein('${e.id}')" style="padding:2px 6px" title="Lieferschein drucken">🖨️</button>`:''}
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-    transportJournalHtml=`<div style="margin-bottom:16px">
-      <div style="font-size:.75rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🚛 Transport-Journal ${ernteJahr}</div>
-      <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.8rem;border:1px solid var(--bdr);border-radius:6px">
-        <thead><tr style="background:var(--bg);border-bottom:2px solid var(--bdr)">
-          <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700;white-space:nowrap">Datum</th>
-          <th style="padding:5px 8px;text-align:left;font-size:.68rem;color:var(--txl);font-weight:700">Lieferziel · Herkunft · Menge</th>
-          <th></th>
-        </tr></thead>
-        <tbody>${tRows}</tbody>
-      </table></div>
-    </div>`;
-  }
+  // ── Transport-Journal (ausgeblendet – Transporte laufen über Umbuchungen) ────
+  const transportJournalHtml='';
 
   // Betrieb-Filter-Leiste (nur bei Gruppe mit mehreren Betrieben)
   const hasGruppe=_gruppenBetriebe.length>1;
@@ -8768,7 +8881,7 @@ window.addEventListener('popstate',function(e){
 });
 // Initialen Fake-Eintrag setzen damit der erste popstate abgefangen wird
 if(window.history&&window.history.pushState) history.pushState(null,'');
-function fmtD(d){if(!d)return'–';return new Date(d+'T00:00:00').toLocaleDateString('de-AT',{day:'2-digit',month:'2-digit',year:'numeric'})}
+function fmtD(d){if(!d)return'–';const p=(d+'').slice(0,10).split('-');return p.length===3?p[2]+'-'+p[1]+'-'+p[0]:d;}
 function today(){return new Date().toISOString().slice(0,10)}
 function v(id){return(document.getElementById(id).value||'').trim()}
 function pf(id){return parseFloat(document.getElementById(id).value)||null}
@@ -8846,6 +8959,204 @@ const _loginEmailObs=new MutationObserver(()=>{
 });
 const _lov=document.getElementById('login-overlay');
 if(_lov) _loginEmailObs.observe(_lov,{attributes:true,attributeFilter:['style']});
+
+// ─── LAGERABBAUPLAN ──────────────────────────────────────────────────────────
+// Historische Daten (kumuliert sortierte GK, Monatsende)
+// Monate: Aug(0), Sep(1), Okt(2), Nov(3), Dez(4), Jän(5), Feb(6), März(7), Apr(8), Mai(9)
+const _LAP_HIST={
+  Gala:{
+    '2025':[10,24.5,43.5,56.5,71.5,77.5,86.5,96.5,101.5,109.5],
+    '2024':[6,24,39,48,72,84,97,102,102,102],
+    '2023':[null,15.5,30,44,59,72,90,97,97,97],
+    '2022':[null,27.5,35.5,44.5,60.5,70.5,87.5,99.5,99.5,99.5],
+    '2021':[null,17.5,24.5,36,50,63,73,88,105,105],
+    '2020':[null,10,22,29,36,40,47,61,81,86],
+    '2019':[null,31,43,47,61,70,85,100,105,105],
+    '2018':[5,29,34,44,55,68,78,92,103,110],
+    '2017':[4,26,45,65,81,81,81,81,81,null],
+    '2016':[null,16.5,26.5,35.5,44.5,58.5,70.5,83.5,87.5,null],
+    '2015':[null,6,20,28,40,49,65,73,73,73],
+  },
+  Topaz:{
+    '2025':[null,null,10.5,15.5,21.5,21.5,27.5,31.5,38.5,41.5],
+    '2024':[null,3,10,13,20,24,28,38,38,38],
+    '2023':[null,null,8,15,20,25,32,36,36,36],
+    '2022':[null,null,7.5,11.5,17.5,20.5,26.5,33.5,33.5,33.5],
+    '2021':[null,null,7,13,19,21,28,36,39,40],
+    '2020':[null,null,5,10,17,21,31,42,42,42],
+    '2019':[null,null,7,10,15,20,24,24,24,24],
+    '2018':[null,2,4,6,9,13,18,24,30,30],
+    '2017':[null,4,10,18,24,24,24,24,24,null],
+    '2016':[6,8,12,14,19,24,28,28,28,null],
+    '2015':[null,null,null,1.5,3.5,5.5,7.5,11.5,17.5,17.5],
+  },
+  Rubinette:{
+    '2025':[null,null,1,1,1,1,1,5,5,5],
+    '2024':[null,null,null,null,null,null,3,10,10,null],
+  },
+  Pinova:{
+    '2025':[null,null,3,4,6,10,15,16,17,17],
+  },
+};
+const _LAP_MONTHS=['Aug.','Sep.','Okt.','Nov.','Dez.','Jän.','Feb.','März','Apr.','Mai'];
+const _LAP_COLORS=['#0369a1','#16a34a','#dc2626','#9333ea','#d97706','#0891b2','#65a30d','#be185d'];
+let _lapActiveYears=null;
+// Monatsnummer → Chart-Index (Aug=8→0 … Dez=12→4, Jän=1→5 … Mai=5→9)
+function _lapMIdx(m){return m>=8?m-8:m<=5?m+4:-1;}
+// Varietät normalisieren (Rubinella = Rubinette)
+function _lapNormSorte(s){return/rubinella/i.test(s)?'Rubinette':s;}
+
+function _lapCurrentYearData(variety,sortYear){
+  const svs=(D.sortierungen||[]).filter(s=>{
+    if(!s.datum)return false;
+    const y=parseInt(s.datum.slice(0,4)),m=parseInt(s.datum.slice(5,7));
+    const svy=m>=8?y:y-1;
+    if(svy!==sortYear)return false;
+    return _lapNormSorte((s.sorte||'').replace(/\s*SF\s*$/i,'').trim())===variety;
+  });
+  if(!svs.length)return null;
+  const now=new Date();const ny=now.getFullYear(),nm=now.getMonth()+1;
+  const cumByMonth=Array(10).fill(null);
+  let cum=0;let hasData=false;
+  for(let idx=0;idx<10;idx++){
+    const mNum=idx<5?idx+8:idx-4; // Aug=8..Dez=12,Jän=1..Mai=5
+    svs.filter(s=>parseInt(s.datum.slice(5,7))===mNum).forEach(s=>cum+=(s.gk_kisten||1));
+    const chartYear=mNum>=8?sortYear:sortYear+1;
+    if(chartYear<ny||(chartYear===ny&&mNum<=nm)){cumByMonth[idx]=cum;if(cum>0)hasData=true;}
+  }
+  return hasData?cumByMonth:null;
+}
+
+function openLagerabbauplan(){
+  openMod('mod-lagerabbau');
+  const varieties=['Gala','Topaz','Pinova','Rubinette'];
+  const allYears=new Set();
+  varieties.forEach(v=>Object.keys(_LAP_HIST[v]||{}).forEach(y=>allYears.add(parseInt(y))));
+  const now=new Date();const curSY=now.getMonth()+1>=8?now.getFullYear():now.getFullYear()-1;
+  allYears.add(curSY);
+  const years=[...allYears].sort((a,b)=>b-a);
+  if(!_lapActiveYears){
+    _lapActiveYears={};
+    const def=new Set(years.slice(0,5).map(String));
+    varieties.forEach(v=>{_lapActiveYears[v]=new Set(def);});
+  }
+  _lapRender(varieties,years,curSY);
+}
+
+function _lapRender(varieties,years,curSY){
+  const togglesEl=document.getElementById('lap-year-toggles');
+  const chartsEl=document.getElementById('lap-charts');
+  if(!togglesEl||!chartsEl)return;
+  const yearColor={};years.forEach((y,i)=>yearColor[y]=_LAP_COLORS[i%_LAP_COLORS.length]);
+  togglesEl.innerHTML=years.map(y=>{
+    const active=varieties.some(v=>(_lapActiveYears[v]||new Set()).has(String(y)));
+    const c=yearColor[y];
+    return`<button onclick="_lapToggle(${y})" style="padding:4px 12px;border-radius:14px;border:2px solid ${c};background:${active?c:'transparent'};color:${active?'#fff':c};font-size:.75rem;font-weight:700;cursor:pointer;transition:all .15s">${y}${y===curSY?' ⭐':''}</button>`;
+  }).join('');
+  chartsEl.innerHTML=varieties.map(v=>`
+    <div style="margin-bottom:22px">
+      <div style="font-size:.82rem;font-weight:800;color:var(--pd);margin-bottom:6px">${_sorteSymbol(v)} ${v}</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><canvas id="lap-c-${v}" height="200" style="display:block"></canvas></div>
+    </div>`).join('');
+  setTimeout(()=>varieties.forEach(v=>_lapDraw(v,years,curSY,yearColor)),30);
+}
+
+function _lapToggle(year){
+  const varieties=['Gala','Topaz','Pinova','Rubinette'];
+  const y=String(year);
+  const was=varieties.some(v=>(_lapActiveYears[v]||new Set()).has(y));
+  varieties.forEach(v=>{
+    if(!_lapActiveYears[v])_lapActiveYears[v]=new Set();
+    if(was)_lapActiveYears[v].delete(y);else _lapActiveYears[v].add(y);
+  });
+  const now=new Date();const curSY=now.getMonth()+1>=8?now.getFullYear():now.getFullYear()-1;
+  const allYears=new Set();
+  varieties.forEach(v=>Object.keys(_LAP_HIST[v]||{}).forEach(yy=>allYears.add(parseInt(yy))));
+  allYears.add(curSY);
+  _lapRender(varieties,[...allYears].sort((a,b)=>b-a),curSY);
+}
+
+function _lapDraw(variety,years,curSY,yearColor){
+  const canvas=document.getElementById('lap-c-'+variety);
+  if(!canvas)return;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const W=canvas.parentElement.clientWidth||340;const H=200;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+  const PL=34,PT=10,PR=24,PB=30;
+  const cW=W-PL-PR,cH=H-PT-PB;
+  // Gather datasets
+  const datasets=[];let maxV=0;
+  years.forEach(y=>{
+    if(!(_lapActiveYears[variety]||new Set()).has(String(y)))return;
+    const data=y===curSY?_lapCurrentYearData(variety,y):(_LAP_HIST[variety]||{})[String(y)]||null;
+    if(!data)return;
+    data.forEach(v=>{if(v!=null&&v>maxV)maxV=v;});
+    datasets.push({year:y,data,color:yearColor[y],isCur:y===curSY});
+  });
+  const yMax=Math.max(Math.ceil(maxV/5)*5+2,10);
+  // Background
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--card').trim()||'#fff';
+  ctx.fillRect(0,0,W,H);
+  // Grid
+  const gridSteps=4;
+  for(let i=0;i<=gridSteps;i++){
+    const yy=PT+cH*(1-i/gridSteps);
+    ctx.strokeStyle='#e5e7eb';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PL,yy);ctx.lineTo(PL+cW,yy);ctx.stroke();
+    ctx.fillStyle='#999';ctx.font=`${10}px sans-serif`;ctx.textAlign='right';
+    ctx.fillText(Math.round(yMax*i/gridSteps),PL-4,yy+4);
+  }
+  // X labels
+  ctx.fillStyle='#999';ctx.font='9px sans-serif';ctx.textAlign='center';
+  _LAP_MONTHS.forEach((m,i)=>{ctx.fillText(m,PL+cW*i/9,PT+cH+20);});
+  // Axis
+  ctx.strokeStyle='#d1d5db';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(PL,PT);ctx.lineTo(PL,PT+cH);ctx.lineTo(PL+cW,PT+cH);ctx.stroke();
+  if(!datasets.length){
+    ctx.fillStyle='#bbb';ctx.font='12px sans-serif';ctx.textAlign='center';
+    ctx.fillText('Keine Daten',W/2,H/2);return;
+  }
+  // Lines
+  datasets.forEach(({year,data,color,isCur})=>{
+    ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=isCur?2.5:1.5;
+    ctx.setLineDash(isCur?[]:[5,3]);
+    let moved=false;
+    data.forEach((v,i)=>{
+      if(v==null)return;
+      const x=PL+cW*i/9,y=PT+cH*(1-v/yMax);
+      if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);
+    });
+    ctx.stroke();ctx.setLineDash([]);
+    // Dots + label at last point
+    let lastX=null,lastY=null,lastV=null;
+    data.forEach((v,i)=>{
+      if(v==null)return;
+      const x=PL+cW*i/9,y=PT+cH*(1-v/yMax);
+      ctx.beginPath();ctx.arc(x,y,isCur?3.5:2.5,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
+      lastX=x;lastY=y;lastV=v;
+    });
+    if(lastX!=null){
+      ctx.fillStyle=color;ctx.font=`bold 9px sans-serif`;ctx.textAlign='left';
+      ctx.fillText(`'${String(year).slice(2)}`,Math.min(lastX+4,W-PR-14),lastY+4);
+    }
+  });
+}
 </script>
+<!-- MODAL: Lagerabbauplan -->
+<div class="mov" id="mod-lagerabbau" style="align-items:flex-start">
+  <div style="background:var(--card);border-radius:14px;width:100%;max-width:900px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25);padding:0;position:relative">
+    <div style="padding:14px 16px 10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:2;border-radius:14px 14px 0 0">
+      <div style="font-weight:800;font-size:.95rem;color:var(--pd)">📈 Lagerabbauplan · Jahresvergleich</div>
+      <button onclick="closeMod('mod-lagerabbau')" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--txl)">✕</button>
+    </div>
+    <div style="padding:14px 16px 20px">
+      <div style="font-size:.72rem;color:var(--txl);margin-bottom:10px">Kumuliert sortierte GK pro Monat. Historische Daten aus Archiv 2015–2025, aktuelles Jahr aus Sortierprotokoll.</div>
+      <div id="lap-year-toggles" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"></div>
+      <div id="lap-charts"></div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
