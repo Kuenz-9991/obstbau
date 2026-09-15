@@ -364,6 +364,7 @@ tr:hover td{background:#f9fcfa}
       <button id="lp-tab-0" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:var(--pd);color:#fff;font-size:.78rem;font-weight:700;cursor:pointer" onclick="_lpShowZelle(0)" ondragover="event.preventDefault();_lpTabDragOver(0,this)" ondragleave="_lpTabDragLeave(0,this)" ondrop="_lpDropOnTab(0,event)" ontouchstart="_lpTabTouchStart(0,this)" ontouchend="_lpTabTouchEnd(0,this)" ontouchcancel="_lpTabTouchEnd(0,this)">Zelle 1 · links</button>
       <button id="lp-tab-1" style="display:none;padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(1)" ondragover="event.preventDefault();_lpTabDragOver(1,this)" ondragleave="_lpTabDragLeave(1,this)" ondrop="_lpDropOnTab(1,event)" ontouchstart="_lpTabTouchStart(1,this)" ontouchend="_lpTabTouchEnd(1,this)" ontouchcancel="_lpTabTouchEnd(1,this)">Zelle 2 · mitte (fremd)</button>
       <button id="lp-tab-2" style="padding:6px 12px;border-radius:6px;border:1.5px solid var(--bdr);background:#fff;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)" onclick="_lpShowZelle(2)" ondragover="event.preventDefault();_lpTabDragOver(2,this)" ondragleave="_lpTabDragLeave(2,this)" ondrop="_lpDropOnTab(2,event)" ontouchstart="_lpTabTouchStart(2,this)" ontouchend="_lpTabTouchEnd(2,this)" ontouchcancel="_lpTabTouchEnd(2,this)">Zelle 3 · rechts</button>
+      <button id="lp-sel-btn" onclick="_lpToggleSelMode()" style="padding:6px 12px;border-radius:6px;border:1.5px solid #7b1fa2;background:#f3e5f5;color:#7b1fa2;font-size:.78rem;font-weight:700;cursor:pointer">☑ Auswählen</button>
       <button onclick="openLagerabbauplan()" style="margin-left:auto;padding:6px 14px;border-radius:6px;border:1.5px solid #0369a1;background:#e0f2fe;color:#0369a1;font-size:.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px">📈 Abbauplan</button>
     </div>
     <!-- Tabelle -->
@@ -1733,7 +1734,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.36.4";
+const APP_VERSION="v2.36.5";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -5404,6 +5405,13 @@ function _twSave(){
   const idx=D.ernte_ist.findIndex(e=>e.id===entry.id);
   if(idx>=0)D.ernte_ist[idx]=entry;else D.ernte_ist.push(entry);
   D.ernte_ist.sort((a,b)=>a.datum<b.datum?-1:a.datum>b.datum?1:0);
+  // Lagerplan-Positionen der ausgewählten Kisten entfernen (nach Umbuchung aus Lagerplan)
+  if(_tw._lpKeys&&_tw._lpKeys.length){
+    _lpPushHistory();
+    if(!D.gaimbergPlan)D.gaimbergPlan={};
+    _tw._lpKeys.forEach(k=>delete D.gaimbergPlan[k]);
+    _tw._lpKeys=null;
+  }
   scheduleSave();closeMod('mod-transport-buchung');renderErnteIst();
   if(confirm('Transport gespeichert. Lieferschein drucken?'))printLieferschein(entryId);
 }
@@ -5931,6 +5939,9 @@ function calcStandortBestand(lagerId){
 
 // ── Gaimberg Lagerplan (2D) ──────────────────────────────────────────────────
 let _lpZelle=0,_lpDragKey=null;
+// ── Mehrfachauswahl für Umbuchung ─────────────────────────────────────────────
+let _lpSelMode=false;
+let _lpSelected=new Set(); // Set of cellKeys selected
 // ── Undo / Redo ──────────────────────────────────────────────────────────────
 const _LP_MAX_HIST=40;
 let _lpUndoStack=[],_lpRedoStack=[];
@@ -5960,7 +5971,7 @@ function _lpRefreshUndoBtns(){
 
 function _lpAnalyse(){
   const plan=_getActivePlan();
-  const STAPEL=11,REIHEN=4,MAX_H=4;
+  const STAPEL=9,REIHEN=4,MAX_H=4;
   const zelleNames=['Zelle 1','Zelle 2','Zelle 3'];
 
   // 1) Unvollständige Kisten (belegt, aber fehlende Attribute)
@@ -6104,6 +6115,55 @@ function _lpShowZelle(zi){
   const wrap=document.getElementById('lp-table-wrap');
   if(wrap)wrap.innerHTML=_lpBuildTable(zi);
   _lpRefreshUndoBtns();
+  // Auswahl-Button Farbe aktualisieren
+  const selBtn=document.getElementById('lp-sel-btn');
+  if(selBtn){
+    selBtn.style.background=_lpSelMode?'#7b1fa2':'#f3e5f5';
+    selBtn.style.color=_lpSelMode?'#fff':'#7b1fa2';
+    selBtn.textContent=_lpSelMode?`☑ Modus beenden (${_lpSelected.size})`:'☑ Auswählen';
+  }
+}
+
+function _lpToggleSelMode(){
+  _lpSelMode=!_lpSelMode;
+  if(!_lpSelMode)_lpSelected.clear();
+  _lpShowZelle(_lpZelle);
+}
+
+function _lpSelUmbuchung(){
+  if(!_lpSelected.size)return;
+  // Gaimberg Lagerort-ID bestimmen
+  const gId=(D.lagerorte.find(x=>/gaimberg/i.test(x.name))||{}).id||'gaimberg_1kl';
+  // Ausgewählte Kisten aus D.gaimbergPlan lesen (nur eigene)
+  const ownPlan=D.gaimbergPlan||{};
+  const groups={}; // schlag_id → {kl1, schlag_id, keys:[]}
+  _lpSelected.forEach(key=>{
+    const raw=ownPlan[key];
+    if(!raw)return;
+    const e=_lpEntryData(raw);
+    if(!e)return;
+    const sid=e.schlag_id||'__unbekannt__';
+    if(!groups[sid])groups[sid]={kl1:0,schlag_id:e.schlag_id||'',keys:[]};
+    groups[sid].kl1++;
+    groups[sid].keys.push(key);
+  });
+  if(!Object.keys(groups).length){alert('Keine eigenen Kisten ausgewählt');return;}
+  // _tw befüllen: Quelle = Gaimberg für jede Schlag-Gruppe
+  const today=new Date().toISOString().slice(0,10);
+  _tw={step:1,datum:today,verwendungId:'',notiz:'',editId:'',alloc:{},_lpKeys:Array.from(_lpSelected)};
+  // Vorab alloc mit Gaimberg als Quelle + Mengen aus Selektion befüllen
+  // (Schritt 2 des Wizards zeigt Lagerorte; Gaimberg wird als Quelle vorbelegt)
+  Object.values(groups).forEach(g=>{
+    if(!_tw.alloc[gId])_tw.alloc[gId]={kl1:0,ver:0,schlag_id:''};
+    _tw.alloc[gId].kl1+=g.kl1;
+    if(g.schlag_id&&!_tw.alloc[gId].schlag_id)_tw.alloc[gId].schlag_id=g.schlag_id;
+  });
+  // Selektionsmodus beenden (aber Keys merken in _tw._lpKeys)
+  _lpSelMode=false;
+  _lpSelected.clear();
+  _lpShowZelle(_lpZelle);
+  _twRender();
+  openMod('mod-transport-buchung');
 }
 
 // ── Gaimberg-Kapazitäts-Helfer ───────────────────────────────────────────────
@@ -6256,7 +6316,7 @@ function _lpZoom(delta){
 }
 
 function _lpBuildTable(zi){
-  const STAPEL=11,REIHEN=4,MAX_H=4;
+  const STAPEL=9,REIHEN=4,MAX_H=4;
   const plan=_getActivePlan();
   const ownPlan=D.gaimbergPlan||{};
   const zelleInfo=['Zelle 1: G1+G2 fremd, G3+G4 uns','Zelle 2: komplett fremd','Zelle 3: komplett uns'];
@@ -6289,7 +6349,7 @@ function _lpBuildTable(zi){
     </div>`;
   }
 
-  // ── Kompaktes Layout: 4 Spalten (G1-G4), 11 Zeilen (R1=Wand → R11=Tür) ───
+  // ── Kompaktes Layout: 4 Spalten (G1-G4), 9 Zeilen (R1=Wand → R9=Tür) ───
   // Jede Tabellen-Zelle enthält H4→H1 als vertikale Stack-Mini-Divs
   const CELL_H=62; // px pro H-Ebene
   const CELL_W=78; // px Zellenbreite
@@ -6303,6 +6363,17 @@ function _lpBuildTable(zi){
           <div style="font-size:.75rem;color:#2e7d32;font-weight:600">Tippe auf eine Kiste, die du sortieren möchtest</div>
         </div>
         <button onclick="_lpSortMode=false;closeMod('mod-lagerplan')" style="padding:5px 10px;border-radius:6px;border:1px solid #388e3c;background:#fff;color:#388e3c;font-size:.78rem;font-weight:700;cursor:pointer;flex-shrink:0">✕ Abbrechen</button>
+      </div>`
+    :'';
+  // Auswahl-Modus Banner
+  const selModeBanner=_lpSelMode
+    ?`<div style="background:#f3e5f5;border:2px solid #7b1fa2;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:1.1rem">☑</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;font-weight:800;color:#4a148c">Kisten auswählen</div>
+          <div style="font-size:.75rem;color:#6a1b9a;font-weight:600">Tippe auf eigene Kisten, um sie für eine Umbuchung auszuwählen</div>
+        </div>
+        <button onclick="_lpToggleSelMode()" style="padding:5px 10px;border-radius:6px;border:1px solid #7b1fa2;background:#fff;color:#7b1fa2;font-size:.78rem;font-weight:700;cursor:pointer;flex-shrink:0">✕ Abbrechen</button>
       </div>`
     :'';
   // ── Sortenübersicht für diese Zelle ──────────────────────────────────────────
@@ -6328,7 +6399,7 @@ function _lpBuildTable(zi){
       </div>`
     :'';
 
-  let html=`${sortModeBanner}${pendingBanner}`;
+  let html=`${selModeBanner}${sortModeBanner}${pendingBanner}`;
   html+=`<div style="font-size:.68rem;color:var(--txl);margin-bottom:4px;font-style:italic">${zelleInfo[zi]}</div>`;
   html+=sortenOverview;
 
@@ -6370,7 +6441,7 @@ function _lpBuildTable(zi){
     // Unvollständige Kisten zählen
     const plan=_getActivePlan();
     let incCount=0;
-    for(let z=0;z<3;z++) for(let s=0;s<11;s++) for(let r=0;r<4;r++){
+    for(let z=0;z<3;z++) for(let s=0;s<9;s++) for(let r=0;r<4;r++){
       const mH=_lpMaxH(z,r,s);
       for(let h=0;h<mH;h++){
         const e=_lpEntryData(plan[_lpCellKey(z,r,s,h)]);
@@ -6492,15 +6563,16 @@ function _lpBuildTable(zi){
             inner=`<div style="font-size:.5rem;opacity:.4">H${hNum}</div>`;
           }
 
+          const isSelected=_lpSelMode&&_lpSelected.has(key);
+          const selOutline=isSelected?'outline:3px solid #7b1fa2;outline-offset:-2px;':'';
+          const selOverlay=isSelected?`<div style="position:absolute;inset:0;background:rgba(123,31,162,.18);pointer-events:none;border-radius:1px"></div>`:'';
           const clickFn=isOwn||!entry?`_lpCellClick(${zi},${ri},${si},${hi})`:`_lpCellViewOnly(${zi},${ri},${si},${hi})`;
-          const dragAttrs=isOwn&&entry?`draggable="true" ondragstart="_lpDragStart('${key}',event)"`:'';
-          html+=`<div ${dragAttrs}
+          const dragAttrs=(!_lpSelMode&&isOwn&&entry)?`draggable="true" ondragstart="_lpDragStart('${key}',event)"`:'';
+          const dOverAttr=_lpSelMode?'':`ondragover="event.preventDefault();this.style.outline='2px solid var(--pd)'" ondragleave="this.style.outline=''" ondrop="_lpDrop('${key}',${zi},event)"`;
+          html+=`<div ${dragAttrs} ${dOverAttr}
             onclick="${clickFn}"
-            ondragover="event.preventDefault();this.style.outline='2px solid var(--pd)'"
-            ondragleave="this.style.outline=''"
-            ondrop="_lpDrop('${key}',${zi},event)"
-            style="flex:1;${borderB}background:${bg};color:${tc};cursor:pointer;padding:3px 4px;overflow:hidden;position:relative;transition:outline .08s;user-select:none;-webkit-tap-highlight-color:transparent"
-            title="G${ri+1}·R${si+1}·H${hNum}${entry?' — '+entry.sorte+(entry.sf?' SF':''):''}">${inner}</div>`;
+            style="flex:1;${borderB}background:${bg};color:${tc};cursor:pointer;padding:3px 4px;overflow:hidden;position:relative;transition:outline .08s;user-select:none;-webkit-tap-highlight-color:transparent;${selOutline}"
+            title="G${ri+1}·R${si+1}·H${hNum}${entry?' — '+entry.sorte+(entry.sf?' SF':''):''}">${inner}${selOverlay}</div>`;
         }
       }
       html+=`</div></td>`;
@@ -6515,6 +6587,17 @@ function _lpBuildTable(zi){
     <span>⚠️ ≤4 Wo: <b style="color:var(--crit)">ROT</b></span>
     ${_gruppenGaimbergPlan&&Object.keys(_gruppenGaimbergPlan).length?`<span>🔒 Gruppenplan sichtbar</span>`:''}
   </div>`;
+
+  // Auswahl-Aktionsleiste
+  if(_lpSelMode){
+    const selCount=Array.from(_lpSelected).filter(k=>parseInt(k.split('_')[0])===zi).length;
+    const totalSel=_lpSelected.size;
+    html+=`<div style="position:sticky;bottom:0;left:0;right:0;background:var(--card);border-top:2px solid #7b1fa2;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;z-index:10;margin-top:10px;border-radius:0 0 10px 10px">
+      <span style="font-size:.82rem;font-weight:800;color:#7b1fa2">☑ ${totalSel} Kiste${totalSel!==1?'n':''} ausgewählt</span>
+      <button onclick="_lpSelUmbuchung()" ${totalSel===0?'disabled':''} style="padding:7px 16px;border-radius:8px;background:${totalSel>0?'#7b1fa2':'#e0e0e0'};color:${totalSel>0?'#fff':'#aaa'};border:none;font-size:.82rem;font-weight:800;cursor:${totalSel>0?'pointer':'default'}">📤 Umbuchung starten</button>
+      <button onclick="_lpSelected.clear();_lpShowZelle(_lpZelle)" style="padding:7px 12px;border-radius:8px;background:var(--bg);border:1.5px solid var(--bdr);font-size:.78rem;font-weight:700;cursor:pointer;color:var(--txl)">✕ Auswahl aufheben</button>
+    </div>`;
+  }
 
   // Mismatch-Warnung: Plan hat mehr Kisten als GK für diesen Schlag gebucht
   (()=>{
@@ -6679,6 +6762,14 @@ function _lpCancelPending(){
 let _lpEd={zi:0,ri:0,si:0,hi:0,step:0,sorte:'',schlag_id:'',sf:false,auslagernBis:'',qualitaet:'',groesse:'',sortenMap:{}};
 
 function _lpCellClick(zi,ri,si,hi){
+  // Mehrfachauswahl-Modus: Kiste togglen
+  if(_lpSelMode){
+    const key=_lpCellKey(zi,ri,si,hi);
+    const plan=_getActivePlan();
+    if(!_lpEntryData((D.gaimbergPlan||{})[key]))return; // nur eigene, belegte Kisten
+    if(_lpSelected.has(key))_lpSelected.delete(key);else _lpSelected.add(key);
+    _lpShowZelle(zi);return;
+  }
   // Stapel-Verschiebung: alle Kisten auf neuen Stapel (zi,ri,si) ablegen
   if(_lpPendingStapel){
     if(!D.gaimbergPlan)D.gaimbergPlan={};
