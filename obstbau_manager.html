@@ -167,6 +167,7 @@ tr:hover td{background:#f9fcfa}
   <div class="ntab" onclick="goSec('referenz',this)">📋 Ref.</div>
   <div class="ntab" onclick="goSec('dashboard',this)">📈 Dash</div>
   <div class="ntab" id="tab-eo" style="display:none" onclick="goSec('eo',this)">🏢 EO</div>
+  <div class="ntab" onclick="goSec('auswertung',this)">📋 Ausw.</div>
 </nav>
 </div>
 
@@ -278,6 +279,11 @@ tr:hover td{background:#f9fcfa}
     <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="openLagerMod()">🏪 Lagerorte</button>
   </div>
   <div id="ernte-ist-wrap"></div>
+</div>
+
+<!-- AUSWERTUNGEN -->
+<div id="sec-auswertung" class="sec">
+  <div id="auswertung-wrap"></div>
 </div>
 
 
@@ -1606,7 +1612,7 @@ const AC_SCHLAGE=[
 // ═══════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════
-let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{},ernte_ist:[],sortierungen:[],verwendungen:[],standardLagerId:null};
+let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{},ernte_ist:[],sortierungen:[],verwendungen:[],standardLagerId:null,amaGapConfig:{eoLagerIds:[]}};
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5)}
 
@@ -1630,6 +1636,7 @@ function migrateD(){
   if(!D.zuteilungen) D.zuteilungen={};
   if(!D.ernte_ist) D.ernte_ist=[];
   if(!D.sortierungen) D.sortierungen=[];
+  if(!D.amaGapConfig) D.amaGapConfig={eoLagerIds:[],ignoredLagerIds:[]};
   if(!D.sorten||!D.sorten.length) D.sorten=[...DEFAULT_SORTEN];
   // Migrate old buchungen format: {lager_id, gk} → {lager_id, tafel_gk, verarbeitung_gk}
   D.ernte_ist.forEach(e=>{
@@ -1742,7 +1749,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.37.7";
+const APP_VERSION="v2.38.0";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2232,6 +2239,7 @@ function goSec(id,tab){
   if(id==='ernteprognose'){fillJahrSel('prognose-jahr-sel',()=>renderErntePrognose());}
   if(id==='referenz') renderRef();
   if(id==='eo') renderEO();
+  if(id==='auswertung') renderAuswertung();
 }
 function fillJahrSel(selId,cb){
   const sel=document.getElementById(selId);if(!sel)return;
@@ -2254,6 +2262,7 @@ function renderAll(){
     if(id==='ernte') renderErnte();
     if(id==='referenz') renderRef();
     if(id==='eo') renderEO();
+    if(id==='auswertung') renderAuswertung();
   }
 }
 
@@ -9574,6 +9583,240 @@ function _lapDraw(variety,years,curSY,yearColor){
       ctx.fillText(`'${String(year).slice(2)}`,Math.min(lastX+4,W-PR-14),lastY+4);
     }
   });
+}
+
+// ─── AMA-GAP AUSWERTUNG ───────────────────────────────────────────────────────
+let _amaJahr=new Date().getFullYear();
+
+function toggleAmaLagerTyp(lagerId,typ){
+  if(!D.amaGapConfig) D.amaGapConfig={eoLagerIds:[],ignoredLagerIds:[]};
+  const cfg=D.amaGapConfig;
+  if(!cfg.eoLagerIds) cfg.eoLagerIds=[];
+  if(!cfg.ignoredLagerIds) cfg.ignoredLagerIds=[];
+  cfg.eoLagerIds=cfg.eoLagerIds.filter(x=>x!==lagerId);
+  cfg.ignoredLagerIds=cfg.ignoredLagerIds.filter(x=>x!==lagerId);
+  if(typ==='eo') cfg.eoLagerIds.push(lagerId);
+  if(typ==='ignore') cfg.ignoredLagerIds.push(lagerId);
+  lsSave();
+  _renderAmaResult();
+}
+
+function openAmaKontrollmodus(){
+  if(!D.amaGapConfig) D.amaGapConfig={eoLagerIds:[],ignoredLagerIds:[]};
+  const data=_calcAmaData();
+  const {eoPercent,totalEoGK,totalEigenGK,totalIgnGK,totalEoKg,compliant}=data;
+  const totalRelevantGK=totalEoGK+totalEigenGK;
+  const eoName='Oberinntalobst GmbH';
+  const ov=document.createElement('div');
+  ov.id='ama-kontroll-ov';
+  ov.style.cssText='position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:inherit;padding:24px';
+  ov.innerHTML=`
+    <button onclick="document.getElementById('ama-kontroll-ov').remove()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:1.6rem;cursor:pointer;color:#666">✕</button>
+    <div style="font-size:.75rem;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">AMA-GAP Mengenfluss · Ernte ${_amaJahr}</div>
+    <div style="font-size:.95rem;color:#555;margin-bottom:32px">EO: <b>${eoName}</b></div>
+    <div style="display:flex;gap:48px;justify-content:center;flex-wrap:wrap;margin-bottom:36px">
+      <div style="text-align:center">
+        <div style="font-size:5rem;font-weight:900;line-height:1;color:${compliant?'#2e7d32':'#c62828'}">${eoPercent}%</div>
+        <div style="font-size:.85rem;color:#555;margin-top:6px">an EO geliefert</div>
+        <div style="font-size:.72rem;color:#888;margin-top:2px">Ziel: ≥ 75%</div>
+        <div style="margin-top:10px;font-size:1.8rem">${compliant?'✅':'⚠️'}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:2.8rem;font-weight:800;line-height:1;color:#2e7d32">${totalEoGK.toLocaleString('de-AT')} GK</div>
+        <div style="font-size:.82rem;color:#555;margin-top:6px">EO (${eoName})</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:2.8rem;font-weight:800;line-height:1;color:#b45309">${totalEigenGK.toLocaleString('de-AT')} GK</div>
+        <div style="font-size:.82rem;color:#555;margin-top:6px">Eigenvermarktung</div>
+      </div>
+      ${totalIgnGK?`<div style="text-align:center">
+        <div style="font-size:2rem;font-weight:700;line-height:1;color:#aaa">${totalIgnGK.toLocaleString('de-AT')} GK</div>
+        <div style="font-size:.78rem;color:#aaa;margin-top:6px">Ignoriert</div>
+      </div>`:''}
+    </div>
+    <div style="width:min(500px,90%);height:28px;border-radius:14px;overflow:hidden;background:#eee;display:flex">
+      <div style="width:${eoPercent}%;background:#2e7d32;transition:width .4s;display:flex;align-items:center;justify-content:center">
+        ${eoPercent>=18?`<span style="color:#fff;font-size:.75rem;font-weight:700">${eoPercent}%</span>`:''}
+      </div>
+      <div style="flex:1;background:#ef9a00;display:flex;align-items:center;justify-content:center">
+        ${(100-eoPercent)>=15?`<span style="color:#fff;font-size:.75rem;font-weight:700">${100-eoPercent}%</span>`:''}
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;margin-top:10px;font-size:.72rem;color:#666">
+      <span><span style="display:inline-block;width:10px;height:10px;background:#2e7d32;border-radius:2px;margin-right:4px"></span>EO</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#ef9a00;border-radius:2px;margin-right:4px"></span>Eigen</span>
+      <span style="font-size:.68rem;color:#999">Gesamt relevant: ${totalRelevantGK} GK</span>
+    </div>
+    <div style="margin-top:32px;display:flex;gap:10px">
+      <button onclick="window.print()" style="padding:10px 22px;border-radius:8px;border:none;background:#1565c0;color:#fff;font-size:.88rem;font-weight:700;cursor:pointer">🖨 Drucken</button>
+      <button onclick="document.getElementById('ama-kontroll-ov').remove()" style="padding:10px 22px;border-radius:8px;border:1.5px solid #ddd;background:#fff;color:#333;font-size:.88rem;cursor:pointer">Schließen</button>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+function _calcAmaData(){
+  if(!D.amaGapConfig) D.amaGapConfig={eoLagerIds:[],ignoredLagerIds:[]};
+  const cfg=D.amaGapConfig;
+  const eoIds=new Set(cfg.eoLagerIds||[]);
+  const ignoredIds=new Set(cfg.ignoredLagerIds||[]);
+  const allE=_getAllErnteIst();
+  const entries=allE.filter(e=>e.datum&&e.datum.startsWith(String(_amaJahr))&&getEntryTyp(e)==='ernte');
+  let totalEoGK=0,totalEigenGK=0,totalIgnGK=0,totalEoKg=0;
+  const rows=entries.map(e=>{
+    const sc=_getAllSchlage().find(x=>x.id===e.schlag_id);
+    const sorte=sc?.sorte||sc?.name||'?';
+    const schlagName=sc?.name||e.schlag_id||'?';
+    const gk1=e.gk_1kl||0;
+    const gkV=e.gk_verarbeitung||0;
+    const totGK=gk1+gkV;
+    const nkg=D.sorten?.find(s=>s.name===sorte)?.netto_kg||getSorteNkg(sorte)||330;
+    const kg=e.kg_actual||Math.round(totGK*nkg);
+    let lagerDist=[];
+    if(e.verteilung&&e.verteilung.length){
+      lagerDist=e.verteilung.map(v=>({id:v.standort_id,name:D.lagerorte.find(x=>x.id===v.standort_id)?.name||'?',kl1:v.kl1||0,ver:v.ver||0}));
+    } else if(e.standort_id){
+      lagerDist=[{id:e.standort_id,name:D.lagerorte.find(x=>x.id===e.standort_id)?.name||'?',kl1:gk1,ver:gkV}];
+    } else {
+      lagerDist=[{id:null,name:'kein Lager',kl1:gk1,ver:gkV}];
+    }
+    let rowEoGK=0,rowEigenGK=0,rowIgnGK=0;
+    lagerDist.forEach(ld=>{
+      const lgk=(ld.kl1||0)+(ld.ver||0);
+      if(!ld.id||ignoredIds.has(ld.id)) rowIgnGK+=lgk;
+      else if(eoIds.has(ld.id)){rowEoGK+=lgk;totalEoKg+=Math.round(lgk*(e.kg_actual?e.kg_actual/totGK:nkg));}
+      else rowEigenGK+=lgk;
+    });
+    totalEoGK+=rowEoGK;totalEigenGK+=rowEigenGK;totalIgnGK+=rowIgnGK;
+    return{e,sc,sorte,schlagName,gk1,gkV,totGK,kg,lagerDist,rowEoGK,rowEigenGK,rowIgnGK,eoIds,ignoredIds};
+  });
+  const totalRelevantGK=totalEoGK+totalEigenGK;
+  const eoPercent=totalRelevantGK>0?Math.round(totalEoGK/totalRelevantGK*100):0;
+  const compliant=eoPercent>=75;
+  return{rows,totalEoGK,totalEigenGK,totalIgnGK,totalEoKg,totalRelevantGK,eoPercent,compliant,eoIds,ignoredIds};
+}
+
+function _renderAmaResult(){
+  const wrap=document.getElementById('ama-result-wrap');
+  if(!wrap) return;
+  const data=_calcAmaData();
+  const {rows,totalEoGK,totalEigenGK,totalIgnGK,totalRelevantGK,eoPercent,compliant,eoIds,ignoredIds}=data;
+
+  const barEo=eoPercent;
+  const barEigen=100-barEo;
+
+  const entryRows=rows.sort((a,b)=>a.e.datum<b.e.datum?-1:1).map(r=>{
+    const lagerBadges=r.lagerDist.map(ld=>{
+      const isEo=ld.id&&r.eoIds.has(ld.id);
+      const isIgn=!ld.id||r.ignoredIds.has(ld.id);
+      const gk=(ld.kl1||0)+(ld.ver||0);
+      const bg=isIgn?'#f5f5f5':isEo?'#e8f5e9':'#fff8e1';
+      const col=isIgn?'#bbb':isEo?'#2e7d32':'#b45309';
+      const lbl=isIgn?'–':isEo?'EO':'Eigen';
+      return`<span style="background:${bg};color:${col};border-radius:4px;padding:1px 6px;font-size:.66rem;font-weight:700;white-space:nowrap">${ld.name}${gk?' ('+gk+' GK)':''} <span style="opacity:.65">${lbl}</span></span>`;
+    }).join(' ');
+    const rowBg=r.rowIgnGK===r.totGK?'#fafafa':r.rowEoGK>0&&r.rowEigenGK===0?'#f0faf0':r.rowEigenGK>0&&r.rowEoGK===0?'#fffde7':'';
+    return`<tr style="border-bottom:1px solid var(--bdr);${rowBg?'background:'+rowBg+';':''}cursor:pointer" onclick="openErnteWizard('${r.e.id}')">
+      <td style="padding:4px 8px;font-size:.73rem;white-space:nowrap">${r.e.datum}</td>
+      <td style="padding:4px 8px;font-size:.73rem">${r.schlagName}</td>
+      <td style="padding:4px 8px;font-size:.73rem">${r.sorte}</td>
+      <td style="padding:4px 8px;text-align:right;font-size:.75rem;font-weight:700;color:var(--pl)">${r.gk1||'–'}</td>
+      <td style="padding:4px 8px;text-align:right;font-size:.75rem;font-weight:700;color:var(--info)">${r.gkV||'–'}</td>
+      <td style="padding:4px 8px;text-align:right;font-size:.8rem;font-weight:800">${r.totGK}</td>
+      <td style="padding:4px 8px;text-align:right;font-size:.7rem;color:var(--txl)">${r.kg.toLocaleString('de-AT')}</td>
+      <td style="padding:4px 8px;font-size:.7rem">${lagerBadges}</td>
+    </tr>`;
+  }).join('');
+
+  const compBg=compliant?'#e8f5e9':'#fff3e0';
+  const compCol=compliant?'#2e7d32':'#e65100';
+  const compIcon=compliant?'✅':'⚠️';
+
+  wrap.innerHTML=`
+    <div style="background:${compBg};border:2px solid ${compCol};border-radius:12px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="font-size:2.4rem;font-weight:900;color:${compCol};line-height:1">${eoPercent}%</div>
+      <div>
+        <div style="font-size:.82rem;font-weight:700;color:${compCol}">${compIcon} ${compliant?'Konform':'Nicht konform'} – EO-Lieferanteil</div>
+        <div style="font-size:.72rem;color:#666;margin-top:2px">Ziel: ≥75% an Oberinntalobst GmbH · Relevant: ${totalRelevantGK} GK</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:14px;flex-wrap:wrap">
+        <div style="text-align:center"><div style="font-size:1.3rem;font-weight:800;color:#2e7d32">${totalEoGK} GK</div><div style="font-size:.65rem;color:#666">EO</div></div>
+        <div style="text-align:center"><div style="font-size:1.3rem;font-weight:800;color:#b45309">${totalEigenGK} GK</div><div style="font-size:.65rem;color:#666">Eigen</div></div>
+        ${totalIgnGK?`<div style="text-align:center"><div style="font-size:1.1rem;font-weight:700;color:#aaa">${totalIgnGK} GK</div><div style="font-size:.65rem;color:#aaa">Ignoriert</div></div>`:''}
+      </div>
+    </div>
+    <div style="height:16px;border-radius:8px;overflow:hidden;background:#eee;display:flex;margin-bottom:14px">
+      <div style="width:${barEo}%;background:#2e7d32;min-width:${barEo>0?2:0}px"></div>
+      <div style="flex:1;background:#ef9a00;min-width:${barEigen>0?2:0}px"></div>
+    </div>
+    <div class="twrap"><table style="border-collapse:collapse;width:100%;font-size:.78rem">
+      <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
+        <th style="text-align:left;padding:4px 8px;font-size:.65rem;color:var(--txl);font-weight:700">Datum</th>
+        <th style="text-align:left;padding:4px 8px;font-size:.65rem;color:var(--txl);font-weight:700">Schlag</th>
+        <th style="text-align:left;padding:4px 8px;font-size:.65rem;color:var(--txl);font-weight:700">Sorte</th>
+        <th style="text-align:right;padding:4px 8px;font-size:.65rem;color:var(--pl);font-weight:700">1.Kl.</th>
+        <th style="text-align:right;padding:4px 8px;font-size:.65rem;color:var(--info);font-weight:700">Ver.</th>
+        <th style="text-align:right;padding:4px 8px;font-size:.65rem;color:var(--txl);font-weight:700">GK</th>
+        <th style="text-align:right;padding:4px 8px;font-size:.65rem;color:var(--txl);font-weight:700">kg</th>
+        <th style="text-align:left;padding:4px 8px;font-size:.65rem;color:var(--txl);font-weight:700">Lagerort / Typ</th>
+      </tr></thead>
+      <tbody>${entryRows||'<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--txl)">Keine Ernte-Buchungen</td></tr>'}</tbody>
+    </table></div>`;
+}
+
+function renderAuswertung(){
+  if(!D.amaGapConfig) D.amaGapConfig={eoLagerIds:[],ignoredLagerIds:[]};
+  const cfg=D.amaGapConfig;
+  const eoIds=new Set(cfg.eoLagerIds||[]);
+  const ignoredIds=new Set(cfg.ignoredLagerIds||[]);
+  const cy=new Date().getFullYear();
+  const jahrOpts=[];
+  for(let y=cy+1;y>=cy-5;y--) jahrOpts.push(`<option value="${y}"${y===_amaJahr?' selected':''}>${y}</option>`);
+
+  const lagerCfgRows=D.lagerorte.length?D.lagerorte.map(l=>{
+    const isEo=eoIds.has(l.id);
+    const isIgn=ignoredIds.has(l.id);
+    const isEigen=!isEo&&!isIgn;
+    return`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bdr);flex-wrap:wrap">
+      <span style="flex:1;min-width:100px;font-size:.82rem;font-weight:600">${l.name}</span>
+      <label style="display:flex;align-items:center;gap:4px;font-size:.75rem;cursor:pointer;white-space:nowrap">
+        <input type="radio" name="lagtyp-${l.id}" value="eo" ${isEo?'checked':''} onchange="toggleAmaLagerTyp('${l.id}','eo')">
+        <span style="color:#2e7d32;font-weight:700">🏢 EO</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:.75rem;cursor:pointer;white-space:nowrap">
+        <input type="radio" name="lagtyp-${l.id}" value="eigen" ${isEigen?'checked':''} onchange="toggleAmaLagerTyp('${l.id}','eigen')">
+        <span style="color:#b45309;font-weight:700">🏠 Eigen</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:.75rem;cursor:pointer;white-space:nowrap">
+        <input type="radio" name="lagtyp-${l.id}" value="ignore" ${isIgn?'checked':''} onchange="toggleAmaLagerTyp('${l.id}','ignore')">
+        <span style="color:#aaa;font-weight:700">⊘ Ignorieren</span>
+      </label>
+    </div>`;
+  }).join(''):`<div style="color:var(--txl);font-size:.78rem;padding:8px 0">Keine Lagerorte vorhanden</div>`;
+
+  const wrap=document.getElementById('auswertung-wrap');
+  if(!wrap) return;
+  wrap.innerHTML=`
+    <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-weight:700;color:var(--pd);font-size:.88rem">Erntejahr:</span>
+      <select onchange="_amaJahr=parseInt(this.value);renderAuswertung()" style="border:1px solid var(--bdr);border-radius:6px;padding:5px 8px;font-size:.85rem;background:#fff;color:var(--txt)">${jahrOpts}</select>
+      <button onclick="openAmaKontrollmodus()" style="margin-left:auto;padding:8px 16px;border-radius:8px;border:none;background:#1565c0;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer">🔍 Kontrollmodus</button>
+      <button onclick="window.print()" style="padding:8px 14px;border-radius:8px;border:1.5px solid var(--bdr);background:var(--bg);font-size:.78rem;cursor:pointer">🖨 Drucken</button>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-hdr" style="display:flex;align-items:center;justify-content:space-between">
+        <span>🏷 Lagerort-Zuordnung</span>
+        <span style="font-size:.68rem;font-weight:400;color:var(--txl)">Wähle für jeden Lagerort, ob er zur EO (Oberinntalobst GmbH), zur Eigenvermarktung zählt oder ignoriert werden soll</span>
+      </div>
+      <div style="padding:0 4px">${lagerCfgRows}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">📊 AMA-GAP Mengenfluss ${_amaJahr}</div>
+      <div id="ama-result-wrap"></div>
+    </div>`;
+
+  _renderAmaResult();
 }
 </script>
 <!-- MODAL: Lagerabbauplan -->
