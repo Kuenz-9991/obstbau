@@ -1612,7 +1612,7 @@ const AC_SCHLAGE=[
 // ═══════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════
-let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{},ernte_ist:[],sortierungen:[],verwendungen:[],standardLagerId:null,amaGapConfig:{eoLagerIds:[]}};
+let D={felder:[],schlage:[],massnahmen:[],bbch:{},betriebsmittel:[],lagerorte:[],prognosen:{},zuteilungen:{},ernte_ist:[],sortierungen:[],verwendungen:[],standardLagerId:null,amaGapConfig:{eoLagerIds:[]},deletedLagerIds:[]};
 
 function uid(){return Date.now().toString(36)+Math.random().toString(36).substr(2,5)}
 
@@ -1637,6 +1637,13 @@ function migrateD(){
   if(!D.ernte_ist) D.ernte_ist=[];
   if(!D.sortierungen) D.sortierungen=[];
   if(!D.amaGapConfig) D.amaGapConfig={eoLagerIds:[],ignoredLagerIds:[]};
+  if(!D.deletedLagerIds) D.deletedLagerIds=[];
+  // Blocklist durchsetzen: einmal gelöschte Lagerorte dürfen NIE mehr aus der Cloud zurückkommen
+  if(D.deletedLagerIds.length){
+    D.lagerorte=D.lagerorte.filter(l=>!D.deletedLagerIds.includes(l.id));
+    D.amaGapConfig.eoLagerIds=(D.amaGapConfig.eoLagerIds||[]).filter(id=>!D.deletedLagerIds.includes(id));
+    D.amaGapConfig.ignoredLagerIds=(D.amaGapConfig.ignoredLagerIds||[]).filter(id=>!D.deletedLagerIds.includes(id));
+  }
   if(!D.sorten||!D.sorten.length) D.sorten=[...DEFAULT_SORTEN];
   // Migrate old buchungen format: {lager_id, gk} → {lager_id, tafel_gk, verarbeitung_gk}
   D.ernte_ist.forEach(e=>{
@@ -1749,7 +1756,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.38.0";
+const APP_VERSION="v2.38.1";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -4163,13 +4170,19 @@ function addLager(){
 function deleteLager(id){
   if(!confirm('Lagerort löschen? Alle Zuteilungen für diesen Ort gehen verloren.'))return;
   D.lagerorte=D.lagerorte.filter(l=>l.id!==id);
+  // Permanent-Blocklist: verhindert, dass der Lagerort aus der Cloud zurückkommt
+  if(!D.deletedLagerIds) D.deletedLagerIds=[];
+  if(!D.deletedLagerIds.includes(id)) D.deletedLagerIds.push(id);
   // Zuteilungen bereinigen
   for(const yr of Object.keys(D.zuteilungen)){
     for(const sid of Object.keys(D.zuteilungen[yr])){
       delete D.zuteilungen[yr][sid][id];
     }
   }
-  scheduleSave();
+  // Sofort in die Cloud speichern (kein 3s-Delay) damit die Löschung nicht
+  // durch einen Seiten-Reload rückgängig gemacht wird.
+  lsSave();
+  cloudSave().catch(()=>{});
   renderLagerMod();
   renderZuteilungCard();
   renderErnteIst();
