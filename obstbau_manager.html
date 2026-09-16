@@ -441,7 +441,7 @@ tr:hover td{background:#f9fcfa}
         <button onclick="closeMod('mod-ernte-wizard')" style="background:none;border:none;font-size:1.3rem;color:var(--txl);cursor:pointer;padding:4px;line-height:1">✕</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
-        <input type="date" id="wiz-datum" style="border:1px solid var(--bdr);border-radius:8px;padding:7px 10px;font-size:.9rem;flex:1">
+        <input type="date" id="wiz-datum" style="border:1px solid var(--bdr);border-radius:8px;padding:7px 10px;font-size:.9rem;flex:1" onchange="if(_wiz)_wiz.datum=this.value">
         <div id="wiz-kisten-badge" style="display:none;flex-direction:column;align-items:flex-end;background:#fff3e0;border:1.5px solid #ffcc80;border-radius:8px;padding:5px 10px;white-space:nowrap">
           <div style="font-size:.62rem;font-weight:700;color:#e65100;text-transform:uppercase;letter-spacing:.04em">Noch offen</div>
           <div id="wiz-kisten-badge-val" style="font-size:1rem;font-weight:800;color:#e65100;line-height:1.2">–</div>
@@ -694,14 +694,8 @@ tr:hover td{background:#f9fcfa}
     <div class="mod-hdr"><div class="mod-title">🏪 Lagerorte verwalten</div><button class="mod-x" onclick="closeMod('mod-lager')">✕</button></div>
     <div id="lager-list" style="margin-bottom:14px"></div>
     <div style="border-top:1px solid var(--bdr);padding-top:12px">
-      <div class="fg2" style="grid-template-columns:1fr auto auto">
+      <div class="fg2" style="grid-template-columns:1fr auto">
         <input id="lager-nm-inp" placeholder="Name (z.B. Kühllager 1)" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;width:100%">
-        <select id="lager-typ-inp" style="border:1px solid var(--bdr);border-radius:6px;padding:7px 9px;font-size:.85rem;background:#fff">
-          <option value="kuehl">Kühllager</option>
-          <option value="zwischen">Zwischenlager</option>
-          <option value="verarbeiter">Verarbeiter</option>
-          <option value="sonstiges">Sonstiges</option>
-        </select>
         <button class="btn btn-p btn-sm" onclick="addLager()">+ Hinzufügen</button>
       </div>
     </div>
@@ -1651,6 +1645,20 @@ function migrateD(){
     const exists=D.schlage.some(s=>s.name==='Äpfel Gemischt'&&s.betrieb===b);
     if(!exists) D.schlage.push({id:uid(),feldstuck:'Gemischt',name:'Äpfel Gemischt',typ:'apfel',betrieb:b,sorte:'Gemischt',grosskisten_kg:340,los_nr:'',notiz:''});
   }
+  // Verwendungen zu Lagerorten migrieren — NUR einmalig wenn Lagerorte noch leer sind
+  // (Migration ist abgeschlossen; nie mehr auto-hinzufügen — der Nutzer verwaltet Lagerorte manuell)
+  // Block absichtlich deaktiviert.
+  // verwendung_id auf ernte_ist-Einträgen → ziel_lagerort_id
+  (D.ernte_ist||[]).forEach(e=>{
+    if(e.verwendung_id&&!e.ziel_lagerort_id){
+      e.ziel_lagerort_id=e.verwendung_id;
+      delete e.verwendung_id;
+    }
+    // positionen-Format: von_standort_id → von_lagerort_id für Konsistenz
+    (e.positionen||[]).forEach(p=>{
+      if(p.von_standort_id&&!p.von_lagerort_id) p.von_lagerort_id=p.von_standort_id;
+    });
+  });
 }
 
 function mergeNewSchlage(){
@@ -1734,7 +1742,7 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.36.5";
+const APP_VERSION="v2.37.7";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -3573,7 +3581,7 @@ function renderRef(){
 // ERNTE
 // ═══════════════════════════════════════════════════
 let ernteJahr=new Date().getFullYear();
-const LAGER_TYP_LABEL={kuehl:'🧊 Kühllager',zwischen:'📦 Zwischenlager',verarbeiter:'🏭 Verarbeiter',sonstiges:'📁 Sonstiges'};
+const LAGER_TYP_LABEL={};
 const BETRIEBE=['Florian Kuenz','Johannes Kuenz','Johanna Kuenz'];
 
 function fmtKg(v){if(!v&&v!==0)return'–';return v>=1000?(v/1000).toFixed(2).replace('.',',')+' t':v+' kg';}
@@ -4097,7 +4105,8 @@ function renderLagerMod(){
       <span style="font-size:.72rem;font-weight:700;color:var(--txl);min-width:16px;text-align:center">${i+1}</span>
       <button onclick="setStandardLager('${l.id}')" title="${isStd?'Standard-Abholstandort (klicken zum Entfernen)':'Als Standard-Abholstandort setzen'}"
         style="background:none;border:none;cursor:pointer;font-size:1.1rem;padding:0 2px;line-height:1">${isStd?'⭐':'☆'}</button>
-      <span style="font-size:.85rem;flex:1"><b>${l.name}</b> <span style="color:var(--txl);font-size:.75rem">${LAGER_TYP_LABEL[l.typ]||l.typ}</span>${isStd?' <span style="font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px">Standard</span>':''}</span>
+      <span style="font-size:.85rem;flex:1"><b>${l.name}</b>${isStd?' <span style="font-size:.68rem;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 5px">Standard</span>':''}</span>
+      <button onclick="renameLager('${l.id}','${l.name.replace(/'/g,"\\'")}')" title="Umbenennen" style="background:none;border:none;cursor:pointer;font-size:.95rem;padding:0 3px;line-height:1;color:var(--txl)">✏️</button>
       <button class="btn btn-d btn-sm" onclick="deleteLager('${l.id}')">✕</button>
     </div>`;
   }).join('');
@@ -4121,11 +4130,21 @@ function setStandardLager(id){
   renderLagerMod();
 }
 
+function renameLager(id,currentName){
+  const nm=(prompt('Neuer Name für "'+currentName+'":')||'').trim();
+  if(!nm||nm===currentName)return;
+  const l=D.lagerorte.find(x=>x.id===id);
+  if(!l)return;
+  l.name=nm;
+  scheduleSave();
+  renderLagerMod();
+  renderErnteIst();
+}
+
 function addLager(){
   const nm=(document.getElementById('lager-nm-inp').value||'').trim();
   if(!nm){alert('Bitte Namen eingeben');return;}
-  const typ=document.getElementById('lager-typ-inp').value;
-  D.lagerorte.push({id:uid(),name:nm,typ});
+  D.lagerorte.push({id:uid(),name:nm});
   document.getElementById('lager-nm-inp').value='';
   scheduleSave();
   renderLagerMod();
@@ -4144,6 +4163,7 @@ function deleteLager(id){
   scheduleSave();
   renderLagerMod();
   renderZuteilungCard();
+  renderErnteIst();
 }
 
 // ── Ernte Ist ──────────────────────────────────────
@@ -4295,8 +4315,24 @@ function openErnteBuchungMod(editId){
     const entry=D.ernte_ist.find(e=>e.id===editId);
     if(entry){
       const typ=getEntryTyp(entry);
-      // Transport-Einträge → separates Transport-Modal
-      if(typ==='transport'){openTransportMod(editId);return;}
+      // Transport-Einträge → Umbuchungs-Wizard
+      if(typ==='transport'){
+        const pos=getTransportPositionen(entry);
+        const quelleId=pos[0]?.von_standort_id||pos[0]?.von_lagerort_id||'';
+        const zielId=entry.ziel_lagerort_id||entry.verwendung_id||'';
+        const today=new Date().toISOString().slice(0,10);
+        _wiz={step:3,buchTyp:'umbuchung',datum:entry.datum||today,
+          um_quelleId:quelleId,um_zielId:zielId,
+          um_schlagAlloc:{},notiz:entry.notiz||'',editId:editId};
+        pos.forEach((p,i)=>{
+          const sid=p.schlag_id||'';
+          const akey=(sid?sid:'unbekannt')+'::0';
+          if(!_wiz.um_schlagAlloc[akey]) _wiz.um_schlagAlloc[akey]={kl1:0,ver:0,schlag_id:sid,dg:0};
+          _wiz.um_schlagAlloc[akey].kl1+=(p.gk_1kl||0);
+          _wiz.um_schlagAlloc[akey].ver+=(p.gk_verarbeitung||0);
+        });
+        openMod('mod-ernte-wizard');_wizRender();return;
+      }
       document.getElementById('buch-datum').value=entry.datum;
       document.getElementById('buch-notiz').value=entry.notiz||'';
       document.getElementById('buch-edit-id').value=editId;
@@ -4342,17 +4378,34 @@ function renderBuchLagerRows(buchMap){
 // ══════════════════════════════════════════════════════════════
 // ERNTE-WIZARD (Mobile-optimiert)  — Sorte → Schlag → Mengen → Lagerort
 // ══════════════════════════════════════════════════════════════
-let _wiz={buchTyp:'ernte',step:-1,datum:'',sorte:'',schlagId:'',einheit:'gk',gk1kl:0,gkVer:0,kg1kl:0,kgVer:0,notiz:'',dg:0,verteilung:{},editId:'',um_zielId:'',um_quellen:{},um_schlagId:'',um_dg:0,um_ls:'',um_positionen:[]};
+let _wiz={buchTyp:'ernte',step:-1,datum:'',sorte:'',schlagId:'',gk1kl:0,gkVer:0,kg_actual:null,notiz:'',dg:0,verteilung:{},editId:'',um_quelleId:'',um_zielId:'',um_schlagAlloc:{},um_quellen:{},um_schlagId:'',um_dg:0,um_ls:'',um_positionen:[]};
 
 function openErnteWizard(editId){
   const today=new Date().toISOString().slice(0,10);
   const _haccpDefault={grosskisten:true,erntegeraete:true,tieflade:true,kuehllager:true,reinigung:true};
-  _wiz={buchTyp:'ernte',step:editId?0:-1,datum:today,sorte:'',schlagId:'',einheit:'gk',gk1kl:0,gkVer:0,kg1kl:0,kgVer:0,notiz:'',dg:0,verteilung:{},editId:editId||'',haccp:{..._haccpDefault},um_zielId:'',um_quellen:{},um_schlagId:'',um_dg:0,um_ls:'',um_positionen:[]};
+  _wiz={buchTyp:'ernte',step:editId?0:-1,datum:today,sorte:'',schlagId:'',gk1kl:0,gkVer:0,kg_actual:null,notiz:'',dg:0,verteilung:{},editId:editId||'',haccp:{..._haccpDefault},um_quelleId:'',um_zielId:'',um_schlagAlloc:{},um_quellen:{},um_schlagId:'',um_dg:0,um_ls:'',um_positionen:[]};
   if(editId){
     const e=D.ernte_ist.find(x=>x.id===editId)||(_gruppenErnteIst||[]).find(x=>x.id===editId);
     if(!e) return;
     const t=getEntryTyp(e);
-    if(t==='transport'){openTransportMod(editId);return;}
+    if(t==='transport'){
+      // Transport als Umbuchung öffnen
+      const pos=getTransportPositionen(e);
+      const quelleId=pos[0]?.von_standort_id||pos[0]?.von_lagerort_id||'';
+      const zielId=e.ziel_lagerort_id||e.verwendung_id||'';
+      const today=new Date().toISOString().slice(0,10);
+      _wiz={step:3,buchTyp:'umbuchung',datum:e.datum||today,
+        um_quelleId:quelleId,um_zielId:zielId,
+        um_schlagAlloc:{},notiz:e.notiz||'',editId:editId};
+      pos.forEach((p,i)=>{
+        const sid=p.schlag_id||'';
+        const akey=(sid?sid:'unbekannt')+'::0';
+        if(!_wiz.um_schlagAlloc[akey]) _wiz.um_schlagAlloc[akey]={kl1:0,ver:0,schlag_id:sid,dg:0};
+        _wiz.um_schlagAlloc[akey].kl1+=(p.gk_1kl||0);
+        _wiz.um_schlagAlloc[akey].ver+=(p.gk_verarbeitung||0);
+      });
+      openMod('mod-ernte-wizard');_wizRender();return;
+    }
     if(t==='umbuchung'){
       _wiz.buchTyp='umbuchung';
       _wiz.sorte=e.sorte||'';_wiz.notiz=e.notiz||'';
@@ -4366,11 +4419,8 @@ function openErnteWizard(editId){
       const sc=_getAllSchlage().find(x=>x.id===_wiz.schlagId);
       _wiz.sorte=sc?sc.sorte||sc.name||'':'';
       _wiz.notiz=e.notiz||'';
-      if((e.kg_1kl||e.kg_verarbeitung)&&!e.gk_1kl&&!e.gk_verarbeitung){
-        _wiz.einheit='kg';_wiz.kg1kl=e.kg_1kl||0;_wiz.kgVer=e.kg_verarbeitung||0;
-      } else {
-        _wiz.einheit='gk';_wiz.gk1kl=e.gk_1kl||0;_wiz.gkVer=e.gk_verarbeitung||0;
-      }
+      _wiz.gk1kl=e.gk_1kl||0;_wiz.gkVer=e.gk_verarbeitung||0;
+      _wiz.kg_actual=e.kg_actual||null;
       _wiz.verteilung={};
       (e.verteilung||[]).forEach(v=>{_wiz.verteilung[v.standort_id]={kl1:v.gk_1kl||0,ver:v.gk_verarbeitung||0};});
       if(e.standort_id&&!e.verteilung) _wiz.verteilung[e.standort_id]={kl1:e.gk_1kl||0,ver:e.gk_verarbeitung||0};
@@ -4396,16 +4446,15 @@ function _wizRender(){
     if(d) d.style.background=(_wiz.step>=0&&i<=_wiz.step)?'var(--p)':'var(--bdr)';
   }
   const badge=document.getElementById('wiz-kisten-badge');
-  if(badge) badge.style.display=(_wiz.buchTyp==='ernte'&&_wiz.step===3&&_wiz.einheit==='gk')?'flex':'none';
+  if(badge) badge.style.display=(_wiz.buchTyp==='ernte'&&_wiz.step===3)?'flex':'none';
 
   if(_wiz.step===-1){ _wizRenderTypAuswahl(body,footer); }
   else if(_wiz.buchTyp==='umbuchung'){
     document.getElementById('wiz-title').textContent=_wiz.editId?'✏️ Umbuchung bearbeiten':'🔄 Lagerumbuchung';
-    if(_wiz.step===0) _wizUmZielort(body,footer);
-    else if(_wiz.step===1) _wizUmSorte(body,footer);
-    else if(_wiz.step===2) _wizUmSchlag(body,footer);
-    else if(_wiz.step===3) _wizUmQuelle(body,footer);
-    else if(_wiz.step===4) _wizUmBestaetigung(body,footer);
+    if(_wiz.step===0) _wizUmLadeort(body,footer);
+    else if(_wiz.step===1) _wizUmZielort(body,footer);
+    else if(_wiz.step===2) _wizUmMengen(body,footer);
+    else if(_wiz.step===3) _wizUmBestaetigung(body,footer);
   } else {
     document.getElementById('wiz-title').textContent=_wiz.editId?'✏️ Ernte bearbeiten':'🌿 Ernte erfassen';
     if(_wiz.step===0) _wizRenderSorte(body,footer);
@@ -4442,132 +4491,241 @@ function _wizWaehlTyp(typ){
   _wiz.buchTyp=typ;_wiz.step=0;_wizRender();
 }
 
-// ─── Umbuchung Schritt 0: Zielort ────────────────────────────
-function _wizUmZielort(body,footer){
-  const btns=D.lagerorte.map(l=>{
-    const sel=l.id===_wiz.um_zielId;
-    const typIcon=l.typ==='kuehl'?'🧊':l.typ==='zwischen'?'📦':l.typ==='verarbeiter'?'🏭':'📋';
-    return`<button onclick="_wizUmSelZiel('${l.id}')" style="padding:16px 10px;border-radius:12px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--ps)':'#fff'};color:${sel?'var(--pd)':'var(--txt)'};font-size:.92rem;font-weight:700;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent">
-      ${typIcon} ${l.name}
+// ─── Umbuchung Schritt 0: Ladeort (Quelle) ───────────────────
+function _wizUmLadeort(body,footer){
+  const mitBestand=D.lagerorte.filter(l=>calcStandortBestand(l.id).total>0);
+  const btns=(mitBestand.length?mitBestand:D.lagerorte).map(l=>{
+    const sel=l.id===_wiz.um_quelleId;
+    const b=calcStandortBestand(l.id);
+    return`<button onclick="_wizUmSelQuelle('${l.id}')" style="padding:16px 10px;border-radius:12px;border:2px solid ${sel?'#e65100':'var(--bdr)'};background:${sel?'#fff3e0':'#fff'};color:${sel?'#bf360c':'var(--txt)'};font-size:.9rem;font-weight:700;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent">
+      ${l.name}${b.total>0?`<div style="font-size:.68rem;font-weight:400;margin-top:3px;opacity:.75">${b.total} GK vorhanden</div>`:''}
     </button>`;
   }).join('');
-  body.innerHTML=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px">🎯 Wohin wird umgebucht?</div>
+  body.innerHTML=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px">📦 Wo wird aufgeladen?</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${btns}</div>`;
   footer.innerHTML=`<button onclick="_wizBack()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>
     <span style="font-size:.75rem;color:var(--txl);margin-left:auto">Schritt 1 / 3</span>`;
 }
-function _wizUmSelZiel(id){_wiz.um_zielId=id;_wiz.step=1;_wizRender();}
+function _wizUmSelQuelle(id){_wiz.um_quelleId=id;_wiz.um_schlagAlloc={};_wiz.step=1;_wizRender();}
 
-// ─── Umbuchung Schritt 1: Sorte ──────────────────────────────
-function _wizUmSorte(body,footer){
-  // Alle Sorten die irgendwo im Lager sind (aus Ernte-Einträgen)
-  const sortenSet={};
-  _getAllErnteIst().forEach(e=>{
-    if(getEntryTyp(e)!=='ernte') return;
-    const sc=D.schlage.find(x=>x.id===e.schlag_id);
-    const sorte=sc?.sorte||sc?.name||'Sonstige';
-    const b=calcStandortBestand_BySorte(sorte);
-    if(b>0) sortenSet[sorte]=(sortenSet[sorte]||0)+b;
-  });
-  const sorten=Object.entries(sortenSet).sort((a,b)=>a[0].localeCompare(b[0],'de'));
-  const zielName=D.lagerorte.find(l=>l.id===_wiz.um_zielId)?.name||'?';
-  const btns=sorten.length?sorten.map(([s,gk])=>{
-    const sel=s===_wiz.sorte;
-    const esc=s.replace(/'/g,"\\'");
-    return`<button onclick="_wizUmSelSorte('${esc}')" style="padding:20px 10px;border-radius:14px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--ps)':'#fff'};color:${sel?'var(--pd)':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent">
-      ${_sorteSymbol(s)} ${s}<div style="font-size:.7rem;font-weight:400;margin-top:4px;opacity:.75">~${gk} GK im Lager</div>
+// ─── Umbuchung Schritt 1: Zielort ────────────────────────────
+function _wizUmZielort(body,footer){
+  const quelleName=D.lagerorte.find(l=>l.id===_wiz.um_quelleId)?.name||'?';
+  const btns=D.lagerorte.filter(l=>l.id!==_wiz.um_quelleId).map(l=>{
+    const sel=l.id===_wiz.um_zielId;
+    return`<button onclick="_wizUmSelZiel('${l.id}')" style="padding:16px 10px;border-radius:12px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--ps)':'#fff'};color:${sel?'var(--pd)':'var(--txt)'};font-size:.9rem;font-weight:700;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent">
+      ${l.name}
     </button>`;
-  }).join(''):
-  `<div style="color:var(--txl);font-size:.85rem;padding:20px">Kein Ernte-Bestand vorhanden.</div>`;
-  body.innerHTML=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Welche Sorte? → <span style="color:var(--p)">${zielName}</span></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">${btns}</div>`;
-  const posHinweis=_wiz.um_positionen.length?`<span style="font-size:.72rem;background:#e8f5e9;color:#2e7d32;border-radius:8px;padding:2px 8px;font-weight:700">${_wiz.um_positionen.length} Position${_wiz.um_positionen.length!==1?'en':''} hinzugefügt</span>`:'';
+  }).join('');
+  body.innerHTML=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">🎯 Wohin wird umgebucht?</div>
+    <div style="font-size:.72rem;color:var(--txl);margin-bottom:12px">Von: <b style="color:#e65100">${quelleName}</b></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">${btns}</div>`;
   footer.innerHTML=`<button onclick="_wizBack()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>
-    ${posHinweis}<span style="font-size:.75rem;color:var(--txl);margin-left:auto">Schritt 2 / 4</span>`;
+    <span style="font-size:.75rem;color:var(--txl);margin-left:auto">Schritt 2 / 3</span>`;
 }
-function _wizUmSelSorte(s){_wiz.sorte=s;_wiz.um_schlagId='';_wiz.um_dg=0;_wiz.step=2;_wizRender();}
+function _wizUmSelZiel(id){_wiz.um_zielId=id;_wiz.step=2;_wizRender();}
 
-// ─── Umbuchung Schritt 2: Schlag + DG auswählen ───────────────
-function _wizUmSchlag(body,footer){
+// ─── Umbuchung Schritt 2: Sorten & Mengen (alle Schlage der Quelle) ──────────
+function _wizUmMengen(body,footer){
+  const quelleName=D.lagerorte.find(l=>l.id===_wiz.um_quelleId)?.name||'?';
   const zielName=D.lagerorte.find(l=>l.id===_wiz.um_zielId)?.name||'?';
-  // Finde Schläge für die gewählte Sorte, die irgendwo Bestand haben (außer im Zielort)
-  const schlageForSorte=D.schlage.filter(s=>(s.sorte||s.name||'')===_wiz.sorte);
-  const schlagDGs={}; // schlag_id → Set of DGs
+  // Alle (Schlag × DG)-Kombinationen mit Bestand am Ladeort ermitteln
+  // Key-Format: schlagId+'::'+dg  (dg=0 = kein DG, 1/2/3 = Erntedurchgang)
+  const seen=new Set();
+  const items=[]; // {sc,dg,b,akey}
   _getAllErnteIst().forEach(e=>{
-    if(getEntryTyp(e)!=='ernte')return;
-    if(!schlageForSorte.find(s=>s.id===e.schlag_id))return;
-    let hasStock=false;
-    if(e.verteilung) hasStock=e.verteilung.some(v=>v.standort_id!==_wiz.um_zielId&&((v.gk_1kl||0)+(v.gk_verarbeitung||0)>0));
-    else if(e.standort_id&&e.standort_id!==_wiz.um_zielId) hasStock=(e.gk_1kl||0)+(e.gk_verarbeitung||0)>0;
-    (e.buchungen||[]).forEach(b=>{if(b.lager_id!==_wiz.um_zielId&&(b.gk||b.tafel_gk))hasStock=true;});
-    if(hasStock){
-      if(!schlagDGs[e.schlag_id])schlagDGs[e.schlag_id]=new Set();
-      if(e.dg)schlagDGs[e.schlag_id].add(e.dg);
-    }
+    if(!e.schlag_id)return;
+    const dk=e.schlag_id+'::'+(e.dg||0);
+    if(seen.has(dk))return;
+    seen.add(dk);
+    const sc=_getAllSchlage().find(x=>x.id===e.schlag_id);
+    if(!sc)return;
+    const dg=e.dg||0;
+    const b=_calcBestandSchlagDgExact(_wiz.um_quelleId,e.schlag_id,dg);
+    if(b.total>0)items.push({sc,dg,b,akey:dk});
   });
-
-  // Fallback: wenn keine Einträge gefunden, alle Schläge der Sorte zeigen
-  if(!Object.keys(schlagDGs).length) schlageForSorte.forEach(s=>{schlagDGs[s.id]=new Set();});
-
-  const selSchlag=_wiz.um_schlagId;
-  const selDg=_wiz.um_dg;
-
-  let html=`<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">Von welchem Schlag? · <span style="color:var(--p)">${_wiz.sorte}</span> → <span style="color:var(--p)">${zielName}</span></div>
-  <div style="font-size:.68rem;color:var(--txl);margin-bottom:10px;font-style:italic">Schlag muss angegeben werden (Rückverfolgbarkeit)</div>`;
-
-  const unselStyle=`padding:12px 10px;border-radius:10px;border:2px solid var(--bdr);background:#fff;color:var(--txt);font-size:.82rem;font-weight:600;cursor:pointer;text-align:center`;
-  const selStyle=`padding:12px 10px;border-radius:10px;border:2px solid var(--p);background:var(--ps);color:var(--pd);font-size:.82rem;font-weight:700;cursor:pointer;text-align:center`;
-  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">`;
-  Object.keys(schlagDGs).forEach(schlag_id=>{
-    const sc=D.schlage.find(x=>x.id===schlag_id);
-    const name=sc?.name||schlag_id;
-    const isSel=selSchlag===schlag_id;
-    html+=`<button onclick="_wizUmSelSchlag('${schlag_id}')" style="${isSel?selStyle:unselStyle}">${name}</button>`;
+  // Auch Umbuchungen als mögliche Quellen (schlag_id auf Umbuchungseintrag)
+  _getAllErnteIst().forEach(e=>{
+    if(getEntryTyp(e)!=='umbuchung'||!e.schlag_id)return;
+    const dk=e.schlag_id+'::'+(e.dg||0);
+    if(seen.has(dk))return;
+    seen.add(dk);
+    const sc=_getAllSchlage().find(x=>x.id===e.schlag_id);
+    if(!sc)return;
+    const dg=e.dg||0;
+    const b=_calcBestandSchlagDgExact(_wiz.um_quelleId,e.schlag_id,dg);
+    if(b.total>0)items.push({sc,dg,b,akey:dk});
   });
-  html+=`</div>`;
-
-  // DG-Auswahl (nur wenn Schlag gewählt und DGs vorhanden)
-  if(selSchlag&&schlagDGs[selSchlag]&&schlagDGs[selSchlag].size>0){
-    const dgs=[...schlagDGs[selSchlag]].sort((a,b)=>a-b);
-    html+=`<div style="font-size:.72rem;font-weight:700;color:var(--txl);margin-bottom:6px;margin-top:4px">Erntedurchgang (optional):</div>`;
-    html+=`<div style="display:flex;gap:6px;flex-wrap:wrap">`;
-    const dgUnselStyle=`padding:7px 14px;border-radius:20px;border:1.5px solid var(--bdr);background:#fff;color:var(--txt);font-size:.8rem;font-weight:600;cursor:pointer`;
-    const dgSelStyle=`padding:7px 14px;border-radius:20px;border:1.5px solid var(--info);background:#e0f2fe;color:#0369a1;font-size:.8rem;font-weight:800;cursor:pointer`;
-    html+=`<button onclick="_wizUmSetDg(0)" style="${selDg===0?dgSelStyle:dgUnselStyle}">Alle DG</button>`;
-    dgs.forEach(dg=>{
-      html+=`<button onclick="_wizUmSetDg(${dg})" style="${selDg===dg?dgSelStyle:dgUnselStyle}">${dg}.DG</button>`;
+  items.sort((a,b)=>(a.sc.sorte+a.sc.name+a.dg).localeCompare(b.sc.sorte+b.sc.name+b.dg,'de'));
+  // Nach Sorte gruppieren
+  const bySort={};
+  items.forEach(item=>{
+    const sorte=item.sc.sorte||item.sc.name||'Sonstige';
+    if(!bySort[sorte])bySort[sorte]=[];
+    bySort[sorte].push(item);
+  });
+  let html='';
+  if(!items.length){
+    html=`<div style="color:var(--txl);font-size:.85rem;padding:20px;text-align:center">Kein Bestand in <b>${quelleName}</b> gefunden.</div>`;
+  } else {
+    Object.entries(bySort).sort(([a],[b])=>a.localeCompare(b,'de')).forEach(([sorte,sitems])=>{
+      html+=`<div style="font-size:.72rem;font-weight:800;color:var(--txl);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px">${_sorteSymbol(sorte)} ${sorte}</div>`;
+      sitems.forEach(({sc,dg,b,akey})=>{
+        const alloc=_wiz.um_schlagAlloc[akey]||{kl1:0,ver:0};
+        const dgLbl=dg?`<span style="margin-left:5px;font-size:.65rem;font-weight:700;background:#e0f2fe;color:#0369a1;border-radius:6px;padding:1px 5px">${dg}.DG</span>`:'';
+        const safeKey=akey.replace(/['"]/g,'');
+        const kl1Row=b.gk1kl>0?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="font-size:.68rem;color:#2e7d32;font-weight:700;min-width:42px">1.Kl</span>
+          <button onclick="_wizUmAdjSchlag('${safeKey}','kl1',-5)" style="padding:2px 7px;border-radius:6px;background:#e8f5e9;border:1px solid #a5d6a7;font-size:.68rem;font-weight:700;color:#2e7d32;cursor:pointer">−5</button>
+          <button onclick="_wizUmAdjSchlag('${safeKey}','kl1',-1)" style="width:30px;height:30px;border-radius:8px;background:#e8f5e9;border:1.5px solid #a5d6a7;font-size:1.1rem;cursor:pointer;color:#2e7d32;line-height:1">−</button>
+          <span id="um-kl1-${safeKey}" style="font-size:1.1rem;font-weight:800;min-width:36px;text-align:center;color:var(--pd)">${alloc.kl1||0}</span>
+          <button onclick="_wizUmAdjSchlag('${safeKey}','kl1',1)" style="width:30px;height:30px;border-radius:8px;background:#2e7d32;border:none;font-size:1.1rem;cursor:pointer;color:#fff;line-height:1">+</button>
+          <button onclick="_wizUmAdjSchlag('${safeKey}','kl1',5)" style="padding:2px 7px;border-radius:6px;background:#e8f5e9;border:1px solid #a5d6a7;font-size:.68rem;font-weight:700;color:#2e7d32;cursor:pointer">+5</button>
+          <span style="font-size:.88rem;font-weight:700;color:var(--txl);margin-left:4px">/ ${b.gk1kl}</span>
+        </div>`:'';
+        const verRow=b.gkVer>0?`<div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:.68rem;color:#e65100;font-weight:700;min-width:42px">Verarb.</span>
+          <button onclick="_wizUmAdjSchlag('${safeKey}','ver',-5)" style="padding:2px 7px;border-radius:6px;background:#fff3e0;border:1px solid #ffcc80;font-size:.68rem;font-weight:700;color:#e65100;cursor:pointer">−5</button>
+          <button onclick="_wizUmAdjSchlag('${safeKey}','ver',-1)" style="width:30px;height:30px;border-radius:8px;background:#fff3e0;border:1.5px solid #ffcc80;font-size:1.1rem;cursor:pointer;color:#e65100;line-height:1">−</button>
+          <span id="um-ver-${safeKey}" style="font-size:1.1rem;font-weight:800;min-width:36px;text-align:center;color:var(--pd)">${alloc.ver||0}</span>
+          <button onclick="_wizUmAdjSchlag('${safeKey}','ver',1)" style="width:30px;height:30px;border-radius:8px;background:#e65100;border:none;font-size:1.1rem;cursor:pointer;color:#fff;line-height:1">+</button>
+          <button onclick="_wizUmAdjSchlag('${safeKey}','ver',5)" style="padding:2px 7px;border-radius:6px;background:#fff3e0;border:1px solid #ffcc80;font-size:.68rem;font-weight:700;color:#e65100;cursor:pointer">+5</button>
+          <span style="font-size:.88rem;font-weight:700;color:var(--txl);margin-left:4px">/ ${b.gkVer}</span>
+        </div>`:'';
+        const nkgSorte=D.sorten?.find(s=>s.name===sc?.sorte)?.netto_kg||getSorteNkg(sc?.sorte)||330;
+        const totalGk=(alloc.kl1||0)+(alloc.ver||0);
+        const defaultKg=totalGk*nkgSorte;
+        const kgVal=_wiz.um_schlagAlloc[akey]?.kg_actual||'';
+        const kgGkCalc=kgVal&&nkgSorte?(Math.round(kgVal/nkgSorte*10)/10)+' GK':'';
+        const kgRow=`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr)">
+  <label style="font-size:.65rem;font-weight:700;color:var(--txl);display:block;margin-bottom:3px">Gewicht effektiv (optional)</label>
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+    <input type="number" id="um-kg-${safeKey}" min="0" step="10" value="${kgVal}"
+      oninput="_wizUmSetKg('${safeKey}',this.value)"
+      placeholder="${totalGk?defaultKg:nkgSorte+' kg/GK'}"
+      style="border:1.5px solid var(--bdr);border-radius:7px;padding:6px 10px;font-size:.88rem;width:120px;background:#fff">
+    <span style="font-size:.75rem;color:var(--txl)">kg</span>
+    <span id="um-kg-gk-${safeKey}" style="font-size:.72rem;color:var(--txl);font-style:italic">${kgGkCalc?'≈ '+kgGkCalc:''}</span>
+  </div>
+</div>`;
+        const hasAlloc=(alloc.kl1||0)+(alloc.ver||0)>0;
+        html+=`<div style="margin-bottom:8px;padding:10px 12px;background:${hasAlloc?'#f1f8e9':'#fff'};border-radius:10px;border:${hasAlloc?'2px solid #aed581':'1.5px solid var(--bdr)'}">
+          <div style="font-size:.82rem;font-weight:700;color:var(--pd);margin-bottom:6px;display:flex;align-items:center;gap:4px">${sc.name}${sc.betrieb?` <span style="font-size:.65rem;color:var(--txl);font-weight:400">${sc.betrieb}</span>`:''}${dgLbl}</div>
+          ${kl1Row}${verRow}${kgRow}
+        </div>`;
+      });
     });
-    html+=`</div>`;
   }
-
-  body.innerHTML=html;
-  const canProceed=!!selSchlag;
+  const totAlloc=Object.values(_wiz.um_schlagAlloc).reduce((s,a)=>s+(a.kl1||0)+(a.ver||0),0);
+  body.innerHTML=`<div style="font-size:.72rem;color:var(--txl);margin-bottom:10px">Von <b style="color:#e65100">${quelleName}</b> → <b style="color:var(--pd)">${zielName}</b></div>${html}`;
   footer.innerHTML=`<button onclick="_wizBack()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>
-    <span style="font-size:.75rem;color:var(--txl);margin-left:auto">Schritt 2 / 4</span>
-    <button onclick="_wizUmSchlagWeiter()" style="padding:10px 20px;border-radius:8px;background:${canProceed?'var(--p)':'#ccc'};color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">Weiter →</button>`;
+    <span id="um-total" style="font-size:.8rem;font-weight:700;color:#e65100">${totAlloc?totAlloc+' GK':''}</span>
+    <button onclick="_wizUmMengenWeiter()" style="padding:10px 20px;border-radius:8px;background:${totAlloc?'var(--p)':'#ccc'};color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">Weiter →</button>`;
 }
-function _wizUmSchlagWeiter(){
-  if(!_wiz.um_schlagId){alert('Bitte einen Schlag auswählen (Rückverfolgbarkeit erforderlich)');return;}
+// akey = schlagId+'::'+dg  (Key-Format für um_schlagAlloc)
+function _wizUmAdjSchlag(akey,field,delta){
+  const [schlagId,dgStr]=akey.split('::');
+  const dg=parseInt(dgStr)||0;
+  const b=_calcBestandSchlagDgExact(_wiz.um_quelleId,schlagId,dg);
+  const max=field==='kl1'?Math.max(0,b.gk1kl):Math.max(0,b.gkVer);
+  if(!_wiz.um_schlagAlloc[akey])_wiz.um_schlagAlloc[akey]={kl1:0,ver:0,schlag_id:schlagId,dg};
+  _wiz.um_schlagAlloc[akey][field]=Math.max(0,Math.min(max,(_wiz.um_schlagAlloc[akey][field]||0)+delta));
+  const el=document.getElementById('um-'+field+'-'+akey);
+  if(el)el.textContent=_wiz.um_schlagAlloc[akey][field]||0;
+  const tot=Object.values(_wiz.um_schlagAlloc).reduce((s,a)=>s+(a.kl1||0)+(a.ver||0),0);
+  const totEl=document.getElementById('um-total');
+  if(totEl)totEl.textContent=tot?tot+' GK':'';
+  const karte=el?.closest('div[style*="border-radius:10px"]');
+  if(karte){const v=(_wiz.um_schlagAlloc[akey].kl1||0)+(_wiz.um_schlagAlloc[akey].ver||0);karte.style.background=v?'#f1f8e9':'#fff';karte.style.border=v?'2px solid #aed581':'1.5px solid var(--bdr)';}
+  // kg-Placeholder aktualisieren (default: GK × netto_kg)
+  const [schlagIdK]=akey.split('::');
+  const scK=D.schlage.find(x=>x.id===schlagIdK);
+  const nkgK=D.sorten?.find(s=>s.name===scK?.sorte)?.netto_kg||getSorteNkg(scK?.sorte)||330;
+  const totGkK=(_wiz.um_schlagAlloc[akey]?.kl1||0)+(_wiz.um_schlagAlloc[akey]?.ver||0);
+  const kgInEl=document.getElementById('um-kg-'+akey);
+  if(kgInEl&&!_wiz.um_schlagAlloc[akey]?.kg_actual) kgInEl.placeholder=totGkK?(totGkK*nkgK):''+nkgK+' kg/GK';
+  // Weiter-Button Farbe aktualisieren
+  const totW=Object.values(_wiz.um_schlagAlloc).reduce((s,a)=>s+(a.kl1||0)+(a.ver||0),0);
+  const weiterBtn=document.querySelector('#wiz-footer button:last-child');
+  if(weiterBtn) weiterBtn.style.background=totW?'var(--p)':'#ccc';
+}
+function _wizUmSetKg(akey,val){
+  if(!_wiz.um_schlagAlloc[akey]) return;
+  const v=parseFloat(val);
+  if(val===''||isNaN(v)||v<=0) delete _wiz.um_schlagAlloc[akey].kg_actual;
+  else _wiz.um_schlagAlloc[akey].kg_actual=v;
+  // GK-Kontrollwert aktualisieren
+  const safeKey=akey.replace(/[^a-z0-9_-]/gi,'_');
+  const gkEl=document.getElementById('um-kg-gk-'+safeKey);
+  if(gkEl){
+    const schlagId=akey.split('::')[0];
+    const sc=D.schlage.find(x=>x.id===schlagId);
+    const nkg=D.sorten?.find(s=>s.name===sc?.sorte)?.netto_kg||getSorteNkg(sc?.sorte)||330;
+    if(val===''||isNaN(parseFloat(val))||parseFloat(val)<=0){gkEl.textContent='';}
+    else{const gk=Math.round(parseFloat(val)/nkg*10)/10;gkEl.textContent='≈ '+gk+' GK';}
+  }
+}
+function _wizUmMengenWeiter(){
+  const tot=Object.values(_wiz.um_schlagAlloc).reduce((s,a)=>s+(a.kl1||0)+(a.ver||0),0);
+  if(!tot){alert('Bitte mindestens eine GK-Menge angeben');return;}
   _wiz.step=3;_wizRender();
 }
-function _wizUmSelSchlag(id){_wiz.um_schlagId=id;_wiz.um_dg=0;_wizRender();}
-function _wizUmSetDg(dg){_wiz.um_dg=dg;_wizRender();}
 
-// Bestand eines bestimmten Schlages an einem Lagerort (nur Ernte-Seite, da Transporte schlag-anonym)
+// Bestand eines bestimmten Schlages an einem Lagerort
+// dg=0/falsy → alle DGs summiert; dg>0 → nur dieser DG
 function calcStandortBestandBySchlag(lagerId, schlagId, dg){
-  // dg optional: wenn gesetzt, nur Einträge mit diesem DG berücksichtigen
   let gk1kl=0,gkVer=0;
   _getAllErnteIst().forEach(e=>{
-    if(getEntryTyp(e)!=='ernte'||e.schlag_id!==schlagId)return;
-    if(dg&&(e.dg||0)!==dg)return; // DG-Filter
-    if(e.verteilung){
-      e.verteilung.forEach(v=>{if(v.standort_id===lagerId){gk1kl+=(v.gk_1kl||0);gkVer+=(v.gk_verarbeitung||0);}});
-    } else if(e.standort_id===lagerId){
-      gk1kl+=(e.gk_1kl||0);gkVer+=(e.gk_verarbeitung||0);
+    const typ=getEntryTyp(e);
+    if(e.schlag_id!==schlagId)return;
+    if(dg&&(e.dg||0)!==dg)return;
+    if(typ==='ernte'){
+      if(e.verteilung){
+        e.verteilung.forEach(v=>{if(v.standort_id===lagerId){gk1kl+=(v.gk_1kl||0);gkVer+=(v.gk_verarbeitung||0);}});
+      } else if(e.standort_id===lagerId){
+        gk1kl+=(e.gk_1kl||0);gkVer+=(e.gk_verarbeitung||0);
+      }
+      (e.buchungen||[]).forEach(b=>{
+        if(b.lager_id===lagerId){gk1kl+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gkVer+=(b.verarbeitung_gk||0);}
+      });
+    } else if(typ==='umbuchung'){
+      // Zielort bekommt GK dazu
+      if(e.ziel_lagerort_id===lagerId){
+        (e.quellen||[]).forEach(q=>{gk1kl+=(q.gk_1kl||0);gkVer+=(q.gk_ver||0);});
+      }
+      // Quellort verliert GK
+      (e.quellen||[]).forEach(q=>{
+        if(q.von_lagerort_id===lagerId){gk1kl-=(q.gk_1kl||0);gkVer-=(q.gk_ver||0);}
+      });
     }
-    (e.buchungen||[]).forEach(b=>{
-      if(b.lager_id===lagerId){gk1kl+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gkVer+=(b.verarbeitung_gk||0);}
-    });
+  });
+  return {gk1kl,gkVer,total:gk1kl+gkVer};
+}
+
+// Bestand eines Schlages an einem Lagerort — exakter DG-Vergleich (dg=0 = ohne DG)
+function _calcBestandSchlagDgExact(lagerId, schlagId, exactDg){
+  let gk1kl=0,gkVer=0;
+  _getAllErnteIst().forEach(e=>{
+    const typ=getEntryTyp(e);
+    if(e.schlag_id!==schlagId)return;
+    if((e.dg||0)!==exactDg)return;
+    if(typ==='ernte'){
+      if(e.verteilung){
+        e.verteilung.forEach(v=>{if(v.standort_id===lagerId){gk1kl+=(v.gk_1kl||0);gkVer+=(v.gk_verarbeitung||0);}});
+      } else if(e.standort_id===lagerId){
+        gk1kl+=(e.gk_1kl||0);gkVer+=(e.gk_verarbeitung||0);
+      }
+      (e.buchungen||[]).forEach(b=>{
+        if(b.lager_id===lagerId){gk1kl+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gkVer+=(b.verarbeitung_gk||0);}
+      });
+    } else if(typ==='umbuchung'){
+      if(e.ziel_lagerort_id===lagerId){
+        (e.quellen||[]).forEach(q=>{gk1kl+=(q.gk_1kl||0);gkVer+=(q.gk_ver||0);});
+      }
+      (e.quellen||[]).forEach(q=>{
+        if(q.von_lagerort_id===lagerId){gk1kl-=(q.gk_1kl||0);gkVer-=(q.gk_ver||0);}
+      });
+    }
   });
   return {gk1kl,gkVer,total:gk1kl+gkVer};
 }
@@ -4644,51 +4802,54 @@ function _wizUmWeiter(){
 
 // ─── Umbuchung Schritt 3: Bestätigung ────────────────────────
 function _wizUmBestaetigung(body,footer){
-  const zielLager=D.lagerorte.find(l=>l.id===_wiz.um_zielId);
-  // Bereits gespeicherte Positionen anzeigen
-  const bereitsHinzugefuegt=_wiz.um_positionen.map((pos,i)=>{
-    const sc=D.schlage.find(x=>x.id===pos.schlag_id);
-    const dgTxt=pos.dg?` · ${pos.dg}.DG`:'';
-    const totKl1=pos.quellen.reduce((s,q)=>s+(q.gk_1kl||0),0);
-    const totVer=pos.quellen.reduce((s,q)=>s+(q.gk_ver||0),0);
-    return`<div style="background:#f1f8e9;border:1.5px solid #aed581;border-radius:8px;padding:8px 12px;font-size:.8rem;display:flex;justify-content:space-between;align-items:center">
-      <div><b style="color:#33691e">${pos.sorte}</b>${sc?` · ${sc.name}${dgTxt}`:''}</div>
-      <div style="font-size:.82rem;color:var(--txl)">${totKl1?totKl1+'&nbsp;1.Kl':''} ${totVer?totVer+'&nbsp;Ver.':''}</div>
-    </div>`;
-  }).join('');
-  const posHeader=_wiz.um_positionen.length
-    ?`<div style="margin-bottom:10px"><div style="font-size:.68rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">✅ Bereits hinzugefügt (${_wiz.um_positionen.length})</div>${bereitsHinzugefuegt}</div><hr style="border:none;border-top:1.5px dashed var(--bdr);margin:12px 0">`:'';
-  // Aktuelle Position
-  const quellenRows=Object.entries(_wiz.um_quellen).filter(([,q])=>(q.kl1||0)+(q.ver||0)>0).map(([id,q])=>{
-    const l=D.lagerorte.find(x=>x.id===id);
+  const quelleName=D.lagerorte.find(l=>l.id===_wiz.um_quelleId)?.name||'?';
+  const zielName=D.lagerorte.find(l=>l.id===_wiz.um_zielId)?.name||'?';
+  const allocEntries=Object.entries(_wiz.um_schlagAlloc).filter(([,a])=>(a.kl1||0)+(a.ver||0)>0);
+  const rows=allocEntries.map(([akey,a])=>{
+    const schlagId=a.schlag_id||(akey.split('::')[0]);
+    const dg=a.dg!==undefined?a.dg:(parseInt(akey.split('::')[1])||0);
+    const sc=D.schlage.find(x=>x.id===schlagId);
+    const dgBadge=dg?`<span style="margin-left:4px;font-size:.62rem;font-weight:700;background:#e0f2fe;color:#0369a1;border-radius:5px;padding:1px 4px">${dg}.DG</span>`:'';
     return`<tr style="border-bottom:1px solid var(--bdr)">
-      <td style="padding:7px 8px;font-size:.82rem;font-weight:600;color:var(--pd)">${l?.name||id}</td>
-      <td style="padding:7px 8px;text-align:right;font-weight:700;color:var(--pl)">${q.kl1||'–'}</td>
-      <td style="padding:7px 8px;text-align:right;font-weight:700;color:var(--info)">${q.ver||'–'}</td>
+      <td style="padding:7px 8px;font-size:.82rem">${sc?`<b style="color:var(--pd)">${sc.sorte}</b>${dgBadge}<div style="font-size:.7rem;color:var(--txl)">${sc.name}</div>`:schlagId}</td>
+      <td style="padding:7px 8px;text-align:right;font-weight:700;color:var(--pl)">${a.kl1||'–'}</td>
+      <td style="padding:7px 8px;text-align:right;font-weight:700;color:var(--info)">${a.ver||'–'}</td>
     </tr>`;
   }).join('');
-  const totKl1=Object.values(_wiz.um_quellen).reduce((s,q)=>s+(q.kl1||0),0);
-  const totVer=Object.values(_wiz.um_quellen).reduce((s,q)=>s+(q.ver||0),0);
-  body.innerHTML=`${posHeader}
+  const totKl1=allocEntries.reduce((s,[,a])=>s+(a.kl1||0),0);
+  const totVer=allocEntries.reduce((s,[,a])=>s+(a.ver||0),0);
+  // Gesamt-kg berechnen: kg_actual summieren falls vorhanden, sonst GK × netto_kg
+  const totKgActual=allocEntries.reduce((s,[akey,a])=>{
+    if(a.kg_actual) return s+a.kg_actual;
+    const schlagId=a.schlag_id||(akey.split('::')[0]);
+    const sc2=D.schlage.find(x=>x.id===schlagId);
+    const nkg=D.sorten?.find(s=>s.name===sc2?.sorte)?.netto_kg||getSorteNkg(sc2?.sorte)||330;
+    return s+((a.kl1||0)+(a.ver||0))*nkg;
+  },0);
+  const kgStr=totKgActual?Math.round(totKgActual).toLocaleString('de-AT')+' kg':'';
+  body.innerHTML=`
     <div style="background:#e8f5e9;border-left:4px solid var(--p);border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:14px">
-      <div style="font-size:.65rem;font-weight:700;color:var(--txl);margin-bottom:6px;text-transform:uppercase">Aktuelle Position</div>
-      <div style="display:flex;gap:20px;flex-wrap:wrap">
-        <div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">🔄 Sorte</div>
-          <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${_wiz.sorte}</div></div>
-        ${(()=>{const sc=D.schlage.find(x=>x.id===_wiz.um_schlagId);const dgTxt=_wiz.um_dg?` · ${_wiz.um_dg}.DG`:'';return sc?`<div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">🌿 Schlag</div><div style="font-size:.85rem;font-weight:800;color:var(--pd)">${sc.name}${dgTxt}</div></div>`:''})()}
+      <div style="font-size:.65rem;font-weight:700;color:var(--txl);margin-bottom:8px;text-transform:uppercase">Übersicht</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">📦 Ladeort</div>
+          <div style="font-size:.95rem;font-weight:800;color:#e65100">${quelleName}</div></div>
+        <div style="font-size:1.4rem;color:var(--txl)">→</div>
         <div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">🎯 Zielort</div>
-          <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${zielLager?.name||'?'}</div></div>
+          <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${zielName}</div></div>
         <div><div style="font-size:.68rem;font-weight:700;color:var(--pd);margin-bottom:2px">Datum</div>
-          <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${fmtD(_wiz.datum)}</div></div>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <div style="font-size:.95rem;font-weight:800;color:var(--pd)">${fmtD(_wiz.datum)}</div>
+            ${kgStr?`<div style="font-size:.78rem;font-weight:700;color:#2e7d32">⚖️ ${kgStr}</div>`:''}
+          </div></div>
       </div>
     </div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:14px">
       <thead><tr style="border-bottom:2px solid var(--bdr);background:var(--bg)">
-        <th style="text-align:left;padding:5px 8px;font-size:.68rem;color:var(--txl)">Von Lager</th>
+        <th style="text-align:left;padding:5px 8px;font-size:.68rem;color:var(--txl)">Sorte / Schlag</th>
         <th style="text-align:right;padding:5px 8px;font-size:.72rem;color:var(--pl)">1.Kl</th>
         <th style="text-align:right;padding:5px 8px;font-size:.72rem;color:var(--info)">Verarb.</th>
       </tr></thead>
-      <tbody>${quellenRows}</tbody>
+      <tbody>${rows}</tbody>
       <tfoot><tr style="border-top:2px solid var(--bdr);background:var(--bg)">
         <td style="padding:6px 8px;font-size:.8rem;font-weight:700">Gesamt</td>
         <td style="padding:6px 8px;text-align:right;font-size:1rem;font-weight:800;color:var(--pl)">${totKl1||'–'}</td>
@@ -4697,7 +4858,7 @@ function _wizUmBestaetigung(body,footer){
     </table>
     <div style="display:flex;flex-direction:column;gap:10px">
       <div>
-        <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:4px">📄 Lieferschein-Nr. (optional, für alle Positionen)</label>
+        <label style="font-size:.72rem;font-weight:700;color:var(--txl);display:block;margin-bottom:4px">📄 Lieferschein-Nr. (optional)</label>
         <input type="text" id="um-ls" value="${(_wiz.um_ls||'').replace(/"/g,'&quot;')}" placeholder="z.B. LS-2026-001" style="border:1.5px solid var(--bdr);border-radius:8px;padding:9px 12px;font-size:.88rem;width:100%">
       </div>
       <div>
@@ -4706,7 +4867,6 @@ function _wizUmBestaetigung(body,footer){
       </div>
     </div>`;
   footer.innerHTML=`<button onclick="_wizBack()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>
-    <button onclick="_wizUmAddPosition()" style="padding:10px 16px;border-radius:8px;background:#f1f8e9;color:#33691e;border:2px solid #aed581;font-size:.85rem;font-weight:700;cursor:pointer">➕ Position</button>
     <button onclick="saveUmbuchung()" style="padding:10px 22px;border-radius:8px;background:var(--p);color:#fff;border:none;font-size:.9rem;font-weight:700;cursor:pointer">✅ Speichern</button>`;
 }
 
@@ -4727,37 +4887,51 @@ function _wizUmAddPosition(){
 }
 
 function saveUmbuchung(){
+  const datumEl=document.getElementById('wiz-datum');
+  if(datumEl&&datumEl.value) _wiz.datum=datumEl.value;
   const notiz=(document.getElementById('um-notiz')?.value||'').trim();
   const ls=(document.getElementById('um-ls')?.value||'').trim();
   _wiz.notiz=notiz;_wiz.um_ls=ls;
-  // Aktuelle Position hinzufügen
-  const currentQuellen=Object.entries(_wiz.um_quellen).filter(([,q])=>(q.kl1||0)+(q.ver||0)>0)
-    .map(([id,q])=>({von_lagerort_id:id,gk_1kl:q.kl1||0,gk_ver:q.ver||0}));
-  if(!currentQuellen.length){toast('⚠ Keine Menge angegeben');return;}
-  const allePositionen=[..._wiz.um_positionen,{sorte:_wiz.sorte,schlag_id:_wiz.um_schlagId,dg:_wiz.um_dg,quellen:currentQuellen}];
-  // Bestehende Einträge (Edit-Mode) entfernen
+  const allocEntries=Object.entries(_wiz.um_schlagAlloc).filter(([,a])=>(a.kl1||0)+(a.ver||0)>0);
+  if(!allocEntries.length){toast('⚠ Keine Menge angegeben');return;}
+  // Edit-Mode: alten Eintrag entfernen
   if(_wiz.editId) D.ernte_ist=D.ernte_ist.filter(e=>e.id!==_wiz.editId);
-  // Jede Position als eigenen Eintrag speichern (gleicher Lieferschein verbindet sie)
-  allePositionen.forEach((pos,i)=>{
-    const entryId=(i===0&&_wiz.editId&&allePositionen.length===1)
+  // Pro Schlag einen eigenen Umbuchungseintrag speichern
+  const savedIds=[];
+  allocEntries.forEach(([akey,a],i)=>{
+    const schlagId=a.schlag_id||(akey.split('::')[0]);
+    const dg=a.dg!==undefined?a.dg:(parseInt(akey.split('::')[1])||0);
+    const sc=D.schlage.find(x=>x.id===schlagId);
+    const entryId=(i===0&&_wiz.editId&&allocEntries.length===1)
       ?_wiz.editId
       :('umb_'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,7));
     const entry={
-      id:entryId,typ:'umbuchung',datum:_wiz.datum,sorte:pos.sorte,
-      ...(pos.schlag_id?{schlag_id:pos.schlag_id}:{}),
-      ...(pos.dg?{dg:pos.dg}:{}),
+      id:entryId,typ:'umbuchung',datum:_wiz.datum,
+      sorte:sc?.sorte||'',
+      ...(schlagId?{schlag_id:schlagId}:{}),
+      ...(dg?{dg}:{}),
       ...(ls?{lieferschein:ls}:{}),
       ziel_lagerort_id:_wiz.um_zielId,
-      quellen:pos.quellen,
+      quellen:[{von_lagerort_id:_wiz.um_quelleId,gk_1kl:a.kl1||0,gk_ver:a.ver||0,...(a.kg_actual?{kg_actual:a.kg_actual}:{})}],
       notiz
     };
     D.ernte_ist.push(entry);
+    savedIds.push(entryId);
   });
+  // Wenn aus Lagerplan gestartet: Zellen aus gaimbergPlan entfernen
+  if(_wiz._lpKeys&&_wiz._lpKeys.length){
+    _lpPushHistory();
+    if(!D.gaimbergPlan)D.gaimbergPlan={};
+    _wiz._lpKeys.forEach(k=>delete D.gaimbergPlan[k]);
+    _wiz._lpKeys=null;
+  }
   scheduleSave();closeMod('mod-ernte-wizard');renderErnteIst();
   const zielName=D.lagerorte.find(l=>l.id===_wiz.um_zielId)?.name||'?';
-  const tot=allePositionen.reduce((s,p)=>s+p.quellen.reduce((ss,q)=>ss+(q.gk_1kl||0)+(q.gk_ver||0),0),0);
-  const posLabel=allePositionen.length>1?allePositionen.length+' Partien':_wiz.sorte;
-  toast('✅ '+tot+' GK '+posLabel+' → '+zielName);
+  const quelleName=D.lagerorte.find(l=>l.id===_wiz.um_quelleId)?.name||'?';
+  const tot=allocEntries.reduce((s,[,a])=>s+(a.kl1||0)+(a.ver||0),0);
+  const sCount=allocEntries.length;
+  toast('✅ '+tot+' GK'+(sCount>1?' · '+sCount+' Schläge':'')+' → '+quelleName+' → '+zielName);
+  if(confirm('Umbuchung gespeichert.\n\nUmbuchungsschein drucken?'))printUmbuchungsschein(savedIds);
 }
 
 // ─── Schritt 0: Sorte ────────────────────────────────────────
@@ -4801,17 +4975,20 @@ function _wizRenderSchlag(body,footer){
 function _wizSelectSchlag(id){_wiz.schlagId=id;_wiz.step=2;_wizRender();}
 
 // ─── Schritt 2: Mengen ────────────────────────────────────────
-function _wizSetEinheit(e){
-  _wiz.einheit=e;
-  _wizRenderMengen(document.getElementById('wiz-body'),document.getElementById('wiz-footer'));
-}
-
 function _wizAdj(field,delta){
   _wiz[field]=Math.max(0,(_wiz[field]||0)+delta);
   const el=document.getElementById('wiz-v-'+field);
   if(el) el.textContent=_wiz[field];
+  const totGk=(_wiz.gk1kl||0)+(_wiz.gkVer||0);
   const totEl=document.getElementById('wiz-gk-total');
-  if(totEl){const t=(_wiz.gk1kl||0)+(_wiz.gkVer||0);totEl.style.display=t?'':'none';totEl.innerHTML='Gesamt: <b>'+t+' GK</b>';}
+  if(totEl){totEl.style.display=totGk?'':'none';totEl.innerHTML='Gesamt: <b>'+totGk+' GK</b>';}
+  // kg-Placeholder und Ratio aktualisieren
+  const sc=_getAllSchlage().find(x=>x.id===_wiz.schlagId);
+  const nkg=D.sorten?.find(s=>s.name===sc?.sorte)?.netto_kg||getSorteNkg(sc?.sorte)||330;
+  const kgInp=document.getElementById('wiz-kg-actual');
+  if(kgInp) kgInp.placeholder=totGk?Math.round(totGk*nkg)+' kg':'';
+  const ratioEl=document.getElementById('wiz-kg-ratio');
+  if(ratioEl&&_wiz.kg_actual&&totGk) ratioEl.textContent='= '+Math.round(_wiz.kg_actual/totGk)+' kg/GK';
 }
 
 function _wizKgAdj(field,delta){
@@ -4830,21 +5007,25 @@ function _wizRenderMengen(body,footer){
   const sc=_getAllSchlage().find(x=>x.id===_wiz.schlagId);
   const farbe=betriebFarbe(sc?.betrieb||'');
   const farbeBg=betriebFarbeBg(sc?.betrieb||'');
-  const isGk=_wiz.einheit==='gk';
-  // Stepper row helper
-  const stepRow=(field,val,label,c1,cbg,cbdr,isKg)=>
+  const nkg=D.sorten?.find(s=>s.name===sc?.sorte)?.netto_kg||getSorteNkg(sc?.sorte)||330;
+  const totGk=(_wiz.gk1kl||0)+(_wiz.gkVer||0);
+  const kgPlaceholder=totGk?Math.round(totGk*nkg)+' kg':'';
+  const kgRatioHtml=()=>{
+    const v=_wiz.kg_actual;
+    if(!v||!totGk) return '';
+    const ratio=Math.round(v/totGk);
+    return`<span id="wiz-kg-ratio" style="font-size:.72rem;color:var(--txl);font-style:italic">= ${ratio} kg/GK</span>`;
+  };
+  const stepRow=(field,val,label,c1,cbg,cbdr)=>
     `<div style="margin-bottom:18px">
       <div style="font-size:.76rem;font-weight:700;color:${c1};text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">${label}</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:12px">
-        <button onclick="${isKg?`_wizKgAdj('${field}',-1)`:`_wizAdj('${field}',-1)`}" style="width:54px;height:54px;border-radius:14px;background:${cbg};border:2px solid ${cbdr};font-size:1.8rem;font-weight:700;cursor:pointer;color:${c1};-webkit-tap-highlight-color:transparent">−</button>
-        ${isKg
-          ?`<input type="number" id="wiz-v-${field}" min="0" step="1" placeholder="0" value="${val||''}" oninput="_wiz.${field}=parseFloat(this.value||0)||0;_wizUpdateKgTotal()" style="font-size:2.2rem;font-weight:800;width:110px;text-align:center;border:none;border-bottom:3px solid ${cbdr};border-radius:0;padding:4px 0;color:${c1};background:transparent;-moz-appearance:textfield">`
-          :`<div id="wiz-v-${field}" style="font-size:2.8rem;font-weight:800;min-width:80px;text-align:center;color:var(--pd)">${val}</div>`
-        }
-        <button onclick="${isKg?`_wizKgAdj('${field}',1)`:`_wizAdj('${field}',1)`}" style="width:54px;height:54px;border-radius:14px;background:${c1};border:none;font-size:1.8rem;font-weight:700;cursor:pointer;color:#fff;-webkit-tap-highlight-color:transparent">+</button>
+        <button onclick="_wizAdj('${field}',-1)" style="width:54px;height:54px;border-radius:14px;background:${cbg};border:2px solid ${cbdr};font-size:1.8rem;font-weight:700;cursor:pointer;color:${c1};-webkit-tap-highlight-color:transparent">−</button>
+        <div id="wiz-v-${field}" style="font-size:2.8rem;font-weight:800;min-width:80px;text-align:center;color:var(--pd)">${val}</div>
+        <button onclick="_wizAdj('${field}',1)" style="width:54px;height:54px;border-radius:14px;background:${c1};border:none;font-size:1.8rem;font-weight:700;cursor:pointer;color:#fff;-webkit-tap-highlight-color:transparent">+</button>
       </div>
       <div style="display:flex;justify-content:center;gap:6px;margin-top:8px">
-        ${(isKg?[-500,-250,250,500]:[-10,-5,5,10]).map(n=>`<button onclick="${isKg?`_wizKgAdj('${field}',${n})`:`_wizAdj('${field}',${n})`}" style="padding:6px 12px;border-radius:8px;background:${cbg};border:1px solid ${cbdr};font-size:.8rem;font-weight:700;color:${c1};cursor:pointer;-webkit-tap-highlight-color:transparent">${n>0?'+':''}${n}</button>`).join('')}
+        ${[-10,-5,5,10].map(n=>`<button onclick="_wizAdj('${field}',${n})" style="padding:6px 12px;border-radius:8px;background:${cbg};border:1px solid ${cbdr};font-size:.8rem;font-weight:700;color:${c1};cursor:pointer;-webkit-tap-highlight-color:transparent">${n>0?'+':''}${n}</button>`).join('')}
       </div>
     </div>`;
 
@@ -4854,21 +5035,22 @@ function _wizRenderMengen(body,footer){
       <div><div style="font-size:.7rem;color:var(--txl)">Schlag</div><div style="font-size:1rem;font-weight:700">${sc?sc.name:'?'}</div></div>
       ${sc?.betrieb?`<div style="margin-left:auto;font-size:.75rem;color:${farbe};font-weight:700">${sc.betrieb}</div>`:''}
     </div>`+
-    // Einheit-Toggle
-    `<div style="display:flex;background:#f1f5f9;border-radius:10px;padding:3px;margin-bottom:16px;gap:3px">
-      <button onclick="_wizSetEinheit('gk')" style="flex:1;padding:9px 8px;border-radius:8px;border:none;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;background:${isGk?'#fff':'transparent'};color:${isGk?'var(--pd)':'var(--txl)'};box-shadow:${isGk?'0 1px 4px rgba(0,0,0,.1)':'none'}">📦 GK Kisten</button>
-      <button onclick="_wizSetEinheit('kg')" style="flex:1;padding:9px 8px;border-radius:8px;border:none;font-size:.85rem;font-weight:700;cursor:pointer;transition:all .2s;background:${!isGk?'#fff':'transparent'};color:${!isGk?'var(--pd)':'var(--txl)'};box-shadow:${!isGk?'0 1px 4px rgba(0,0,0,.1)':'none'}">⚖️ Kilogramm</button>
+    stepRow('gk1kl',_wiz.gk1kl,'🍎 GK 1. Klasse','#2e7d32','#e8f5e9','#a5d6a7')+
+    stepRow('gkVer',_wiz.gkVer,'🐛 GK Verarbeitung','#e65100','#fff3e0','#ffcc80')+
+    `<div id="wiz-gk-total" style="text-align:center;font-size:.82rem;color:var(--txl);${_wiz.gk1kl||_wiz.gkVer?'':'display:none'}">Gesamt: <b>${totGk} GK</b></div>`+
+    // Optionales kg-Feld
+    `<div style="margin-top:14px;padding:12px 14px;background:var(--bg);border-radius:10px;border:1px solid var(--bdr)">
+      <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">⚖️ Gewicht effektiv <span style="font-weight:400;opacity:.6">(optional)</span></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <input type="number" id="wiz-kg-actual" min="0" step="1" placeholder="${kgPlaceholder}" value="${_wiz.kg_actual||''}"
+          oninput="_wizSetKgActual(this.value)"
+          style="border:1px solid var(--bdr);border-radius:8px;padding:7px 10px;font-size:.9rem;width:120px;-moz-appearance:textfield">
+        <span style="font-size:.82rem;color:var(--txl)">kg</span>
+        <span id="wiz-kg-ratio" style="font-size:.72rem;color:var(--txl);font-style:italic">${_wiz.kg_actual&&totGk?'= '+Math.round(_wiz.kg_actual/totGk)+' kg/GK':''}</span>
+      </div>
     </div>`+
-    (isGk
-      ? stepRow('gk1kl',_wiz.gk1kl,'🍎 GK 1. Klasse','#2e7d32','#e8f5e9','#a5d6a7',false)+
-        stepRow('gkVer',_wiz.gkVer,'🐛 GK Verarbeitung','#e65100','#fff3e0','#ffcc80',false)+
-        `<div id="wiz-gk-total" style="text-align:center;font-size:.82rem;color:var(--txl);${_wiz.gk1kl||_wiz.gkVer?'':'display:none'}">Gesamt: <b>${(_wiz.gk1kl||0)+(_wiz.gkVer||0)} GK</b></div>`
-      : stepRow('kg1kl',_wiz.kg1kl,'🍎 kg 1. Klasse','#2e7d32','#e8f5e9','#a5d6a7',true)+
-        stepRow('kgVer',_wiz.kgVer,'🐛 kg Verarbeitung','#e65100','#fff3e0','#ffcc80',true)+
-        `<div id="wiz-kg-total" style="text-align:center;font-size:.82rem;color:var(--txl);${_wiz.kg1kl||_wiz.kgVer?'':'display:none'}">Gesamt: <b>${((_wiz.kg1kl||0)+(_wiz.kgVer||0)).toFixed(1)} kg</b></div>`
-    )+
     // Notiz
-    `<div style="margin-top:16px"><input type="text" id="wiz-notiz" placeholder="Notiz (optional)" value="${(_wiz.notiz||'').replace(/"/g,'&quot;')}" oninput="_wiz.notiz=this.value" style="border:1px solid var(--bdr);border-radius:8px;padding:9px 12px;font-size:.85rem;width:100%"></div>`+
+    `<div style="margin-top:12px"><input type="text" id="wiz-notiz" placeholder="Notiz (optional)" value="${(_wiz.notiz||'').replace(/"/g,'&quot;')}" oninput="_wiz.notiz=this.value" style="border:1px solid var(--bdr);border-radius:8px;padding:9px 12px;font-size:.85rem;width:100%"></div>`+
     // Durchgang
     `<div style="margin-top:12px;padding:14px 16px;background:var(--bg);border-radius:10px;border:1px solid var(--bdr)">
       <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">🔢 Durchgang <span style="font-weight:400;opacity:.6">(optional)</span></div>
@@ -4889,6 +5071,19 @@ function _wizRenderMengen(body,footer){
     '<button onclick="_wizGoLagerort()" style="padding:10px 20px;border-radius:8px;background:var(--p);color:#fff;border:none;font-size:.92rem;font-weight:700;cursor:pointer">Weiter →</button>';
 }
 
+function _wizSetKgActual(val){
+  const v=parseFloat(val);
+  _wiz.kg_actual=(val===''||isNaN(v)||v<=0)?null:v;
+  // GK-Summe für Ratio
+  const totGk=(_wiz.gk1kl||0)+(_wiz.gkVer||0);
+  const ratioEl=document.getElementById('wiz-kg-ratio');
+  if(ratioEl){
+    if(_wiz.kg_actual&&totGk) ratioEl.textContent='= '+Math.round(_wiz.kg_actual/totGk)+' kg/GK';
+    else ratioEl.textContent='';
+  }
+  // Placeholder-Update wenn GK sich geändert hätte (nicht nötig hier, nur ratio)
+}
+
 function _wizSetDg(n){
   _wiz.dg=n;
   [0,1,2,3,4].forEach(i=>{
@@ -4904,15 +5099,12 @@ function _wizSetDg(n){
 function _wizGoLagerort(){
   _wiz.datum=document.getElementById('wiz-datum').value;
   if(!_wiz.datum){alert('Bitte Datum ausfüllen');return;}
-  const isGk=_wiz.einheit==='gk';
-  if(isGk&&!_wiz.gk1kl&&!_wiz.gkVer){alert('Bitte GK-Menge eingeben');return;}
-  if(!isGk&&!_wiz.kg1kl&&!_wiz.kgVer){alert('Bitte kg-Menge eingeben');return;}
+  if(!_wiz.gk1kl&&!_wiz.gkVer){alert('Bitte GK-Menge eingeben');return;}
   if(!D.lagerorte.length){alert('Bitte zuerst einen Lagerort anlegen');return;}
   _wiz.verteilung={};
   // Einzelner Lagerort → auto-zuweisen und direkt speichern
   if(D.lagerorte.length===1){
-    if(isGk) _wiz.verteilung[D.lagerorte[0].id]={kl1:_wiz.gk1kl,ver:_wiz.gkVer};
-    else _wiz.verteilung[D.lagerorte[0].id]={kl1:0,ver:0};
+    _wiz.verteilung[D.lagerorte[0].id]={kl1:_wiz.gk1kl,ver:_wiz.gkVer};
     saveErnteWizard();
     return;
   }
@@ -4921,8 +5113,7 @@ function _wizGoLagerort(){
 
 // ─── Schritt 3: Lagerort ────────────────────────────────────
 function _wizRenderLagerort(body,footer){
-  const isGk=_wiz.einheit==='gk';
-  if(isGk){
+  {
     const tot1=_wiz.gk1kl,totV=_wiz.gkVer;
     const calcA=()=>{let a1=0,aV=0;Object.values(_wiz.verteilung).forEach(v=>{a1+=(v.kl1||0);aV+=(v.ver||0);});return{a1,aV};};
     const {a1,aV}=calcA();
@@ -4953,16 +5144,6 @@ function _wizRenderLagerort(body,footer){
       '<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:12px">Wohin einlagern?</div>'+
       lRows+
       `<div id="wiz-lager-status" style="padding:10px 12px;border-radius:8px;font-size:.82rem;font-weight:700;background:${allOk?'#e8f5e9':anyOver?'#ffebee':'#fff3e0'};color:${allOk?'#2e7d32':anyOver?'var(--crit)':'#e65100'}">${allOk?'✅ Vollständig zugeteilt':anyOver?'⚠️ Zu viel zugeteilt!':('Noch offen: '+(tot1>0?r1+' GK 1.Kl ':''+(totV>0?rV+' GK Verarb.':'')).trim())}</div>`;
-  } else {
-    // kg-Modus: Lagerort per Button auswählen (Mehrfachauswahl möglich)
-    body.innerHTML=
-      '<div style="font-size:.78rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px">Wohin einlagern?</div>'+
-      '<div style="display:flex;flex-direction:column;gap:8px">'+
-      D.lagerorte.map(l=>{
-        const sel=_wiz.verteilung[l.id]!==undefined;
-        return`<button onclick="_wizToggleLagerKg('${l.id}')" style="padding:16px;border-radius:12px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--p)':'#fff'};color:${sel?'#fff':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:pointer;text-align:left;-webkit-tap-highlight-color:transparent;user-select:none">${sel?'✅ ':''} ${l.name}</button>`;
-      }).join('')+
-      '</div>';
   }
   // HACCP-Sektion anhängen (via id-Div um re-render zu ermöglichen)
   body.innerHTML+=`<div id="wiz-haccp-wrap">${_wizHaccpHtml()}</div>`;
@@ -5026,7 +5207,7 @@ function _wizUpdateKistenBadge(){
   const badge=document.getElementById('wiz-kisten-badge');
   const badgeVal=document.getElementById('wiz-kisten-badge-val');
   if(!badge||!badgeVal) return;
-  if(_wiz.step!==3||_wiz.einheit!=='gk'){badge.style.display='none';return;}
+  if(_wiz.step!==3){badge.style.display='none';return;}
   const tot1=_wiz.gk1kl||0,totV=_wiz.gkVer||0;
   let a1=0,aV=0;Object.values(_wiz.verteilung).forEach(v=>{a1+=(v.kl1||0);aV+=(v.ver||0);});
   const r1=tot1-a1,rV=totV-aV;
@@ -5078,25 +5259,16 @@ async function saveErnteWizard(){
   const datum=document.getElementById('wiz-datum').value;
   if(!datum){alert('Bitte Datum ausfüllen');return;}
   if(!_wiz.schlagId){alert('Bitte Schlag auswählen');return;}
-  const isGk=_wiz.einheit==='gk';
-  let entry;
-  if(isGk){
-    if(!_wiz.gk1kl&&!_wiz.gkVer){alert('Bitte GK-Menge eingeben');return;}
-    const vSum1=Object.values(_wiz.verteilung).reduce((s,v)=>s+(v.kl1||0),0);
-    const vSumV=Object.values(_wiz.verteilung).reduce((s,v)=>s+(v.ver||0),0);
-    if(vSum1!==_wiz.gk1kl||vSumV!==_wiz.gkVer){
-      alert('Alle Kisten müssen zugeteilt sein!\n1.Kl: '+vSum1+' von '+_wiz.gk1kl+'\nVerarb.: '+vSumV+' von '+_wiz.gkVer);return;
-    }
-    const verteilung=Object.entries(_wiz.verteilung).filter(([,v])=>v.kl1||v.ver)
-      .map(([standort_id,v])=>({standort_id,gk_1kl:v.kl1||0,gk_verarbeitung:v.ver||0}));
-    entry={id:_wiz.editId||uid(),typ:'ernte',datum,schlag_id:_wiz.schlagId,gk_1kl:_wiz.gk1kl,gk_verarbeitung:_wiz.gkVer,verteilung,notiz:_wiz.notiz,...(_wiz.dg?{dg:_wiz.dg}:{}),haccp:_wiz.haccp||{}};
-  } else {
-    if(!_wiz.kg1kl&&!_wiz.kgVer){alert('Bitte kg-Menge eingeben');return;}
-    if(!Object.keys(_wiz.verteilung).length){alert('Bitte Lagerort auswählen');return;}
-    const verteilung=Object.keys(_wiz.verteilung).map(sid=>({standort_id:sid,gk_1kl:0,gk_verarbeitung:0,kg_1kl:_wiz.kg1kl,kg_verarbeitung:_wiz.kgVer}));
-    entry={id:_wiz.editId||uid(),typ:'ernte',datum,schlag_id:_wiz.schlagId,gk_1kl:0,gk_verarbeitung:0,kg_1kl:_wiz.kg1kl,kg_verarbeitung:_wiz.kgVer,verteilung,notiz:_wiz.notiz,...(_wiz.dg?{dg:_wiz.dg}:{}),haccp:_wiz.haccp||{}};
+  if(!_wiz.gk1kl&&!_wiz.gkVer){alert('Bitte GK-Menge eingeben');return;}
+  const vSum1=Object.values(_wiz.verteilung).reduce((s,v)=>s+(v.kl1||0),0);
+  const vSumV=Object.values(_wiz.verteilung).reduce((s,v)=>s+(v.ver||0),0);
+  if(vSum1!==_wiz.gk1kl||vSumV!==_wiz.gkVer){
+    alert('Alle Kisten müssen zugeteilt sein!\n1.Kl: '+vSum1+' von '+_wiz.gk1kl+'\nVerarb.: '+vSumV+' von '+_wiz.gkVer);return;
   }
-  const menge=isGk?((_wiz.gk1kl||0)+(_wiz.gkVer||0)+' GK'):((_wiz.kg1kl||0)+(_wiz.kgVer||0)).toFixed(1)+' kg';
+  const verteilung=Object.entries(_wiz.verteilung).filter(([,v])=>v.kl1||v.ver)
+    .map(([standort_id,v])=>({standort_id,gk_1kl:v.kl1||0,gk_verarbeitung:v.ver||0}));
+  const entry={id:_wiz.editId||uid(),typ:'ernte',datum,schlag_id:_wiz.schlagId,gk_1kl:_wiz.gk1kl,gk_verarbeitung:_wiz.gkVer,...(_wiz.kg_actual?{kg_actual:_wiz.kg_actual}:{}),verteilung,notiz:_wiz.notiz,...(_wiz.dg?{dg:_wiz.dg}:{}),haccp:_wiz.haccp||{}};
+  const menge=((_wiz.gk1kl||0)+(_wiz.gkVer||0))+' GK';
   // Ziel-Betrieb aus Schlag bestimmen (eigene + Gruppen-Schlage)
   const sc=_getAllSchlage().find(x=>x.id===_wiz.schlagId);
   const schlagBetriebId=sc?._fremdbetrieb_id||sc?.betrieb_id;
@@ -5224,8 +5396,7 @@ function _twRender(){
 }
 
 function _twStep1(body,footer){
-  const lagerTypIcon=t=>t==='kuehl'?'🧊':t==='zwischen'?'📦':t==='verarbeiter'?'🏭':'📋';
-  const verwOpts=D.lagerorte.map(l=>`<option value="${l.id}"${l.id===_tw.verwendungId?' selected':''}>${lagerTypIcon(l.typ)} ${l.name}</option>`).join('');
+  const verwOpts=D.lagerorte.map(l=>`<option value="${l.id}"${l.id===_tw.verwendungId?' selected':''}>${l.name}</option>`).join('');
   const bestandRows=D.lagerorte.map(l=>{
     const b=calcStandortBestand(l.id);if(b.total===0)return'';
     const parts=[];if(b.gk1kl>0)parts.push(`<b style="color:var(--pl)">${b.gk1kl}</b> 1.Kl`);if(b.gkVer>0)parts.push(`<b style="color:var(--info)">${b.gkVer}</b> Verarb.`);
@@ -5607,6 +5778,102 @@ function printLieferschein(entryId){
   win.document.close();
 }
 
+function printUmbuchungsschein(entryIds){
+  // entryIds: Array von IDs der neu gespeicherten Umbuchungseinträge
+  const entries=entryIds.map(id=>D.ernte_ist.find(e=>e.id===id)).filter(Boolean);
+  if(!entries.length)return;
+  const e0=entries[0];
+  const quelleName=((e0.quellen||[])[0]?.von_lagerort_id)
+    ?D.lagerorte.find(l=>l.id===e0.quellen[0].von_lagerort_id)?.name||'?':'?';
+  const zielName=e0.ziel_lagerort_id?D.lagerorte.find(l=>l.id===e0.ziel_lagerort_id)?.name||'?':'?';
+  let rows='';let totKl1=0,totVer=0,totKg=0;
+  entries.forEach((e,i)=>{
+    const sc=D.schlage.find(x=>x.id===e.schlag_id);
+    const kl1=(e.quellen||[]).reduce((s,q)=>s+(q.gk_1kl||0),0);
+    const ver=(e.quellen||[]).reduce((s,q)=>s+(q.gk_ver||0),0);
+    totKl1+=kl1;totVer+=ver;
+    const dgTxt=e.dg?e.dg+'.DG':'–';
+    const kgActual=(e.quellen||[]).reduce((s,q)=>s+(q.kg_actual||0),0);
+    const nkgSorte=D.sorten?.find(s=>s.name===(sc?.sorte))?.netto_kg||getSorteNkg(sc?.sorte)||330;
+    const kgDefault=(kl1+ver)*nkgSorte;
+    const kgAnzeige=kgActual||kgDefault;
+    totKg+=kgAnzeige;
+    rows+=`<tr>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;font-size:12px;color:#555">${i+1}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd">${sc?sc.name:'–'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd">${sc?sc.betrieb||'–':'–'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd">${sc?sc.sorte||'–':'–'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;text-align:center">${dgTxt}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;text-align:right;font-weight:700">${kl1||'–'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;text-align:right;font-weight:700">${ver||'–'}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;text-align:right;font-weight:700">${kl1+ver}</td>
+      <td style="padding:6px 10px;border-bottom:1px solid #ddd;text-align:right;font-weight:${kgActual?'800':'400'}">${kgAnzeige.toLocaleString('de')}${kgActual?' ⚖️':''}</td>
+    </tr>`;
+  });
+  const lsNr=e0.lieferschein||'';
+  const notiz=e0.notiz||'';
+  const html=`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
+  <title>Umbuchungsschein ${e0.datum}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111;padding:32px;max-width:780px;margin:auto}
+    h1{font-size:22px;font-weight:800;margin-bottom:4px}
+    .sub{color:#666;font-size:12px;margin-bottom:24px}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px}
+    th{background:#1565c0;color:#fff;text-align:left;padding:7px 10px;font-size:11px;letter-spacing:.03em}
+    td{font-size:13px;vertical-align:top}
+    .total-row td{font-weight:700;background:#e3f2fd;border-top:2px solid #1565c0;padding:8px 10px}
+    .meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 20px;margin-bottom:20px}
+    .meta-item{background:#f8f8f8;border:1px solid #ddd;border-radius:6px;padding:9px 12px}
+    .meta-label{font-size:10px;text-transform:uppercase;color:#888;letter-spacing:.04em;margin-bottom:3px}
+    .meta-value{font-size:15px;font-weight:700}
+    .arrow{font-size:28px;text-align:center;color:#1565c0;margin-bottom:20px}
+    .footer{margin-top:40px;display:grid;grid-template-columns:1fr 1fr;gap:60px}
+    .sig-line{border-top:1px solid #333;margin-top:40px;padding-top:6px;font-size:11px;color:#666}
+    @media print{body{padding:16px}}
+  </style></head><body>
+  <h1>📦 Umbuchungsschein</h1>
+  <div class="sub">Obstbaumanager · Kuenz · erstellt: ${fmtD(new Date().toISOString().slice(0,10))}</div>
+  <div class="meta">
+    <div class="meta-item"><div class="meta-label">Datum</div><div class="meta-value">${fmtD(e0.datum)}</div></div>
+    <div class="meta-item"><div class="meta-label">Von</div><div class="meta-value">${quelleName}</div></div>
+    <div class="meta-item"><div class="meta-label">Nach</div><div class="meta-value">${zielName}</div></div>
+  </div>
+  ${lsNr?`<div style="margin-bottom:16px;font-size:12px">Lieferschein-Nr: <b>${lsNr}</b></div>`:''}
+  <table>
+    <thead><tr>
+      <th style="width:30px">#</th>
+      <th>Schlag</th>
+      <th>Betrieb</th>
+      <th>Sorte</th>
+      <th style="text-align:center">DG</th>
+      <th style="text-align:right">GK 1.Kl</th>
+      <th style="text-align:right">GK Verarb.</th>
+      <th style="text-align:right">GK Σ</th>
+      <th style="text-align:right">Gewicht (kg)</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr class="total-row">
+      <td colspan="5">Gesamt</td>
+      <td style="text-align:right">${totKl1||'–'}</td>
+      <td style="text-align:right">${totVer||'–'}</td>
+      <td style="text-align:right">${totKl1+totVer} GK</td>
+      <td style="text-align:right">${totKg.toLocaleString('de')} kg</td>
+    </tr></tfoot>
+  </table>
+  ${notiz?`<p style="margin-bottom:24px;font-size:12px;color:#555">Notiz: ${notiz}</p>`:''}
+  <div class="footer">
+    <div><div class="sig-line">Übergabe (${quelleName})</div></div>
+    <div><div class="sig-line">Übernahme (${zielName})</div></div>
+  </div>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`;
+  const win=window.open('','_blank','width=820,height=900');
+  if(!win){alert('Bitte Pop-ups erlauben für den Umbuchungsschein-Druck.');return;}
+  win.document.write(html);
+  win.document.close();
+}
+
 function deleteErnteBuchung(){
   const id=document.getElementById('buch-edit-id').value;
   if(!id||!confirm('Buchung wirklich löschen?'))return;
@@ -5841,7 +6108,10 @@ function openLagerSorteDrilldown(lagerId,sorte){
           <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--pl)">+${kl1||'–'}</td>
           <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--info)">${ver?'+'+ver:'–'}</td>
           <td style="padding:6px 8px;text-align:center">${dgBadge}</td>
-          <td style="padding:4px 6px;text-align:center"><button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" title="Umbuchung bearbeiten" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--p);line-height:1">🖊</button></td>
+          <td style="padding:4px 6px;text-align:center;white-space:nowrap">
+            <button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" title="Umbuchung bearbeiten" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--p);line-height:1">🖊</button>
+            <button onclick="deleteEintragDrilldown('${e.id}','${lagerId}','${sorte.replace(/'/g,"\\'")}','umbuchung')" title="Löschen" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--crit);line-height:1">🗑</button>
+          </td>
         </tr>`;
       } else {
         // Abgehende Umbuchung
@@ -5854,7 +6124,10 @@ function openLagerSorteDrilldown(lagerId,sorte){
           <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:#c62828">${absKl1?'−'+absKl1:'–'}</td>
           <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:#c62828">${absVer?'−'+absVer:'–'}</td>
           <td style="padding:6px 8px;text-align:center">${dgBadge}</td>
-          <td style="padding:4px 6px;text-align:center"><button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" title="Umbuchung bearbeiten" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--p);line-height:1">🖊</button></td>
+          <td style="padding:4px 6px;text-align:center;white-space:nowrap">
+            <button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" title="Umbuchung bearbeiten" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--p);line-height:1">🖊</button>
+            <button onclick="deleteEintragDrilldown('${e.id}','${lagerId}','${sorte.replace(/'/g,"\\'")}','umbuchung')" title="Löschen" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--crit);line-height:1">🗑</button>
+          </td>
         </tr>`;
       }
     } else {
@@ -5862,14 +6135,29 @@ function openLagerSorteDrilldown(lagerId,sorte){
       const dgBadge=e.dg
         ?`<span style="background:#e0f2fe;color:#0369a1;border-radius:8px;padding:1px 6px;font-size:.68rem;font-weight:700">${e.dg}.DG</span>`
         :`<span style="color:var(--txl);font-size:.7rem">—</span>`;
+      // Zeige wohin von dieser Buchung Ware umgebucht wurde
+      const abgaengeUm=_getAllErnteIst().filter(ub=>{
+        if(getEntryTyp(ub)!=='umbuchung')return false;
+        if(ub.schlag_id!==e.schlag_id)return false;
+        if(e.dg&&(ub.dg||0)!==e.dg)return false;
+        return (ub.quellen||[]).some(q=>q.von_lagerort_id===lagerId);
+      });
+      const abgaengeTxt=abgaengeUm.length
+        ?'<div style="font-size:.65rem;color:#b71c1c;margin-top:2px">📤 '
+          +[...new Set(abgaengeUm.map(ub=>D.lagerorte.find(l=>l.id===ub.ziel_lagerort_id)?.name||'?'))].join(', ')
+          +'</div>'
+        :'';
       html+=`<tr style="border-bottom:1px solid var(--bdr)">
         <td style="padding:6px 8px;font-size:.75rem;color:var(--txl);white-space:nowrap">${_buchNr}</td>
         <td style="padding:6px 8px;font-size:.8rem;white-space:nowrap"><b>${fmtD(e.datum)}</b></td>
-        <td style="padding:6px 8px;font-size:.8rem">${schlagName}</td>
+        <td style="padding:6px 8px;font-size:.8rem">${schlagName}${abgaengeTxt}</td>
         <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--pl)">${kl1||'–'}</td>
         <td style="padding:6px 8px;text-align:right;font-size:.9rem;font-weight:700;color:var(--info)">${ver||'–'}</td>
         <td style="padding:6px 8px;text-align:center">${dgBadge}</td>
-        <td style="padding:4px 6px;text-align:center"><button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" title="Buchung bearbeiten" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--p);line-height:1">🖊</button></td>
+        <td style="padding:4px 6px;text-align:center;white-space:nowrap">
+          <button onclick="closeMod('mod-lager-drill');openErnteWizard('${e.id}')" title="Buchung bearbeiten" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--p);line-height:1">🖊</button>
+          <button onclick="deleteEintragDrilldown('${e.id}','${lagerId}','${sorte.replace(/'/g,"\\'")}','ernte')" title="Löschen" style="background:none;border:none;font-size:1rem;cursor:pointer;padding:4px;color:var(--crit);line-height:1">🗑</button>
+        </td>
       </tr>`;
     }
   });
@@ -5884,6 +6172,36 @@ function openLagerSorteDrilldown(lagerId,sorte){
 
   document.getElementById('lager-drill-title').textContent='🏪 '+( l?.name||'Lager')+' · '+sorte;
   document.getElementById('lager-drill-body').innerHTML=html;
+}
+
+function deleteEintragDrilldown(entryId,lagerId,sorte,typ){
+  const e=D.ernte_ist.find(x=>x.id===entryId);
+  if(!e){toast('Eintrag nicht gefunden');return;}
+  if(typ==='ernte'){
+    // Prüfen ob Ware von diesem Lagerort später umgebucht wurde
+    const deps=_getAllErnteIst().filter(ub=>{
+      if(getEntryTyp(ub)!=='umbuchung')return false;
+      if(ub.schlag_id!==e.schlag_id)return false;
+      return (ub.quellen||[]).some(q=>q.von_lagerort_id===lagerId);
+    });
+    if(deps.length){
+      const ziele=[...new Set(deps.map(ub=>D.lagerorte.find(l=>l.id===ub.ziel_lagerort_id)?.name||'?'))].join(', ');
+      const tot=deps.reduce((s,ub)=>(ub.quellen||[]).reduce((ss,q)=>q.von_lagerort_id===lagerId?ss+(q.gk_1kl||0)+(q.gk_ver||0):ss,s),0);
+      if(!confirm(`⚠️ Diese Erntebuchung wurde bereits umgebucht!\n\n${tot} GK → ${ziele}\n\nWenn du die Erntebuchung löschst, bleibt die Umbuchung erhalten — das ergibt negativen Bestand hier. Soll trotzdem gelöscht werden?\n\nEmpfehlung: erst die Umbuchung(en) löschen.`))return;
+    } else {
+      if(!confirm('Erntebuchung wirklich löschen?'))return;
+    }
+  } else {
+    // Umbuchung löschen: zeige Konsequenz
+    const zielName=e.ziel_lagerort_id?D.lagerorte.find(l=>l.id===e.ziel_lagerort_id)?.name||'?':'?';
+    const qName=((e.quellen||[])[0]?.von_lagerort_id)?D.lagerorte.find(l=>l.id===e.quellen[0].von_lagerort_id)?.name||'?':'?';
+    const tot=(e.quellen||[]).reduce((s,q)=>s+(q.gk_1kl||0)+(q.gk_ver||0),0);
+    if(!confirm(`Umbuchung löschen?\n\n${tot} GK: ${qName} → ${zielName}\n\nDer Bestand wird in ${qName} wieder erhöht und in ${zielName} verringert.`))return;
+  }
+  D.ernte_ist=D.ernte_ist.filter(x=>x.id!==entryId);
+  scheduleSave();renderErnteIst();
+  openLagerSorteDrilldown(lagerId,sorte);
+  toast('🗑 Gelöscht');
 }
 
 function calcStandortBestand(lagerId){
@@ -6136,34 +6454,38 @@ function _lpSelUmbuchung(){
   const gId=(D.lagerorte.find(x=>/gaimberg/i.test(x.name))||{}).id||'gaimberg_1kl';
   // Ausgewählte Kisten aus D.gaimbergPlan lesen (nur eigene)
   const ownPlan=D.gaimbergPlan||{};
-  const groups={}; // schlag_id → {kl1, schlag_id, keys:[]}
+  const groups={}; // akey (schlagId::dg) → {kl1, schlag_id, dg, keys:[]}
   _lpSelected.forEach(key=>{
     const raw=ownPlan[key];
     if(!raw)return;
     const e=_lpEntryData(raw);
     if(!e)return;
     const sid=e.schlag_id||'__unbekannt__';
-    if(!groups[sid])groups[sid]={kl1:0,schlag_id:e.schlag_id||'',keys:[]};
-    groups[sid].kl1++;
-    groups[sid].keys.push(key);
+    const dg=e.dg||0;
+    const akey=sid+'::'+dg;
+    if(!groups[akey])groups[akey]={kl1:0,schlag_id:e.schlag_id||'',dg,keys:[]};
+    groups[akey].kl1++;
+    groups[akey].keys.push(key);
   });
   if(!Object.keys(groups).length){alert('Keine eigenen Kisten ausgewählt');return;}
-  // _tw befüllen: Quelle = Gaimberg für jede Schlag-Gruppe
   const today=new Date().toISOString().slice(0,10);
-  _tw={step:1,datum:today,verwendungId:'',notiz:'',editId:'',alloc:{},_lpKeys:Array.from(_lpSelected)};
-  // Vorab alloc mit Gaimberg als Quelle + Mengen aus Selektion befüllen
-  // (Schritt 2 des Wizards zeigt Lagerorte; Gaimberg wird als Quelle vorbelegt)
-  Object.values(groups).forEach(g=>{
-    if(!_tw.alloc[gId])_tw.alloc[gId]={kl1:0,ver:0,schlag_id:''};
-    _tw.alloc[gId].kl1+=g.kl1;
-    if(g.schlag_id&&!_tw.alloc[gId].schlag_id)_tw.alloc[gId].schlag_id=g.schlag_id;
+  const _haccpDefault={grosskisten:true,erntegeraete:true,tieflade:true,kuehllager:true,reinigung:true};
+  // Lagerumbuchung-Wizard öffnen (nicht Transport!): Quelle = Gaimberg vorbelegen
+  _wiz={buchTyp:'umbuchung',step:1,datum:today,sorte:'',schlagId:'',einheit:'gk',gk1kl:0,gkVer:0,kg1kl:0,kgVer:0,notiz:'',dg:0,verteilung:{},editId:'',haccp:{..._haccpDefault},
+    um_quelleId:gId,um_zielId:'',um_schlagAlloc:{},um_quellen:{},um_schlagId:'',um_dg:0,um_ls:'',um_positionen:[],
+    _lpKeys:Array.from(_lpSelected)};
+  // Mengen aus selektierten Zellen vorausfüllen (nach Schlag × DG gruppiert)
+  Object.entries(groups).forEach(([akey,g])=>{
+    if(!g.schlag_id||g.schlag_id==='__unbekannt__')return;
+    if(!_wiz.um_schlagAlloc[akey])_wiz.um_schlagAlloc[akey]={kl1:0,ver:0,schlag_id:g.schlag_id,dg:g.dg};
+    _wiz.um_schlagAlloc[akey].kl1+=g.kl1;
   });
-  // Selektionsmodus beenden (aber Keys merken in _tw._lpKeys)
+  // Selektionsmodus beenden
   _lpSelMode=false;
   _lpSelected.clear();
   _lpShowZelle(_lpZelle);
-  _twRender();
-  openMod('mod-transport-buchung');
+  _wizRender();
+  openMod('mod-ernte-wizard');
 }
 
 // ── Gaimberg-Kapazitäts-Helfer ───────────────────────────────────────────────
@@ -6183,28 +6505,26 @@ function _lpSortierteKistenBySchlag(){
 }
 
 function _lpGaimbergKistenBySchlag(){
+  // Nettobestand pro Schlag bei Gaimberg — berücksichtigt Ernte-Einbuchungen UND Umbuchungen rein/raus
   const gId=(D.lagerorte.find(x=>/gaimberg/i.test(x.name))||{}).id;
   if(!gId)return{};
-  const map={};
+  // Alle Schläge die je GK nach Gaimberg geerntet haben
+  const schlagIds=new Set();
   _getAllErnteIst().forEach(e=>{
-    const typ=getEntryTyp(e);
-    if(typ!=='ernte')return;
-    let gk=0;
-    // Neues Format: verteilung-Array mit standort_id
-    if(e.verteilung&&e.verteilung.length){
-      e.verteilung.forEach(v=>{
-        if(v.standort_id===gId) gk+=(v.gk_1kl||0)+(v.gk_verarbeitung||0);
-      });
-    } else if(e.standort_id===gId){
-      gk=(e.gk_1kl||0)+(e.gk_verarbeitung||0);
+    if(getEntryTyp(e)==='ernte'&&e.schlag_id){
+      let hasGaimberg=false;
+      if(e.verteilung&&e.verteilung.length) hasGaimberg=e.verteilung.some(v=>v.standort_id===gId);
+      else if(e.standort_id===gId) hasGaimberg=true;
+      (e.buchungen||[]).forEach(b=>{if(b.lager_id===gId)hasGaimberg=true;});
+      if(hasGaimberg) schlagIds.add(e.schlag_id);
     }
-    // Altes buchungen-Format
-    (e.buchungen||[]).forEach(b=>{
-      if(b.lager_id===gId) gk+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0))+(b.verarbeitung_gk||0);
-    });
-    if(gk>0&&e.schlag_id) map[e.schlag_id]=(map[e.schlag_id]||0)+gk;
   });
-  return map; // {schlag_id: gkGesamtBeiGaimberg}
+  const map={};
+  schlagIds.forEach(schlag_id=>{
+    const b=calcStandortBestandBySchlag(gId,schlag_id,0); // dg=0 = alle DGs
+    if(b.total>0) map[schlag_id]=b.total;
+  });
+  return map; // {schlag_id: nettoGkBestand bei Gaimberg}
 }
 
 // Returns Set of DG values (0,1,2) that exist in Gaimberg for a given schlag_id
@@ -6229,20 +6549,25 @@ function _lpGaimbergDGsForSchlag(schlag_id){
   return dgs;
 }
 
-// Returns {dg: gkCount} — GK in Gaimberg pro DG für einen Schlag
+// Returns {dg: gkCount} — Netto-GK in Gaimberg pro DG für einen Schlag (inkl. Umbuchungen)
 function _lpGaimbergKistenByDG(schlag_id){
   if(!schlag_id)return{};
   const gId=(D.lagerorte.find(x=>/gaimberg/i.test(x.name))||{}).id;
   if(!gId)return{};
-  const map={};
+  // Alle DGs die für diesen Schlag je Gaimberg-Ernte hatten
+  const dgs=new Set();
   _getAllErnteIst().forEach(e=>{
     if(e.schlag_id!==schlag_id||getEntryTyp(e)!=='ernte')return;
-    let gk=0;
-    if(e.verteilung&&e.verteilung.length){
-      e.verteilung.forEach(v=>{if(v.standort_id===gId)gk+=(v.gk_1kl||0)+(v.gk_verarbeitung||0);});
-    }else if(e.standort_id===gId){gk=(e.gk_1kl||0)+(e.gk_verarbeitung||0);}
-    (e.buchungen||[]).forEach(b=>{if(b.lager_id===gId)gk+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0))+(b.verarbeitung_gk||0);});
-    if(gk>0){const dg=e.dg||0;map[dg]=(map[dg]||0)+gk;}
+    let hasGaimberg=false;
+    if(e.verteilung&&e.verteilung.length) hasGaimberg=e.verteilung.some(v=>v.standort_id===gId);
+    else if(e.standort_id===gId) hasGaimberg=true;
+    (e.buchungen||[]).forEach(b=>{if(b.lager_id===gId)hasGaimberg=true;});
+    if(hasGaimberg) dgs.add(e.dg||0);
+  });
+  const map={};
+  dgs.forEach(dg=>{
+    const b=_calcBestandSchlagDgExact(gId,schlag_id,dg);
+    if(b.total>0) map[dg]=b.total;
   });
   return map;
 }
@@ -6829,7 +7154,7 @@ function _lpCellClick(zi,ri,si,hi){
     _lpEd={zi,ri,si,hi,step:-1, // step=-1 = Aktionsmenü
       sorte:current.sorte||'',schlag_id:current.schlag_id||'',sf:current.sf||false,dg:current.dg||0,
       auslagernBis:current.auslagernBis||'',qualitaet:current.qualitaet||'',groesse:current.groesse||'',sortenMap:{},
-      _gkBySchlag:_lpGaimbergKistenBySchlag(), _planBySchlag:_lpPlanKistenBySchlag(curKey)};
+      _gkBySchlag:_lpGaimbergKistenBySchlag(), _planBySchlag:_lpPlanKistenBySchlag(curKey), _sortiertBySchlag:_lpSortierteKistenBySchlag()};
     openMod('mod-lp-editor');
     _lpEdRender();
     return;
@@ -6838,7 +7163,7 @@ function _lpCellClick(zi,ri,si,hi){
   // Leere Kiste: direkt Wizard öffnen
   const curKey=_lpCellKey(zi,ri,si,hi);
   _lpEd={zi,ri,si,hi,step:0,sorte:'',schlag_id:'',sf:false,dg:0,auslagernBis:'',qualitaet:'',groesse:'',sortenMap:{},
-    _gkBySchlag:_lpGaimbergKistenBySchlag(), _planBySchlag:_lpPlanKistenBySchlag(curKey)};
+    _gkBySchlag:_lpGaimbergKistenBySchlag(), _planBySchlag:_lpPlanKistenBySchlag(curKey), _sortiertBySchlag:_lpSortierteKistenBySchlag()};
   _lpEd.sortenMap=_lpSortenInGaimberg();
   openMod('mod-lp-editor');
   _lpEdRender();
@@ -6974,6 +7299,7 @@ function _lpEdStartEdit(){
     const curKey=_lpCellKey(_lpEd.zi,_lpEd.ri,_lpEd.si,_lpEd.hi);
     _lpEd._gkBySchlag=_lpGaimbergKistenBySchlag();
     _lpEd._planBySchlag=_lpPlanKistenBySchlag(curKey);
+    _lpEd._sortiertBySchlag=_lpSortierteKistenBySchlag();
     _lpEdRender();
   });
 }
@@ -7008,6 +7334,7 @@ function _lpEdStep0(body,footer){
   const sm=_lpEd.sortenMap; // {sorte: [schlag_id,...]}
   const gkBySchlag=_lpEd._gkBySchlag||{};
   const planBySchlag=_lpEd._planBySchlag||{};
+  const sortiertBySchlag=_lpEd._sortiertBySchlag||{};
   const displaySorten=Object.keys(sm).sort();
 
   // Keine Gaimberg-Buchungen → Hinweis
@@ -7027,17 +7354,18 @@ function _lpEdStep0(body,footer){
     displaySorten.map(sorte=>{
       const sel=_lpEd.sorte===sorte;
       const ids=sm[sorte]||[];
-      // Verfügbare GK: Summe Gaimberg-Buchung dieser Sorte - bereits im Plan
+      // Verfügbare GK: Summe Gaimberg-Buchung dieser Sorte - bereits im Plan - bereits sortiert
       const gkBooked=ids.reduce((s,id)=>s+(gkBySchlag[id]||0),0);
       const gkPlaced=ids.reduce((s,id)=>s+(planBySchlag[id]||0),0);
-      const gkFrei=Math.max(0,gkBooked-gkPlaced);
+      const gkSortiert=ids.reduce((s,id)=>s+(sortiertBySchlag[id]||0),0);
+      const gkFrei=Math.max(0,gkBooked-gkPlaced-gkSortiert);
       const esc=sorte.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
       const disabled=gkFrei===0&&sel===false;
       return`<button onclick="${disabled?'':''}_lpEdSelSorte('${esc}')"
         ${disabled?'disabled':''}
         style="padding:20px 10px;border-radius:14px;border:2px solid ${sel?'var(--p)':disabled?'#e0e0e0':'var(--bdr)'};background:${sel?'var(--p)':disabled?'#f5f5f5':'#fff'};color:${sel?'#fff':disabled?'#bbb':'var(--txt)'};font-size:.95rem;font-weight:700;cursor:${disabled?'not-allowed':'pointer'};text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07);-webkit-tap-highlight-color:transparent;user-select:none">
         ${_sorteSymbol(sorte)} ${sorte}
-        <div style="font-size:.7rem;font-weight:400;margin-top:4px;opacity:.75">${disabled?'✗ voll':gkFrei+' GK frei'}</div>
+        ${disabled?`<div style="font-size:.7rem;font-weight:400;margin-top:4px;opacity:.75">✗ voll</div>`:''}
       </button>`;
     }).join('')+'</div>';
   footer.innerHTML=
@@ -7054,10 +7382,11 @@ function _lpEdSelSorte(sorte){
   const ids=(_lpEd.sortenMap||{})[sorte]||[];
   const gkBySchlag=_lpEd._gkBySchlag||{};
   const planBySchlag=_lpEd._planBySchlag||{};
+  const sortiertBySchlag2=_lpEd._sortiertBySchlag||{};
   const available=(ids.length>0
     ?ids.map(id=>_getAllSchlage().find(x=>x.id===id)).filter(Boolean)
     :_getAllSchlage().filter(s=>(s.sorte||s.name)===sorte))
-    .filter(s=>Math.max(0,(gkBySchlag[s.id]||0)-(planBySchlag[s.id]||0))>0||(gkBySchlag[s.id]||0)===0);
+    .filter(s=>Math.max(0,(gkBySchlag[s.id]||0)-(planBySchlag[s.id]||0)-(sortiertBySchlag2[s.id]||0))>0||(gkBySchlag[s.id]||0)===0);
   if(available.length===1)_lpEd.schlag_id=available[0].id;
   _lpEdRender();
 }
@@ -7067,6 +7396,7 @@ function _lpEdStep1(body,footer){
   const ids=_lpEd.sortenMap[sorte]||[];
   const gkBySchlag=_lpEd._gkBySchlag||{};
   const planBySchlag=_lpEd._planBySchlag||{};
+  const sortiertBySchlag=_lpEd._sortiertBySchlag||{};
   const matching=ids.length>0
     ?ids.map(id=>_getAllSchlage().find(x=>x.id===id)).filter(Boolean)
     :_getAllSchlage().filter(s=>(s.sorte||s.name)===sorte);
@@ -7079,7 +7409,8 @@ function _lpEdStep1(body,footer){
       const sel=_lpEd.schlag_id===s.id;
       const gkB=gkBySchlag[s.id]||0;
       const gkP=planBySchlag[s.id]||0;
-      const gkFrei=Math.max(0,gkB-gkP);
+      const gkS=sortiertBySchlag[s.id]||0;
+      const gkFrei=Math.max(0,gkB-gkP-gkS);
       const voll=gkFrei===0&&!sel; // voll belegt (außer aktuell bearbeiteter Schlag)
       const kapTxt=gkB?`${gkP}/${gkB} GK`:'';
       return`<button onclick="${voll?'':''}_lpEdSelSchlag('${s.id}')"
@@ -8053,11 +8384,11 @@ async function renderErnteIst(){
     if(!sortenMap[sorte].schlage[schlagId]) sortenMap[sorte].schlage[schlagId]={name:schlagName,kl1:0,ver:0,eintraege:[]};
     sortenMap[sorte].schlage[schlagId].kl1+=ekl1;
     sortenMap[sorte].schlage[schlagId].ver+=ever;
-    // Einzelne Buchung sammeln
-    const lagerTxt=e.verteilung
-      ?e.verteilung.map(v=>{const l=D.lagerorte.find(x=>x.id===v.standort_id);return(l?.name||'?')+' '+((v.gk_1kl||0)+(v.gk_verarbeitung||0))+'GK';}).join(', ')
-      :(()=>{const l=D.lagerorte.find(x=>x.id===e.standort_id);return l?.name||'?';})();
-    sortenMap[sorte].schlage[schlagId].eintraege.push({datum:e.datum,kl1:ekl1,ver:ever,dg:e.dg||0,lager:lagerTxt,notiz:e.notiz||'',id:e.id});
+    // Einzelne Buchung sammeln — Lagerortnamen für Anzeige
+    const lagerNames=e.verteilung&&e.verteilung.length
+      ?e.verteilung.map(v=>D.lagerorte.find(x=>x.id===v.standort_id)?.name||'?').filter((n,i,a)=>a.indexOf(n)===i)
+      :e.standort_id?[D.lagerorte.find(x=>x.id===e.standort_id)?.name||'?']:[];
+    sortenMap[sorte].schlage[schlagId].eintraege.push({datum:e.datum,kl1:ekl1,ver:ever,dg:e.dg||0,lager:lagerNames,notiz:e.notiz||'',id:e.id});
   });
   let sortenHtml='';
   const sortenKeys=Object.keys(sortenMap).sort();
@@ -8083,18 +8414,29 @@ async function renderErnteIst(){
         const bk='sb'+idx+'_'+si;
         const hasBuchungen=sv.eintraege.length>1||(sv.eintraege.length===1);
         const bChevron=hasBuchungen?`<span id="bt-${bk}" style="font-size:.55rem;color:var(--txl);margin-left:4px;display:inline-block">▶</span>`:'';
+        const singleId=sv.eintraege.length===1?sv.eintraege[0].id:'';
+        const pencilAction=singleId?`openErnteWizard('${singleId}')`:`toggleSchlagBuchungen('${bk}')`;
+        const pencilBtn=hasBuchungen?`<span onclick="event.stopPropagation();${pencilAction}" style="font-size:.65rem;color:var(--txl);opacity:.45;margin-left:5px;cursor:pointer" title="Buchung bearbeiten">✏️</span>`:'';
         const schlagRow=`<tr onclick="${hasBuchungen?`toggleSchlagBuchungen('${bk}')`:''}" style="border-bottom:1px solid var(--bdr);background:var(--bg);${hasBuchungen?'cursor:pointer':''}">
-          <td style="padding:3px 8px 3px 22px;font-size:.78rem;color:var(--txl)">↳ ${sv.name}${bChevron}</td>
+          <td style="padding:3px 8px 3px 22px;font-size:.78rem;color:var(--txl)">↳ ${sv.name}${bChevron}${pencilBtn}</td>
           <td style="padding:3px 10px;text-align:right;font-size:.88rem;font-weight:700;color:var(--pl)">${sv.kl1||'–'}</td>
           <td style="padding:3px 10px;text-align:right;font-size:.88rem;font-weight:700;color:var(--info)">${sv.ver||'–'}</td>
         </tr>`;
         const buchRows=sv.eintraege.sort((a,b)=>a.datum<b.datum?-1:1).map(b=>{
-          const dgTxt=b.dg?` · ${b.dg}.DG`:'';
-          const notizTxt=b.notiz?` · ${b.notiz}`:'';
-          return`<tr style="border-bottom:1px solid var(--bdr);background:#f9f9f9">
-            <td style="padding:2px 8px 2px 36px;font-size:.73rem;color:var(--txl)">${b.datum}${dgTxt} · ${b.lager}${notizTxt}</td>
-            <td style="padding:2px 10px;text-align:right;font-size:.78rem;font-weight:700;color:var(--pl)">${b.kl1||'–'}</td>
-            <td style="padding:2px 10px;text-align:right;font-size:.78rem;font-weight:700;color:var(--info)">${b.ver||'–'}</td>
+          const dgTxt=b.dg?` <span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:0 3px;font-size:.62rem">${b.dg}.DG</span>`:'';
+          const notizTxt=b.notiz?`<span style="color:var(--txl);margin-left:4px">${b.notiz}</span>`:'';
+          const lagerBadges=(b.lager||[]).map(n=>`<span style="background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 5px;font-size:.68rem;font-weight:700;white-space:nowrap">→ ${n}</span>`).join(' ');
+          return`<tr onclick="openErnteWizard('${b.id}')" style="border-bottom:1px solid var(--bdr);background:#f9f9f9;cursor:pointer" onmouseenter="this.style.background='#f0f4ff'" onmouseleave="this.style.background='#f9f9f9'">
+            <td style="padding:3px 8px 3px 36px;font-size:.73rem;color:var(--txl)">
+              <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+                <span>${b.datum}${dgTxt}</span>
+                ${lagerBadges||'<span style="color:var(--bdr);font-size:.68rem">kein Lager</span>'}
+                ${notizTxt}
+                <span style="font-size:.6rem;color:var(--bdr);opacity:.5">✏️</span>
+              </div>
+            </td>
+            <td style="padding:3px 10px;text-align:right;font-size:.78rem;font-weight:700;color:var(--pl)">${b.kl1||'–'}</td>
+            <td style="padding:3px 10px;text-align:right;font-size:.78rem;font-weight:700;color:var(--info)">${b.ver||'–'}</td>
           </tr>`;
         }).join('');
         return schlagRow+(hasBuchungen?`<tr id="bb-${bk}" style="display:none"><td colspan="3" style="padding:0"><table style="width:100%;border-collapse:collapse">${buchRows}</table></td></tr>`:'');
@@ -8301,7 +8643,6 @@ async function renderErnteIst(){
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-s btn-sm" onclick="openLagerMod()">⚙️ Standorte</button>
         <button class="btn btn-s btn-sm" onclick="openLagerplan()">🗺 Lagerplan</button>
-        <button onclick="openTransportMod()" style="padding:8px 14px;border-radius:8px;background:#fb8c00;color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">🚛 Transport</button>
         <button onclick="openErnteWizard()" style="padding:8px 14px;border-radius:8px;background:var(--pd);color:#fff;border:none;font-size:.88rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">+ Buchung erfassen</button>
       </div>
     </div>
