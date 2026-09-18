@@ -716,13 +716,17 @@ tr:hover td{background:#f9fcfa}
       <div class="mod-title" id="foto-chronik-title">📷 Fotochronik</div>
       <button class="mod-x" onclick="closeMod('mod-fotochronik')">✕</button>
     </div>
-    <div style="padding:12px 16px;overflow-y:auto;max-height:calc(90vh - 120px)">
-      <!-- Schlag-Fotos hinzufügen -->
-      <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px">
-        <input type="file" id="schlag-foto-input" accept="image/*" capture="environment" style="display:none" onchange="schlagAddFoto(this)">
-        <button class="btn btn-p btn-sm" onclick="document.getElementById('schlag-foto-input').click()">📷 Foto hinzufügen</button>
-        <span style="font-size:.75rem;color:var(--txl)">Fotos werden mit Datum gespeichert</span>
-      </div>
+    <!-- Upload-Leiste -->
+    <div style="padding:10px 16px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <input type="file" id="schlag-foto-input-cam" accept="image/*" capture="environment" style="display:none" onchange="schlagAddFoto(this)">
+      <input type="file" id="schlag-foto-input-lib" accept="image/*" style="display:none" onchange="schlagAddFoto(this)">
+      <button class="btn btn-p btn-sm" style="font-size:.85rem;padding:7px 14px" onclick="document.getElementById('foto-custom-datum').value=today();document.getElementById('schlag-foto-input-cam').click()">📷 Foto aufnehmen</button>
+      <button class="btn btn-s btn-sm" style="font-size:.85rem;padding:7px 14px" onclick="document.getElementById('schlag-foto-input-lib').click()">🖼 Hochladen</button>
+      <input type="date" id="foto-custom-datum" title="Aufnahmedatum (für historische Fotos änderbar)" style="font-size:.78rem;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg);color:var(--tx)">
+      <select id="foto-jahr-filter" onchange="renderFotochronik()" style="margin-left:auto;font-size:.8rem;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg);color:var(--tx)"></select>
+    </div>
+    <div id="foto-upload-progress" style="display:none;padding:8px 16px;font-size:.8rem;color:var(--txl)">⏳ Foto wird hochgeladen…</div>
+    <div style="padding:10px 16px 16px;overflow-y:auto;max-height:calc(90vh - 140px)">
       <div id="foto-chronik-list"></div>
     </div>
   </div>
@@ -1350,50 +1354,215 @@ function mmClearFoto(){
   });
 }
 let _fotoChronikSchlagId=null;
+
+// ── EXIF-Datum aus JPEG lesen ────────────────────────────────────────────────
+function _readExifDate(file){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const buf=e.target.result;
+        const view=new DataView(buf);
+        if(view.getUint16(0)!==0xFFD8){resolve(null);return;}
+        let off=2;
+        while(off+4<view.byteLength){
+          const marker=view.getUint16(off);
+          const segLen=view.getUint16(off+2);
+          if(marker===0xFFE1){// APP1
+            const hdr=String.fromCharCode(view.getUint8(off+4),view.getUint8(off+5),view.getUint8(off+6),view.getUint8(off+7));
+            if(hdr==='Exif'){
+              const tiff=off+10;
+              const le=view.getUint16(tiff)===0x4949;
+              const rd16=(o)=>view.getUint16(tiff+o,le);
+              const rd32=(o)=>view.getUint32(tiff+o,le);
+              const readIFD=(ifdOff)=>{
+                const n=rd16(ifdOff);
+                for(let i=0;i<n;i++){
+                  const base=ifdOff+2+i*12;
+                  const tag=rd16(base);
+                  if(tag===0x9003||tag===0x0132){// DateTimeOriginal / DateTime
+                    const valOff=rd32(base+8);
+                    let s='';for(let j=0;j<10;j++) s+=String.fromCharCode(view.getUint8(tiff+valOff+j));
+                    return s.replace(/:/g,'-');// "YYYY-MM-DD"
+                  }
+                  if(tag===0x8769){// ExifIFD pointer → rekursiv
+                    const res=readIFD(rd32(base+8));if(res) return res;
+                  }
+                }
+                return null;
+              };
+              const ifdStart=rd32(4);
+              const d=readIFD(ifdStart);
+              resolve(d&&/^\d{4}-\d{2}-\d{2}$/.test(d)?d:null);return;
+            }
+          }
+          off+=2+segLen;
+        }
+      }catch(_){}
+      resolve(null);
+    };
+    reader.readAsArrayBuffer(file.slice(0,131072));// erste 128KB reichen für EXIF
+  });
+}
+
+// ── Supabase Storage – Fotos ─────────────────────────────────────────────────
+async function _ensureFotoBucket(){
+  try{
+    await fetch(`${SUPA_URL}/storage/v1/bucket`,{
+      method:'POST',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_supaSession.access_token,'Content-Type':'application/json'},
+      body:JSON.stringify({id:FOTO_BUCKET,name:FOTO_BUCKET,public:true,file_size_limit:8388608})
+    });
+  }catch(e){}// Bucket existiert bereits → OK
+}
+async function _uploadBildToStorage(blob,pfad){
+  const r=await fetch(`${SUPA_URL}/storage/v1/object/${FOTO_BUCKET}/${pfad}`,{
+    method:'POST',
+    headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_supaSession.access_token,'Content-Type':'image/jpeg','Cache-Control':'3600'},
+    body:blob
+  });
+  if(!r.ok){const t=await r.text();throw new Error('Upload: '+t);}
+}
+async function _deleteBildFromStorage(pfad){
+  try{
+    await fetch(`${SUPA_URL}/storage/v1/object/${FOTO_BUCKET}`,{
+      method:'DELETE',
+      headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_supaSession.access_token,'Content-Type':'application/json'},
+      body:JSON.stringify({prefixes:[pfad]})
+    });
+  }catch(e){console.warn('Storage delete:',e);}
+}
+function getFotoPfadUrl(pfad){return `${SUPA_URL}/storage/v1/object/public/${FOTO_BUCKET}/${pfad}`;}
+function _slugName(str){return (str||'').replace(/[^a-zA-Z0-9äöüÄÖÜ]/g,'_').replace(/_+/g,'_').substring(0,40);}
+
 function openFotochronik(schlagId){
   _fotoChronikSchlagId=schlagId;
   const s=D.schlage.find(s=>s.id===schlagId);
   document.getElementById('foto-chronik-title').textContent='📷 Fotochronik – '+(s?s.name:'');
+  // Datumfeld auf heute vorbelegen
+  const datEl=document.getElementById('foto-custom-datum');
+  if(datEl) datEl.value=today();
+  // Jahrfilter befüllen
+  const allJahre=new Set();
+  (D.massnahmen||[]).filter(m=>m.schlag_id===schlagId&&m.foto&&m.datum).forEach(m=>allJahre.add(m.datum.substring(0,4)));
+  ((s&&s.fotos)||[]).forEach(f=>f.datum&&allJahre.add(f.datum.substring(0,4)));
+  const jahre=[...allJahre].sort().reverse();
+  const sel=document.getElementById('foto-jahr-filter');
+  sel.innerHTML='<option value="">Alle Jahre</option>'+jahre.map(y=>`<option value="${y}">${y}</option>`).join('');
   renderFotochronik();
   openMod('mod-fotochronik');
 }
+
 function renderFotochronik(){
   const el=document.getElementById('foto-chronik-list');
   const sid=_fotoChronikSchlagId;
-  // Fotos aus Maßnahmen
+  const jahrFilter=document.getElementById('foto-jahr-filter')?.value||'';
+  // Fotos aus Maßnahmen (base64, schreibgeschützt)
   const mFotos=(D.massnahmen||[]).filter(m=>m.schlag_id===sid&&m.foto)
-    .map(m=>({datum:m.datum,img:m.foto,label:m.arbeit+(m.mittel?' · '+m.mittel:'')+(m.bbch?' · BBCH '+m.bbch:''),src:'massnahme'}));
+    .map(m=>({datum:m.datum,imgUrl:m.foto,label:m.arbeit+(m.mittel?' · '+m.mittel:'')+(m.bbch?' · BBCH '+m.bbch:''),src:'massnahme'}));
   // Schlag-eigene Fotos
   const sEintrag=D.schlage.find(s=>s.id===sid);
-  const sFotos=((sEintrag&&sEintrag.fotos)||[]).map(f=>({...f,src:'schlag'}));
-  const all=[...mFotos,...sFotos].sort((a,b)=>b.datum.localeCompare(a.datum));
-  if(!all.length){el.innerHTML='<div class="empty"><div class="empty-ico">📷</div>Noch keine Fotos für diesen Schlag.</div>';return;}
+  const sFotos=((sEintrag&&sEintrag.fotos)||[]).map(f=>({
+    ...f,
+    imgUrl:f.pfad?getFotoPfadUrl(f.pfad):(f.img||''),// backward compat: alte base64-Fotos
+    src:'schlag'
+  }));
+  let all=[...mFotos,...sFotos].sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
+  if(jahrFilter) all=all.filter(f=>(f.datum||'').startsWith(jahrFilter));
+  if(!all.length){
+    el.innerHTML='<div class="empty"><div class="empty-ico">📷</div>'+(jahrFilter?'Keine Fotos in '+jahrFilter+'.':'Noch keine Fotos für diesen Schlag.')+'</div>';
+    return;
+  }
   el.innerHTML=all.map(f=>`
-    <div style="margin-bottom:16px;border-bottom:1px solid var(--bdr);padding-bottom:12px">
-      <div style="font-size:.72rem;color:var(--txl);margin-bottom:6px">${fmtD(f.datum)}${f.label?' · '+f.label:''}</div>
-      <img src="${f.img}" style="max-width:100%;border-radius:8px;border:1px solid var(--bdr)" loading="lazy">
+    <div style="margin-bottom:18px;border-bottom:1px solid var(--bdr);padding-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+        <div style="font-size:.72rem;color:var(--txl)">${fmtD(f.datum)}${f.label?' · <em>'+f.label+'</em>':''}</div>
+        ${f.src==='schlag'?`<button onclick="deleteFoto('${sid}','${(f._id||'').replace(/'/g,"\\'")}','${(f.pfad||'').replace(/'/g,"\\'")}','${(f.img?'b64':'')}')" style="background:none;border:none;color:#c0392b;font-size:.78rem;cursor:pointer;padding:2px 6px" title="Foto löschen">🗑 löschen</button>`:''}
+      </div>
+      <img src="${f.imgUrl}" style="max-width:100%;border-radius:8px;border:1px solid var(--bdr);display:block" loading="lazy">
+      ${f.src==='schlag'?`<input type="text" value="${(f.notiz||'').replace(/"/g,'&quot;')}" placeholder="Notiz / Beobachtung…" onblur="updateFotoNotiz('${sid}','${(f._id||'').replace(/'/g,"\\'")}',this.value)" style="margin-top:7px;width:100%;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;font-size:.78rem;background:var(--bg);color:var(--tx);box-sizing:border-box">`:''}
     </div>`).join('');
 }
-function schlagAddFoto(input){
+
+async function schlagAddFoto(input){
   const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=function(e){
-    const img=new Image();
-    img.onload=function(){
-      const canvas=document.createElement('canvas');
-      const MAX=1200;const scale=Math.min(1,MAX/Math.max(img.width,img.height));
-      canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
-      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-      const data=canvas.toDataURL('image/jpeg',0.75);
-      const s=D.schlage.find(s=>s.id===_fotoChronikSchlagId);
-      if(!s)return;
-      if(!s.fotos)s.fotos=[];
-      s.fotos.push({datum:today(),img:data,notiz:''});
-      scheduleSave();renderFotochronik();toast('Foto gespeichert');
-    };
-    img.src=e.target.result;
-  };
-  reader.readAsDataURL(file);
+  input.value='';
+  if(!_supaSession){toast('⚠ Bitte zuerst anmelden');return;}
+  const s=D.schlage.find(s=>s.id===_fotoChronikSchlagId);
+  if(!s)return;
+  const prog=document.getElementById('foto-upload-progress');
+  prog.style.display='block';
+  try{
+    // 1. Resize → Blob
+    const blob=await new Promise((res,rej)=>{
+      const reader=new FileReader();
+      reader.onload=e=>{
+        const img=new Image();
+        img.onload=()=>{
+          const MAX=1400;
+          const sc=Math.min(1,MAX/Math.max(img.width,img.height));
+          const cv=document.createElement('canvas');
+          cv.width=Math.round(img.width*sc);cv.height=Math.round(img.height*sc);
+          cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+          cv.toBlob(b=>b?res(b):rej(new Error('Canvas blob')), 'image/jpeg', 0.82);
+        };
+        img.onerror=rej;
+        img.src=e.target.result;
+      };
+      reader.onerror=rej;
+      reader.readAsDataURL(file);
+    });
+    // 2. Datum bestimmen: EXIF > manuelles Feld > heute
+    const exifDt=await _readExifDate(file);
+    const datEl=document.getElementById('foto-custom-datum');
+    const dt=exifDt||(datEl?.value)||today();
+    if(datEl&&exifDt) datEl.value=exifDt;// Feld mit EXIF-Datum befüllen
+    // Pfad: {betriebId}/{Jahr}/{YYYY-MM-DD}_{Schlagname}_{shortId}.jpg
+    const yr=dt.substring(0,4);
+    const slug=_slugName(s.name);
+    const shortId=Math.random().toString(36).substring(2,7);
+    const pfad=`${_meinBetriebId||'anon'}/${yr}/${dt}_${slug}_${shortId}.jpg`;
+    // 3. Bucket sicherstellen + Upload
+    await _ensureFotoBucket();
+    await _uploadBildToStorage(blob,pfad);
+    // 4. Metadaten in D speichern (NUR Pfad, kein base64!)
+    if(!s.fotos)s.fotos=[];
+    const fid='f'+Date.now();
+    s.fotos.push({_id:fid,datum:dt,notiz:'',pfad});
+    scheduleSave();
+    // Jahrfilter aktualisieren falls neues Jahr
+    const sel=document.getElementById('foto-jahr-filter');
+    if(sel&&![...sel.options].some(o=>o.value===yr)){
+      const opt=document.createElement('option');opt.value=yr;opt.textContent=yr;
+      // vor "Alle Jahre" einfügen (neuestes zuerst)
+      sel.insertBefore(opt,sel.options[1]||null);
+    }
+    prog.style.display='none';
+    renderFotochronik();
+    toast('📷 Foto gespeichert');
+  }catch(err){
+    prog.style.display='none';
+    toast('⚠ '+err.message);
+    console.error(err);
+  }
+}
+
+async function deleteFoto(schlagId,fotoId,pfad,isB64){
+  if(!confirm('Foto löschen?'))return;
+  const s=D.schlage.find(s=>s.id===schlagId);
+  if(!s||!s.fotos)return;
+  s.fotos=s.fotos.filter(f=>f._id!==fotoId);
+  scheduleSave();
+  if(pfad&&!isB64) await _deleteBildFromStorage(pfad);
+  renderFotochronik();
+  toast('Foto gelöscht');
+}
+
+function updateFotoNotiz(schlagId,fotoId,notiz){
+  const s=D.schlage.find(s=>s.id===schlagId);
+  if(!s||!s.fotos)return;
+  const f=s.fotos.find(f=>f._id===fotoId);
+  if(f){f.notiz=notiz;scheduleSave();}
 }
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -1638,6 +1807,11 @@ function migrateD(){
   if(!D.sortierungen) D.sortierungen=[];
   if(!D.amaGapConfig) D.amaGapConfig={eoLagerIds:[],ignoredLagerIds:[]};
   if(!D.deletedLagerIds) D.deletedLagerIds=[];
+  // Schlag-Fotos: alte base64-Einträge ohne _id bekommen nachträglich eine ID
+  (D.schlage||[]).forEach(s=>{
+    if(!s.fotos) return;
+    s.fotos.forEach((f,i)=>{if(!f._id)f._id='f'+i+'_'+s.id.substring(0,4);});
+  });
   // Blocklist durchsetzen: einmal gelöschte Lagerorte dürfen NIE mehr aus der Cloud zurückkommen
   if(D.deletedLagerIds.length){
     D.lagerorte=D.lagerorte.filter(l=>!D.deletedLagerIds.includes(l.id));
@@ -1756,7 +1930,8 @@ const SUPA_URL='https://cuwffzdkneabohximpkp.supabase.co';
 const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
-const APP_VERSION="v2.38.2";
+const FOTO_BUCKET='schlag-bilder';
+const APP_VERSION="v2.39.1";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2491,8 +2666,9 @@ function _schlagCard(s){
       <button class="btn btn-s btn-sm" style="padding:3px 8px;font-size:1rem;flex-shrink:0" onclick="event.stopPropagation();toggleSchlagMenu('${s.id}')" title="Mehr">⋮</button>
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap">
-      <button class="btn btn-p btn-sm" style="flex:1;min-width:120px;font-size:.8rem;padding:7px 10px" onclick="quickErnte('${s.id}')">🌿 Ernte erfassen</button>
-      <button class="btn btn-s btn-sm" style="flex:1;min-width:120px;font-size:.8rem;padding:7px 10px" onclick="quickMassnahme('${s.id}')">📝 Maßnahme</button>
+      <button class="btn btn-p btn-sm" style="flex:1;min-width:100px;font-size:.8rem;padding:7px 10px" onclick="quickErnte('${s.id}')">🌿 Ernte erfassen</button>
+      <button class="btn btn-s btn-sm" style="flex:1;min-width:100px;font-size:.8rem;padding:7px 10px" onclick="quickMassnahme('${s.id}')">📝 Maßnahme</button>
+      <button class="btn btn-s btn-sm" style="flex:1;min-width:80px;font-size:.8rem;padding:7px 10px" onclick="event.stopPropagation();openFotochronik('${s.id}')">📷 Fotos</button>
     </div>
     <div id="smenu-${sid}" style="display:none;position:absolute;right:10px;top:44px;background:#fff;border:1px solid var(--bdr);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.15);z-index:60;min-width:160px;overflow:hidden">
       <div onclick="event.stopPropagation();toggleSchlagMenu('${s.id}');openBbchMod('${s.id}')" style="padding:9px 14px;font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--bdr)" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''">📍 BBCH setzen</div>
