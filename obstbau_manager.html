@@ -130,6 +130,10 @@ tr:hover td{background:#f9fcfa}
       <input id="login-pw" type="password" autocomplete="current-password" placeholder="••••••••"
         onkeydown="if(event.key==='Enter')doLogin()">
     </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <input type="checkbox" id="login-remember" style="width:16px;height:16px;cursor:pointer;accent-color:var(--p)">
+      <label for="login-remember" style="font-size:.83rem;color:var(--txl);cursor:pointer;margin:0">Angemeldet bleiben</label>
+    </div>
     <button id="login-btn" onclick="doLogin()" class="btn btn-p" style="width:100%;padding:11px;font-size:.9rem">Anmelden</button>
     <div id="login-err" style="color:var(--crit);font-size:.78rem;margin-top:10px;min-height:18px;text-align:center"></div>
   </div>
@@ -2032,7 +2036,7 @@ const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
 const FOTO_BUCKET='schlag-bilder';
-const APP_VERSION="v2.40.8";
+const APP_VERSION="v2.40.9";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2061,6 +2065,7 @@ function supaHeaders(useAnon=false){
 async function doLogin(){
   const email=document.getElementById('login-email').value.trim();
   const pw=document.getElementById('login-pw').value;
+  const remember=document.getElementById('login-remember')?.checked||false;
   const btn=document.getElementById('login-btn');
   const err=document.getElementById('login-err');
   if(!email||!pw){err.textContent='Bitte E-Mail und Passwort eingeben.';return;}
@@ -2073,6 +2078,11 @@ async function doLogin(){
     });
     const data=await r.json();
     if(!r.ok) throw new Error(data.error_description||data.msg||'Anmeldung fehlgeschlagen');
+    if(remember){
+      try{localStorage.setItem('obs_saved_email',email);localStorage.setItem('obs_saved_pw',pw);}catch(e){}
+    } else {
+      try{localStorage.removeItem('obs_saved_email');localStorage.removeItem('obs_saved_pw');}catch(e){}
+    }
     _supaSession=data;
     sessionStorage.setItem('obs_session',JSON.stringify(data));
     await _loadUserRolle();
@@ -9921,10 +9931,32 @@ function toast(msg){const el=document.createElement('div');el.className='toast';
 // Versionsnummer sofort in sbar einsetzen
 (function(){const el=document.getElementById('sbar-ver');if(el)el.textContent=APP_VERSION;})();
 
+// Gespeicherte Zugangsdaten vorausfüllen
+(function(){
+  try{
+    const se=localStorage.getItem('obs_saved_email');
+    const sp=localStorage.getItem('obs_saved_pw');
+    if(se){const el=document.getElementById('login-email');if(el)el.value=se;}
+    if(sp){const el=document.getElementById('login-pw');if(el)el.value=sp;}
+    if(se&&sp){const cb=document.getElementById('login-remember');if(cb)cb.checked=true;}
+  }catch(e){}
+})();
+
 const _loginEmailObs=new MutationObserver(()=>{
   const ov=document.getElementById('login-overlay');
   if(ov&&ov.style.display!=='none'){
-    setTimeout(()=>{const e=document.getElementById('login-email');if(e)e.focus();},150);
+    try{
+      const se=localStorage.getItem('obs_saved_email');
+      const sp=localStorage.getItem('obs_saved_pw');
+      if(se){const el=document.getElementById('login-email');if(el)el.value=se;}
+      if(sp){const el=document.getElementById('login-pw');if(el)el.value=sp;}
+      if(se&&sp){const cb=document.getElementById('login-remember');if(cb)cb.checked=true;}
+    }catch(e){}
+    setTimeout(()=>{
+      const pw=document.getElementById('login-pw');
+      const em=document.getElementById('login-email');
+      if(pw&&pw.value){pw.focus();}else if(em)em.focus();
+    },150);
   }
 });
 const _lov=document.getElementById('login-overlay');
