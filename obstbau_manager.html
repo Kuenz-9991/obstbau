@@ -1405,6 +1405,43 @@ function _readExifDate(file){
   });
 }
 
+// ── Signierte URLs (Private Bucket) ─────────────────────────────────────────
+const _signedUrlCache={}; // pfad → {url, exp}
+async function _getSignedUrlsBatch(pfade){
+  if(!pfade.length) return {};
+  if(!_supaSession) return {};
+  const now=Date.now();
+  const result={};
+  const toFetch=[];
+  for(const p of pfade){
+    const c=_signedUrlCache[p];
+    if(c&&c.exp>now+120000){result[p]=c.url;}// noch >2min gültig
+    else toFetch.push(p);
+  }
+  if(toFetch.length){
+    try{
+      const r=await fetch(`${SUPA_URL}/storage/v1/object/sign/${FOTO_BUCKET}`,{
+        method:'POST',
+        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_supaSession.access_token,'Content-Type':'application/json'},
+        body:JSON.stringify({paths:toFetch,expiresIn:7200})// 2h gültig
+      });
+      if(r.ok){
+        const arr=await r.json();
+        for(const item of arr){
+          if(item.signedURL){
+            const url=SUPA_URL+item.signedURL;
+            _signedUrlCache[item.path]={url,exp:now+7200000};
+            result[item.path]=url;
+          }
+        }
+      }
+    }catch(e){console.warn('SignedURL Batch:',e);}
+    // Fallback für nicht geholte URLs
+    for(const p of toFetch) if(!result[p]) result[p]=getFotoPfadUrl(p);
+  }
+  return result;
+}
+
 // ── Supabase Storage – Fotos ─────────────────────────────────────────────────
 async function _ensureFotoBucket(){
   try{
@@ -1458,18 +1495,22 @@ function openFotochronik(schlagId){
   openMod('mod-fotochronik');
 }
 
-function renderFotochronik(){
+async function renderFotochronik(){
   const el=document.getElementById('foto-chronik-list');
   const sid=_fotoChronikSchlagId;
   const jahrFilter=document.getElementById('foto-jahr-filter')?.value||'';
   // Fotos aus Maßnahmen (base64, schreibgeschützt)
   const mFotos=(D.massnahmen||[]).filter(m=>m.schlag_id===sid&&m.foto)
     .map(m=>({datum:m.datum,imgUrl:m.foto,label:m.arbeit+(m.mittel?' · '+m.mittel:'')+(m.bbch?' · BBCH '+m.bbch:''),src:'massnahme'}));
-  // Schlag-eigene Fotos
+  // Schlag-eigene Fotos — signierte URLs holen
   const sEintrag=D.schlage.find(s=>s.id===sid);
-  const sFotos=((sEintrag&&sEintrag.fotos)||[]).map(f=>({
+  const sFotosRaw=((sEintrag&&sEintrag.fotos)||[]);
+  const pfade=sFotosRaw.filter(f=>f.pfad).map(f=>f.pfad);
+  el.innerHTML='<div style="text-align:center;padding:16px;color:var(--txl);font-size:.82rem">⏳ Lade Fotos…</div>';
+  const signedUrls=await _getSignedUrlsBatch(pfade);
+  const sFotos=sFotosRaw.map(f=>({
     ...f,
-    imgUrl:f.pfad?getFotoPfadUrl(f.pfad):(f.img||''),// backward compat: alte base64-Fotos
+    imgUrl:f.pfad?(signedUrls[f.pfad]||''):(f.img||''),// backward compat: alte base64-Fotos
     src:'schlag'
   }));
   let all=[...mFotos,...sFotos].sort((a,b)=>(b.datum||'').localeCompare(a.datum||''));
@@ -1936,7 +1977,7 @@ const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
 const FOTO_BUCKET='schlag-bilder';
-const APP_VERSION="v2.39.2";
+const APP_VERSION="v2.39.3";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
