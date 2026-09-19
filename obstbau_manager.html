@@ -208,6 +208,12 @@ tr:hover td{background:#f9fcfa}
     <button class="btn btn-p" onclick="openSchlagMod()">+ Schlag anlegen</button>
     <button class="btn btn-s" onclick="openFelderMgmt()">⚙️ Feldstücke</button>
   </div>
+  <!-- Gruppierungs-Auswahl -->
+  <div style="display:flex;gap:0;margin-bottom:14px;background:#e2e8f0;border-radius:12px;padding:4px;box-shadow:inset 0 1px 3px rgba(0,0,0,.1)">
+    <button id="sg-grp-bauer" onclick="setSchlagGruppierung('bauer')" style="flex:1;border:none;border-radius:9px;font-size:.83rem;font-weight:600;padding:9px 4px;cursor:pointer;transition:all .18s;background:transparent;color:#64748b;display:flex;align-items:center;justify-content:center;gap:5px">👤 Bauer</button>
+    <button id="sg-grp-sorte" onclick="setSchlagGruppierung('sorte')" style="flex:1;border:none;border-radius:9px;font-size:.83rem;font-weight:600;padding:9px 4px;cursor:pointer;transition:all .18s;background:transparent;color:#64748b;display:flex;align-items:center;justify-content:center;gap:5px">🍎 Sorte</button>
+    <button id="sg-grp-fs"    onclick="setSchlagGruppierung('feldstuck')" style="flex:1;border:none;border-radius:9px;font-size:.83rem;font-weight:600;padding:9px 4px;cursor:pointer;transition:all .18s;background:transparent;color:#64748b;display:flex;align-items:center;justify-content:center;gap:5px">🌳 Feldstück</button>
+  </div>
   <div id="sg-grid" class="sg"></div>
 </div>
 
@@ -1977,7 +1983,7 @@ const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
 const FOTO_BUCKET='schlag-bilder';
-const APP_VERSION="v2.39.3";
+const APP_VERSION="v2.40.1";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2725,53 +2731,100 @@ function _schlagCard(s){
   </div>`;
 }
 
+let _schlagGruppierung='bauer';
+function _updateGruppierungBtns(){
+  const idMap={bauer:'sg-grp-bauer',sorte:'sg-grp-sorte',feldstuck:'sg-grp-fs'};
+  ['bauer','sorte','feldstuck'].forEach(m=>{
+    const btn=document.getElementById(idMap[m]);
+    if(!btn)return;
+    const active=m===_schlagGruppierung;
+    btn.style.background=active?'#fff':'transparent';
+    btn.style.color=active?'#166534':'#64748b';
+    btn.style.boxShadow=active?'0 1px 4px rgba(0,0,0,.15)':'none';
+    btn.style.fontWeight=active?'700':'600';
+  });
+}
+function setSchlagGruppierung(mode){
+  _schlagGruppierung=mode;
+  _updateGruppierungBtns();
+  renderSchlage();
+}
+
+function _sgAccordion(accId,headerHtml,contentHtml,startOpen){
+  return `<div style="grid-column:1/-1;margin-top:10px">
+    <div onclick="(function(el,arr){const o=el.style.display==='none';el.style.display=o?'':'none';arr.textContent=o?'▼':'▶'})(document.getElementById('${accId}'),this.querySelector('.sg-arr'))"
+      style="${headerHtml.style};cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;min-height:52px">
+      <span>${headerHtml.label}</span>
+      <span class="sg-arr" style="font-size:.8rem;opacity:.75">${startOpen?'▼':'▶'}</span>
+    </div>
+    <div id="${accId}" style="display:${startOpen?'':'none'}">${contentHtml}</div>
+  </div>`;
+}
+
 function renderSchlage(){
   const el=document.getElementById('sg-grid');
   if(!D.schlage.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🌳</div>Keine Schläge vorhanden.</div>';return;}
-
-  // Primär nach Betrieb, dann nach Feldstück
-  const byBetrieb={};
-  for(const s of D.schlage){
-    const b=s.betrieb||'';
-    if(!byBetrieb[b]) byBetrieb[b]=[];
-    byBetrieb[b].push(s);
-  }
-  const allB=Object.keys(byBetrieb);
-  // Sortierung: Nachname A-Z, dann Vorname A-Z; "Kein Betrieb" ans Ende
-  const betriebeOrder=[
-    ...allB.filter(b=>b).sort((a,b)=>_betriebSortKey(a).localeCompare(_betriebSortKey(b),'de')),
-    ...(allB.includes('')?['']:[])
-  ];
+  _updateGruppierungBtns();
 
   let html='';
-  for(const betrieb of betriebeOrder){
-    const schlage=byBetrieb[betrieb]||[];
-    if(!schlage.length) continue;
-    const betriebLabel=betrieb||'Kein Betrieb';
-    const bclr=betriebFarbe(betrieb);
-    const accId='bacc-'+betrieb.replace(/[^a-z0-9]/gi,'_');
-    html+=`<div style="grid-column:1/-1;margin-top:10px">
-      <div onclick="(function(el,arr){el.style.display=el.style.display==='none'?'':'none';arr.textContent=el.style.display==='none'?'▶':'▼'})(document.getElementById('${accId}'),this.querySelector('.b-arr'))"
-        style="padding:12px 16px;background:${bclr};color:#fff;border-radius:8px;font-size:.88rem;font-weight:700;border-left:5px solid rgba(0,0,0,.2);cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;min-height:52px">
-        <span>👤 ${betriebLabel}</span>
-        <span class="b-arr" style="font-size:.8rem;opacity:.75">▶</span>
-      </div>
-      <div id="${accId}" style="display:none">`;
-    const grp={};
-    for(const s of schlage){if(!grp[s.feldstuck])grp[s.feldstuck]=[];grp[s.feldstuck].push(s);}
-    for(const fs of Object.keys(grp).sort(feldSort)){
-      const list=grp[fs];
-      html+=`<div class="fs-hdr" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <span>${getFeldDisplay(fs)}</span>
-        <div style="display:flex;gap:5px;flex-shrink:0">
-          <button class="btn btn-s btn-sm" onclick="openSchlagMod(null,'${fs.replace(/'/g,"\\'")}')">+ Schlag</button>
-          <button class="btn btn-s btn-sm" onclick="openFeldMod('${fs.replace(/'/g,"\\'")}')">✏️</button>
-        </div>
-      </div>
-      <div class="sg" style="margin-bottom:4px">${list.map(s=>_schlagCard(s)).join('')}</div>`;
+  const mode=_schlagGruppierung;
+
+  if(mode==='bauer'){
+    // Gruppierung nach Betrieb → darunter Feldstücke
+    const byBetrieb={};
+    for(const s of D.schlage){const b=s.betrieb||'';if(!byBetrieb[b])byBetrieb[b]=[];byBetrieb[b].push(s);}
+    const allB=Object.keys(byBetrieb);
+    const betriebeOrder=[...allB.filter(b=>b).sort((a,b)=>_betriebSortKey(a).localeCompare(_betriebSortKey(b),'de')),...(allB.includes('')?['']:[])];
+    for(const betrieb of betriebeOrder){
+      const schlage=byBetrieb[betrieb]||[];if(!schlage.length)continue;
+      const bclr=betriebFarbe(betrieb);
+      const accId='bacc-'+betrieb.replace(/[^a-z0-9]/gi,'_');
+      let content='';
+      const grp={};for(const s of schlage){if(!grp[s.feldstuck])grp[s.feldstuck]=[];grp[s.feldstuck].push(s);}
+      for(const fs of Object.keys(grp).sort(feldSort)){
+        const list=grp[fs];
+        content+=`<div class="fs-hdr" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span>${getFeldDisplay(fs)}</span>
+          <div style="display:flex;gap:5px;flex-shrink:0">
+            <button class="btn btn-s btn-sm" onclick="openSchlagMod(null,'${fs.replace(/'/g,"\\'")}')">+ Schlag</button>
+            <button class="btn btn-s btn-sm" onclick="openFeldMod('${fs.replace(/'/g,"\\'")}')">✏️</button>
+          </div></div>
+          <div class="sg" style="margin-bottom:4px">${list.map(s=>_schlagCard(s)).join('')}</div>`;
+      }
+      html+=_sgAccordion(accId,{label:'👤 '+(betrieb||'Kein Betrieb'),style:`padding:12px 16px;background:${bclr};color:#fff;border-radius:8px;font-size:.88rem;font-weight:700;border-left:5px solid rgba(0,0,0,.2)`},content,false);
     }
-    html+='</div></div>';
+
+  } else if(mode==='sorte'){
+    // Gruppierung nach Sorte → alphabetisch
+    const bySorte={};
+    for(const s of D.schlage){const k=s.sorte||'Unbekannt';if(!bySorte[k])bySorte[k]=[];bySorte[k].push(s);}
+    const sortenOrder=Object.keys(bySorte).sort((a,b)=>a.localeCompare(b,'de'));
+    for(const sorte of sortenOrder){
+      const schlage=bySorte[sorte];
+      const sc=sorteFarbe(sorte);
+      const sym=_sorteSymbol(sorte);
+      const accId='sacc-'+sorte.replace(/[^a-z0-9]/gi,'_');
+      const content=`<div class="sg" style="margin:8px 0 4px">${schlage.map(s=>_schlagCard(s)).join('')}</div>`;
+      html+=_sgAccordion(accId,{label:`${sym} ${sorte} <span style="font-size:.75rem;opacity:.7;font-weight:400">(${schlage.length} Schläge)</span>`,style:`padding:12px 16px;background:${sc};color:var(--tx);border-radius:8px;font-size:.88rem;font-weight:700;border:1px solid var(--bdr)`},content,false);
+    }
+
+  } else {
+    // Gruppierung nach Feldstück
+    const byFs={};
+    for(const s of D.schlage){const k=s.feldstuck||'';if(!byFs[k])byFs[k]=[];byFs[k].push(s);}
+    const fsOrder=Object.keys(byFs).sort(feldSort);
+    for(const fs of fsOrder){
+      const schlage=byFs[fs];
+      const accId='fsacc-'+fs.replace(/[^a-z0-9]/gi,'_');
+      const content=`<div style="display:flex;justify-content:flex-end;gap:5px;margin:6px 0 2px">
+        <button class="btn btn-s btn-sm" onclick="openSchlagMod(null,'${fs.replace(/'/g,"\\'")}')">+ Schlag</button>
+        <button class="btn btn-s btn-sm" onclick="openFeldMod('${fs.replace(/'/g,"\\'")}')">✏️</button>
+      </div>
+      <div class="sg" style="margin-bottom:4px">${schlage.map(s=>_schlagCard(s)).join('')}</div>`;
+      html+=_sgAccordion(accId,{label:`🌳 ${getFeldDisplay(fs)} <span style="font-size:.75rem;opacity:.7;font-weight:400">(${schlage.length})</span>`,style:`padding:12px 16px;background:var(--pd);color:#fff;border-radius:8px;font-size:.88rem;font-weight:700;border-left:5px solid rgba(0,0,0,.2)`},content,false);
+    }
   }
+
   el.innerHTML=html;
 }
 
