@@ -2032,7 +2032,7 @@ const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
 const FOTO_BUCKET='schlag-bilder';
-const APP_VERSION="v2.40.4";
+const APP_VERSION="v2.40.6";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -5415,15 +5415,16 @@ function _wizRenderMengen(body,footer){
     `<div style="margin-top:12px"><input type="text" id="wiz-notiz" placeholder="Notiz (optional)" value="${(_wiz.notiz||'').replace(/"/g,'&quot;')}" oninput="_wiz.notiz=this.value" style="border:1px solid var(--bdr);border-radius:8px;padding:9px 12px;font-size:.85rem;width:100%"></div>`+
     // Durchgang
     `<div style="margin-top:12px;padding:14px 16px;background:var(--bg);border-radius:10px;border:1px solid var(--bdr)">
-      <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">🔢 Durchgang <span style="font-weight:400;opacity:.6">(optional)</span></div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px">🔢 Durchgang <span style="color:var(--crit);font-weight:700">*</span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${[0,1,2,3,4].map(n=>{
+        ${[1,2,3,4].map(n=>{
           const sel=(_wiz.dg||0)===n;
-          const lbl=n===0?'—':`${n}. DG`;
+          const lbl=`${n}. DG`;
           return`<button onclick="_wizSetDg(${n})" id="wiz-dg-${n}"
             style="padding:9px 16px;border-radius:20px;border:2px solid ${sel?'var(--p)':'var(--bdr)'};background:${sel?'var(--p)':'#fff'};color:${sel?'#fff':'var(--txt)'};font-size:.88rem;font-weight:${sel?'700':'500'};cursor:pointer">${lbl}</button>`;
         }).join('')}
       </div>
+      ${!(_wiz.dg||0)?'<div id="wiz-dg-hint" style="margin-top:7px;font-size:.75rem;color:var(--crit)">Bitte Erntedurchgang auswählen</div>':'<div id="wiz-dg-hint"></div>'}
     </div>`;
 
   footer.innerHTML=
@@ -5448,7 +5449,7 @@ function _wizSetKgActual(val){
 
 function _wizSetDg(n){
   _wiz.dg=n;
-  [0,1,2,3,4].forEach(i=>{
+  [1,2,3,4].forEach(i=>{
     const b=document.getElementById('wiz-dg-'+i);
     if(!b)return;
     const sel=i===n;
@@ -5457,11 +5458,19 @@ function _wizSetDg(n){
     b.style.color=sel?'#fff':'var(--txt)';
     b.style.fontWeight=sel?'700':'500';
   });
+  const hint=document.getElementById('wiz-dg-hint');
+  if(hint) hint.textContent='';
 }
 function _wizGoLagerort(){
   _wiz.datum=document.getElementById('wiz-datum').value;
   if(!_wiz.datum){alert('Bitte Datum ausfüllen');return;}
   if(!_wiz.gk1kl&&!_wiz.gkVer){alert('Bitte GK-Menge eingeben');return;}
+  if(!(_wiz.dg||0)){
+    const hint=document.getElementById('wiz-dg-hint');
+    if(hint){hint.textContent='Bitte Erntedurchgang auswählen';hint.scrollIntoView({behavior:'smooth',block:'center'});}
+    else alert('Bitte Erntedurchgang auswählen');
+    return;
+  }
   if(!D.lagerorte.length){alert('Bitte zuerst einen Lagerort anlegen');return;}
   _wiz.verteilung={};
   // Einzelner Lagerort → auto-zuweisen und direkt speichern
@@ -6453,7 +6462,7 @@ function openLagerSorteDrilldown(lagerId,sorte){
       <th style="width:32px"></th>
     </tr></thead><tbody>`;
   let _buchNr=0;
-  sd.eintraege.sort((a,b)=>a.e.datum<b.e.datum?-1:1).forEach(({e,schlag,kl1,ver,isUmbuchung,richtung})=>{
+  sd.eintraege.sort((a,b)=>b.e.datum<a.e.datum?-1:1).forEach(({e,schlag,kl1,ver,isUmbuchung,richtung})=>{
     _buchNr++;
     if(isUmbuchung){
       const lsTxt=e.lieferschein?` <span style="font-size:.65rem;background:#fff3e0;color:#e65100;border-radius:4px;padding:0 4px;border:1px solid #ffcc80">${e.lieferschein}</span>`:'';
@@ -8821,7 +8830,7 @@ async function renderErnteIst(){
           <td style="padding:3px 10px;text-align:right;font-size:.88rem;font-weight:700;color:var(--pl)">${sv.kl1||'–'}</td>
           <td style="padding:3px 10px;text-align:right;font-size:.88rem;font-weight:700;color:var(--info)">${sv.ver||'–'}</td>
         </tr>`;
-        const buchRows=sv.eintraege.sort((a,b)=>a.datum<b.datum?-1:1).map(b=>{
+        const buchRows=sv.eintraege.sort((a,b)=>b.datum<a.datum?-1:1).map(b=>{
           const dgTxt=b.dg?` <span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:0 3px;font-size:.62rem">${b.dg}.DG</span>`:'';
           const notizTxt=b.notiz?`<span style="color:var(--txl);margin-left:4px">${b.notiz}</span>`:'';
           const lagerBadges=(b.lager||[]).map(n=>`<span style="background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 5px;font-size:.68rem;font-weight:700;white-space:nowrap">→ ${n}</span>`).join(' ');
