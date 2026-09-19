@@ -1421,7 +1421,12 @@ async function _uploadBildToStorage(blob,pfad){
     headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_supaSession.access_token,'Content-Type':'image/jpeg','Cache-Control':'3600'},
     body:blob
   });
-  if(!r.ok){const t=await r.text();throw new Error('Upload: '+t);}
+  if(!r.ok){
+    const t=await r.text();
+    let msg='Upload fehlgeschlagen';
+    try{const j=JSON.parse(t);if(j.error==='Bucket not found') msg='Storage-Bucket fehlt! Bitte in Supabase → Storage → New bucket → Name: schlag-bilder → Public ✓ anlegen.';}catch(_){}
+    throw new Error(msg);
+  }
 }
 async function _deleteBildFromStorage(pfad){
   try{
@@ -1931,7 +1936,7 @@ const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
 const FOTO_BUCKET='schlag-bilder';
-const APP_VERSION="v2.39.1";
+const APP_VERSION="v2.39.2";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
