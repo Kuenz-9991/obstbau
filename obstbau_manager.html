@@ -2032,7 +2032,7 @@ const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
 const FOTO_BUCKET='schlag-bilder';
-const APP_VERSION="v2.40.6";
+const APP_VERSION="v2.40.7";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -6725,6 +6725,83 @@ function _lpAnalyse(){
     html+=`</div>`;
   }
   html+=`</div>`;
+
+  // Alle Schläge mit Gaimberg-Bestand (Diagnose-Übersicht)
+  {
+    const allSchlagIds=new Set([...Object.keys(gkBySchlag)]);
+    // Auch Schläge deren Plan-Eintrag vorhanden ist
+    Object.keys(planBySchlag).forEach(id=>allSchlagIds.add(id));
+    const allRows=[];
+    allSchlagIds.forEach(schlag_id=>{
+      const booked=gkBySchlag[schlag_id]||0;
+      const placed=planBySchlag[schlag_id]||0;
+      const sortiert=sortiertBySchlag[schlag_id]||0;
+      const diff=booked-placed-sortiert;
+      allRows.push({schlag_id,booked,placed,sortiert,diff});
+    });
+    allRows.sort((a,b)=>a.diff-b.diff); // diff=0 oben, positiv unten
+    if(allRows.length){
+      html+=`<div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">📊 Alle Schläge mit Gaimberg-Bestand</div>
+        <div style="display:flex;flex-direction:column;gap:4px">`;
+      allRows.forEach(({schlag_id,booked,placed,sortiert,diff})=>{
+        const sc=_getAllSchlage().find(x=>x.id===schlag_id);
+        const label=sc?`${sc.sorte||'?'} · ${sc.name}`:schlag_id;
+        let bg='#f8f9fa',border='#dee2e6',col='var(--txt)',badge='';
+        if(diff>0){bg='#fff3e0';border='#ffb74d';col='#e65100';badge=`<span style="background:#e65100;color:#fff;border-radius:20px;padding:1px 7px;font-size:.7rem;font-weight:800">+${diff} nicht zugeteilt</span>`;}
+        else if(diff<0){bg='#fce4ec';border='#ef9a9a';col='#b71c1c';badge=`<span style="background:#c62828;color:#fff;border-radius:20px;padding:1px 7px;font-size:.7rem;font-weight:800">${diff} zu viel im Plan</span>`;}
+        else{badge=`<span style="background:#e8f5e9;color:#2e7d32;border-radius:20px;padding:1px 7px;font-size:.7rem;font-weight:700">✓ vollständig platziert</span>`;}
+        html+=`<div style="padding:8px 12px;background:${bg};border:1.5px solid ${border};border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:.82rem;font-weight:700;color:${col}">${label}</div>
+            <div style="font-size:.68rem;color:var(--txl);margin-top:2px">${booked} gebucht · ${placed} platziert${sortiert?` · ${sortiert} sortiert`:''}</div>
+          </div>
+          ${badge}
+        </div>`;
+      });
+      html+=`</div></div>`;
+    }
+  }
+
+  // Aktuelle Umbuchungen → Gaimberg (Diagnose, letzte 60 Tage)
+  {
+    const gId=(D.lagerorte.find(x=>/gaimberg/i.test(x.name))||{}).id;
+    const isG=id=>id===gId||id==='gaimberg_1kl';
+    const cutoff=new Date();cutoff.setDate(cutoff.getDate()-60);
+    const cutoffStr=cutoff.toISOString().slice(0,10);
+    const umbEntries=_getAllErnteIst().filter(e=>{
+      if(getEntryTyp(e)!=='umbuchung')return false;
+      if(!isG(e.ziel_lagerort_id))return false;
+      return(e.datum||'')>=cutoffStr;
+    }).sort((a,b)=>b.datum<a.datum?-1:1);
+    if(umbEntries.length){
+      html+=`<div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🔄 Umbuchungen → Gaimberg (letzte 60 Tage)</div>
+        <div style="display:flex;flex-direction:column;gap:4px">`;
+      umbEntries.forEach(e=>{
+        const sc=e.schlag_id?_getAllSchlage().find(x=>x.id===e.schlag_id):null;
+        const gk=(e.quellen||[]).reduce((s,q)=>s+(q.gk_1kl||0)+(q.gk_ver||0),0);
+        const dgBadge=e.dg?`<span style="background:#e0f2fe;color:#0369a1;border-radius:5px;padding:0 5px;font-size:.68rem;font-weight:700;margin-left:4px">${e.dg}.DG</span>`:'';
+        const schlagBadge=sc?`<span style="font-size:.75rem;color:var(--pd);font-weight:700">${sc.sorte||'?'} · ${sc.name}${dgBadge}</span>`:`<span style="font-size:.72rem;color:#c62828;font-weight:700">⚠ kein Schlag</span>`;
+        const quelle=(e.quellen||[]).map(q=>D.lagerorte.find(l=>l.id===q.von_lagerort_id)?.name||q.von_lagerort_id).join(', ')||'?';
+        html+=`<div style="padding:8px 12px;background:#f3f4f6;border:1px solid var(--bdr);border-radius:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:.78rem;font-weight:700">${fmtD(e.datum||'')} — ${schlagBadge}</div>
+              <div style="font-size:.68rem;color:var(--txl);margin-top:2px">Von: ${quelle} · ${gk} GK</div>
+            </div>
+            <span style="font-size:.85rem;font-weight:800;color:var(--pl)">${gk} GK</span>
+          </div>
+        </div>`;
+      });
+      html+=`</div></div>`;
+    }else if(gId){
+      html+=`<div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🔄 Umbuchungen → Gaimberg (letzte 60 Tage)</div>
+        <div style="padding:10px 14px;background:#f8f9fa;border-radius:8px;font-size:.82rem;color:var(--txl)">Keine Umbuchungen nach Gaimberg in den letzten 60 Tagen gefunden.</div>
+      </div>`;
+    }
+  }
 
   // Unvollständige Kisten
   html+=`<div>
