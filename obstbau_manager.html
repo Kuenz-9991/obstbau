@@ -2032,7 +2032,7 @@ const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
 const FOTO_BUCKET='schlag-bilder';
-const APP_VERSION="v2.40.7";
+const APP_VERSION="v2.40.8";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -5391,6 +5391,59 @@ function _wizRenderMengen(body,footer){
       </div>
     </div>`;
 
+  // Verlauf-Kontext: nur im Edit-Modus anzeigen
+  let _verlaufHtml='';
+  if(_wiz.editId&&_wiz.schlagId){
+    const editDg=_wiz.dg||0;
+    // Aktueller Lagerstand pro Lagerort (mit exaktem DG wenn gesetzt, sonst alle DGs)
+    const lagerRows=D.lagerorte.map(l=>{
+      const b=editDg?_calcBestandSchlagDgExact(l.id,_wiz.schlagId,editDg):calcStandortBestandBySchlag(l.id,_wiz.schlagId,0);
+      if(b.total<=0)return'';
+      const detail=(b.gk1kl>0&&b.gkVer>0)?` <span style="font-size:.68rem;color:var(--txl)">(${b.gk1kl} 1.Kl · ${b.gkVer} V)</span>`:'';
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f8fafc;border-radius:7px;margin-bottom:3px">
+        <span style="font-size:.82rem">${l.name}</span>
+        <span style="font-size:.88rem;font-weight:800;color:var(--pd)">${b.total} GK${detail}</span>
+      </div>`;
+    }).join('');
+    const noStock=!lagerRows?`<div style="font-size:.8rem;color:var(--txl);padding:6px 2px">Kein Bestand an Lagerorten gefunden — GK wurden möglicherweise abtransportiert.</div>`:'';
+    // Folgebuchungen (Umbuchungen + Transporte) für diesen Schlag
+    const followUps=_getAllErnteIst().filter(e=>{
+      if(e.id===_wiz.editId||e.schlag_id!==_wiz.schlagId)return false;
+      const t=getEntryTyp(e);
+      if(t!=='umbuchung'&&t!=='transport')return false;
+      if(editDg&&(e.dg||0)!==editDg)return false;
+      return true;
+    }).sort((a,b)=>b.datum<a.datum?-1:1);
+    let followHtml='';
+    if(followUps.length){
+      followUps.forEach(e=>{
+        const t=getEntryTyp(e);
+        let detail='';
+        if(t==='umbuchung'){
+          const gk=(e.quellen||[]).reduce((s,q)=>s+(q.gk_1kl||0)+(q.gk_ver||0),0);
+          const von=(e.quellen||[]).map(q=>D.lagerorte.find(l=>l.id===q.von_lagerort_id)?.name||'?').join(', ');
+          const nach=D.lagerorte.find(l=>l.id===e.ziel_lagerort_id)?.name||'?';
+          detail=`🔄 Umbuchung ${gk} GK: ${von} → ${nach}`;
+        } else {
+          const gk=getTransportPositionen(e).reduce((s,p)=>s+(p.gk_1kl||0)+(p.gk_verarbeitung||0),0);
+          const ziel=D.lagerorte.find(l=>l.id===e.ziel_lagerort_id)?.name||e.ziel_lagerort_id||'Abtransport';
+          detail=`🚛 Transport ${gk} GK → ${ziel}`;
+        }
+        const dgBadge=(e.dg)?`<span style="background:#e0f2fe;color:#0369a1;border-radius:4px;padding:0 4px;font-size:.65rem;font-weight:700;margin-left:4px">${e.dg}.DG</span>`:'';
+        followHtml+=`<div style="padding:6px 10px;background:#f8fafc;border-radius:7px;margin-bottom:3px;font-size:.78rem;display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div>${detail}${dgBadge}</div>
+          <div style="font-size:.7rem;color:var(--txl);white-space:nowrap">${fmtD(e.datum||'')}</div>
+        </div>`;
+      });
+    }
+    _verlaufHtml=`<div style="margin-top:18px;padding-top:16px;border-top:1.5px dashed var(--bdr)">
+      <div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">📍 Aktueller Lagerstand – ${sc?sc.name+' ('+sc.sorte+')':'dieser Schlag'}${editDg?' · '+editDg+'.DG':''}</div>
+      ${lagerRows||noStock}
+      ${followUps.length?`<div style="font-size:.72rem;font-weight:700;color:var(--txl);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 6px">📋 Folgebuchungen (${followUps.length})</div>${followHtml}`:''}
+      <div style="font-size:.72rem;color:var(--txl);margin-top:6px;font-style:italic">💡 Diese GK-Menge ändern wirkt sich direkt auf die Bestände aus.</div>
+    </div>`;
+  }
+
   body.innerHTML=
     // Schlag-Badge
     `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:${farbeBg};border-radius:10px;border-left:4px solid ${farbe}">
@@ -5425,7 +5478,7 @@ function _wizRenderMengen(body,footer){
         }).join('')}
       </div>
       ${!(_wiz.dg||0)?'<div id="wiz-dg-hint" style="margin-top:7px;font-size:.75rem;color:var(--crit)">Bitte Erntedurchgang auswählen</div>':'<div id="wiz-dg-hint"></div>'}
-    </div>`;
+    </div>`+_verlaufHtml;
 
   footer.innerHTML=
     (!_wiz.editId?'<button onclick="_wizBack()" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer;color:var(--txt)">← Zurück</button>':'')+
