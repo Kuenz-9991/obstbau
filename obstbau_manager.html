@@ -723,13 +723,21 @@ tr:hover td{background:#f9fcfa}
       <button class="mod-x" onclick="closeMod('mod-fotochronik')">✕</button>
     </div>
     <!-- Upload-Leiste -->
-    <div style="padding:10px 16px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">
       <input type="file" id="schlag-foto-input-cam" accept="image/*" capture="environment" style="display:none" onchange="schlagAddFoto(this)">
       <input type="file" id="schlag-foto-input-lib" accept="image/*" style="display:none" onchange="schlagAddFoto(this)">
-      <button class="btn btn-p btn-sm" style="font-size:.85rem;padding:7px 14px" onclick="document.getElementById('foto-custom-datum').value=today();document.getElementById('schlag-foto-input-cam').click()">📷 Foto aufnehmen</button>
-      <button class="btn btn-s btn-sm" style="font-size:.85rem;padding:7px 14px" onclick="document.getElementById('schlag-foto-input-lib').click()">🖼 Hochladen</button>
-      <input type="date" id="foto-custom-datum" title="Aufnahmedatum (für historische Fotos änderbar)" style="font-size:.78rem;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg);color:var(--tx)">
-      <select id="foto-jahr-filter" onchange="renderFotochronik()" style="margin-left:auto;font-size:.8rem;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;background:var(--bg);color:var(--tx)"></select>
+      <!-- Hauptaktion: Foto aufnehmen – groß & prominent -->
+      <button class="btn btn-p" onclick="document.getElementById('foto-custom-datum').value=today();document.getElementById('schlag-foto-input-cam').click()"
+        style="width:100%;padding:18px 20px;font-size:1.15rem;font-weight:900;border-radius:14px;letter-spacing:.01em;box-shadow:0 4px 14px rgba(45,106,79,.35);display:flex;align-items:center;justify-content:center;gap:10px">
+        <span style="font-size:1.5rem">📷</span> Foto aufnehmen
+      </button>
+      <!-- Sekundär: Hochladen + Filter -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" style="font-size:.85rem;padding:8px 16px;border-radius:10px" onclick="document.getElementById('schlag-foto-input-lib').click()">🖼 Hochladen</button>
+        <input type="date" id="foto-custom-datum" title="Aufnahmedatum (für historische Fotos änderbar)" style="font-size:.78rem;padding:6px 9px;border:1px solid var(--bdr);border-radius:8px;background:var(--bg);color:var(--tx)">
+        <button onclick="(()=>{const s=D.schlage.find(x=>x.id===_fotoChronikSchlagId);((s&&s.fotos)||[]).filter(f=>f.pfad).forEach(f=>delete _signedUrlCache[f.pfad]);renderFotochronik();})()" title="Fotos neu laden" style="margin-left:auto;padding:6px 10px;border:1px solid var(--bdr);border-radius:8px;background:var(--bg);font-size:.85rem;cursor:pointer" >🔄</button>
+        <select id="foto-jahr-filter" onchange="renderFotochronik()" style="font-size:.8rem;padding:6px 9px;border:1px solid var(--bdr);border-radius:8px;background:var(--bg);color:var(--tx)"></select>
+      </div>
     </div>
     <div id="foto-upload-progress" style="display:none;padding:8px 16px;font-size:.8rem;color:var(--txl)">⏳ Foto wird hochgeladen…</div>
     <div style="padding:10px 16px 16px;overflow-y:auto;max-height:calc(90vh - 140px)">
@@ -1421,29 +1429,34 @@ async function _getSignedUrlsBatch(pfade){
   const toFetch=[];
   for(const p of pfade){
     const c=_signedUrlCache[p];
-    if(c&&c.exp>now+120000){result[p]=c.url;}// noch >2min gültig
+    if(c&&c.exp>now+120000){result[p]=c.url;}
     else toFetch.push(p);
   }
   if(toFetch.length){
-    try{
-      const r=await fetch(`${SUPA_URL}/storage/v1/object/sign/${FOTO_BUCKET}`,{
-        method:'POST',
-        headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_supaSession.access_token,'Content-Type':'application/json'},
-        body:JSON.stringify({paths:toFetch,expiresIn:7200})// 2h gültig
-      });
-      if(r.ok){
-        const arr=await r.json();
-        for(const item of arr){
-          if(item.signedURL){
-            const url=SUPA_URL+item.signedURL;
-            _signedUrlCache[item.path]={url,exp:now+7200000};
-            result[item.path]=url;
+    // Einzelne Signed-URL-Anfragen parallel (zuverlässiger als Batch-Endpoint)
+    await Promise.all(toFetch.map(async p=>{
+      try{
+        const r=await _supaFetch(
+          `${SUPA_URL}/storage/v1/object/sign/${FOTO_BUCKET}/${encodeURIComponent(p).replace(/%2F/g,'/')}`,
+          {method:'POST',
+           headers:{'apikey':SUPA_KEY,'Authorization':'Bearer '+_supaSession.access_token,'Content-Type':'application/json'},
+           body:JSON.stringify({expiresIn:7200})}
+        );
+        if(r.ok){
+          const j=await r.json();
+          if(j.signedURL){
+            const url=j.signedURL.startsWith('http')?j.signedURL:SUPA_URL+j.signedURL;
+            _signedUrlCache[p]={url,exp:now+7200000};
+            result[p]=url;
+          } else {
+            console.warn('SignedURL leer für',p,j);
           }
+        } else {
+          const t=await r.text().catch(()=>'');
+          console.warn('SignedURL HTTP',r.status,'für',p,t);
         }
-      }
-    }catch(e){console.warn('SignedURL Batch:',e);}
-    // Fallback für nicht geholte URLs
-    for(const p of toFetch) if(!result[p]) result[p]=getFotoPfadUrl(p);
+      }catch(e){console.warn('SignedURL Fehler für',p,e);}
+    }));
   }
   return result;
 }
@@ -1487,6 +1500,9 @@ function openFotochronik(schlagId){
   _fotoChronikSchlagId=schlagId;
   const s=D.schlage.find(s=>s.id===schlagId);
   document.getElementById('foto-chronik-title').textContent='📷 Fotochronik – '+(s?s.name:'');
+  // Signed-URL-Cache leeren → frische URLs beim Öffnen
+  const sEintrag2=D.schlage.find(x=>x.id===schlagId);
+  ((sEintrag2&&sEintrag2.fotos)||[]).filter(f=>f.pfad).forEach(f=>delete _signedUrlCache[f.pfad]);
   // Datumfeld auf heute vorbelegen
   const datEl=document.getElementById('foto-custom-datum');
   if(datEl) datEl.value=today();
@@ -1525,15 +1541,34 @@ async function renderFotochronik(){
     el.innerHTML='<div class="empty"><div class="empty-ico">📷</div>'+(jahrFilter?'Keine Fotos in '+jahrFilter+'.':'Noch keine Fotos für diesen Schlag.')+'</div>';
     return;
   }
-  el.innerHTML=all.map(f=>`
-    <div style="margin-bottom:18px;border-bottom:1px solid var(--bdr);padding-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-        <div style="font-size:.72rem;color:var(--txl)">${fmtD(f.datum)}${f.label?' · <em>'+f.label+'</em>':''}</div>
-        ${f.src==='schlag'?`<button onclick="deleteFoto('${sid}','${(f._id||'').replace(/'/g,"\\'")}','${(f.pfad||'').replace(/'/g,"\\'")}','${(f.img?'b64':'')}')" style="background:none;border:none;color:#c0392b;font-size:.78rem;cursor:pointer;padding:2px 6px" title="Foto löschen">🗑 löschen</button>`:''}
-      </div>
-      <img src="${f.imgUrl}" style="max-width:100%;border-radius:8px;border:1px solid var(--bdr);display:block" loading="lazy">
-      ${f.src==='schlag'?`<input type="text" value="${(f.notiz||'').replace(/"/g,'&quot;')}" placeholder="Notiz / Beobachtung…" onblur="updateFotoNotiz('${sid}','${(f._id||'').replace(/'/g,"\\'")}',this.value)" style="margin-top:7px;width:100%;padding:5px 8px;border:1px solid var(--bdr);border-radius:6px;font-size:.78rem;background:var(--bg);color:var(--tx);box-sizing:border-box">`:''}
-    </div>`).join('');
+  // Galerie-Grid: Datum über Bild, neuestes zuerst, 2+ Spalten
+  el.innerHTML=
+    `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:4px 0">`+
+    all.map(f=>{
+      const delBtn=f.src==='schlag'
+        ?`<button onclick="deleteFoto('${sid}','${(f._id||'').replace(/'/g,"\\'")}','${(f.pfad||'').replace(/'/g,"\\'")}','${(f.img?'b64':'')}')" `+
+          `style="position:absolute;top:5px;right:5px;background:rgba(0,0,0,.55);border:none;color:#fff;font-size:.75rem;cursor:pointer;border-radius:6px;padding:2px 7px;line-height:1.5" title="Foto löschen">🗑</button>`
+        :'';
+      const label=f.label?`<div style="font-size:.63rem;color:var(--txl);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><em>${f.label}</em></div>`:'';
+      const notizInp=f.src==='schlag'
+        ?`<input type="text" value="${(f.notiz||'').replace(/"/g,'&quot;')}" placeholder="Notiz…"`+
+          ` onblur="updateFotoNotiz('${sid}','${(f._id||'').replace(/'/g,"\\'")}',this.value)"`+
+          ` style="margin-top:5px;width:100%;padding:4px 7px;border:1px solid var(--bdr);border-radius:6px;font-size:.7rem;background:var(--bg);color:var(--tx);box-sizing:border-box">`
+        :'';
+      const imgEl=f.imgUrl
+        ?`<img src="${f.imgUrl}" loading="lazy"`+
+          ` onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"`+
+          ` style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;border:1px solid var(--bdr);display:block">`+
+          `<div style="display:none;width:100%;aspect-ratio:4/3;border-radius:8px;border:1px solid var(--bdr);background:var(--bg);align-items:center;justify-content:center;flex-direction:column;gap:3px;color:var(--txl);font-size:.68rem;text-align:center"><span style="font-size:1.4rem">🖼</span>Nicht ladbar</div>`
+        :`<div style="width:100%;aspect-ratio:4/3;border-radius:8px;border:1px solid var(--bdr);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;color:var(--txl);font-size:.68rem;text-align:center"><span style="font-size:1.4rem">🔒</span>Anmelden</div>`;
+      return`<div style="position:relative">
+        <div style="font-size:.72rem;font-weight:700;color:var(--pd);margin-bottom:4px">${fmtD(f.datum)}</div>
+        ${label}
+        <div style="position:relative">${imgEl}${delBtn}</div>
+        ${notizInp}
+      </div>`;
+    }).join('')+
+    `</div>`;
 }
 
 async function schlagAddFoto(input){
@@ -1899,6 +1934,20 @@ function migrateD(){
       if(p.von_standort_id&&!p.von_lagerort_id) p.von_lagerort_id=p.von_standort_id;
     });
   });
+  // Alte Gaimberg-Verwendungs-ID ('gaimberg_1kl') → echte Lagerort-UUID migrieren
+  {
+    const gLager=D.lagerorte.find(x=>/gaimberg/i.test(x.name));
+    if(gLager){
+      const gUuid=gLager.id;
+      (D.ernte_ist||[]).forEach(e=>{
+        if(e.ziel_lagerort_id==='gaimberg_1kl') e.ziel_lagerort_id=gUuid;
+        (e.quellen||[]).forEach(q=>{ if(q.von_lagerort_id==='gaimberg_1kl') q.von_lagerort_id=gUuid; });
+        if(e.standort_id==='gaimberg_1kl') e.standort_id=gUuid;
+        (e.verteilung||[]).forEach(v=>{ if(v.standort_id==='gaimberg_1kl') v.standort_id=gUuid; });
+        (e.buchungen||[]).forEach(b=>{ if(b.lager_id==='gaimberg_1kl') b.lager_id=gUuid; });
+      });
+    }
+  }
 }
 
 function mergeNewSchlage(){
@@ -1983,7 +2032,7 @@ const SUPA_KEY='sb_publishable_7oEbohh2giqUKb_bjIzLIQ_k8OICG2X';
 
 
 const FOTO_BUCKET='schlag-bilder';
-const APP_VERSION="v2.40.1";
+const APP_VERSION="v2.40.4";
 let _supaSession=null;       // { access_token, refresh_token, user }
 let _meineRolle=null;        // 'betrieb' | 'eo_admin' | 'lager'
 let _meinBetriebId=null;     // UUID
@@ -2034,6 +2083,8 @@ async function doLogin(){
     if(_meineRolle==='eo_admin') await _loadEOBetriebe();
     updateEOTabVisibility();
     toast('✓ Willkommen, '+_meinBetriebName+'!');
+    // Falls Fotochronik geöffnet ist → signed URLs neu laden
+    if(document.getElementById('mod-fotochronik')?.classList.contains('open')) renderFotochronik();
   }catch(e){
     err.textContent=e.message;
     btn.disabled=false;btn.textContent='Anmelden';
@@ -2798,14 +2849,25 @@ function renderSchlage(){
     // Gruppierung nach Sorte → alphabetisch
     const bySorte={};
     for(const s of D.schlage){const k=s.sorte||'Unbekannt';if(!bySorte[k])bySorte[k]=[];bySorte[k].push(s);}
-    const sortenOrder=Object.keys(bySorte).sort((a,b)=>a.localeCompare(b,'de'));
+    const _sorteTypGrp=(sorte)=>{
+      const t=(bySorte[sorte]?.[0]?.typ||'').toLowerCase();
+      return t==='apfel'?0:t==='birne'?1:2;
+    };
+    const sortenOrder=Object.keys(bySorte).sort((a,b)=>{
+      const tA=_sorteTypGrp(a),tB=_sorteTypGrp(b);
+      if(tA!==tB)return tA-tB;
+      // Gemischt immer am Ende der Gruppe
+      const gA=a==='Gemischt'?1:0,gB=b==='Gemischt'?1:0;
+      if(gA!==gB)return gA-gB;
+      return a.localeCompare(b,'de');
+    });
     for(const sorte of sortenOrder){
       const schlage=bySorte[sorte];
       const sc=sorteFarbe(sorte);
       const sym=_sorteSymbol(sorte);
       const accId='sacc-'+sorte.replace(/[^a-z0-9]/gi,'_');
       const content=`<div class="sg" style="margin:8px 0 4px">${schlage.map(s=>_schlagCard(s)).join('')}</div>`;
-      html+=_sgAccordion(accId,{label:`${sym} ${sorte} <span style="font-size:.75rem;opacity:.7;font-weight:400">(${schlage.length} Schläge)</span>`,style:`padding:12px 16px;background:${sc};color:var(--tx);border-radius:8px;font-size:.88rem;font-weight:700;border:1px solid var(--bdr)`},content,false);
+      html+=_sgAccordion(accId,{label:`${sym} ${sorte} <span style="font-size:.75rem;opacity:.7;font-weight:400">(${schlage.length} ${schlage.length===1?'Schlag':'Schläge'})</span>`,style:`padding:12px 16px;background:${sc};color:var(--tx);border-radius:8px;font-size:.88rem;font-weight:700;border:1px solid var(--bdr)`},content,false);
     }
 
   } else {
@@ -4972,27 +5034,30 @@ function _wizUmMengenWeiter(){
 // dg=0/falsy → alle DGs summiert; dg>0 → nur dieser DG
 function calcStandortBestandBySchlag(lagerId, schlagId, dg){
   let gk1kl=0,gkVer=0;
+  // Auch alte Gaimberg-Verwendungs-ID als Alias berücksichtigen
+  const gLager=D.lagerorte.find(x=>/gaimberg/i.test(x.name));
+  const isLager=id=>id===lagerId||(gLager&&lagerId===gLager.id&&id==='gaimberg_1kl');
   _getAllErnteIst().forEach(e=>{
     const typ=getEntryTyp(e);
     if(e.schlag_id!==schlagId)return;
     if(dg&&(e.dg||0)!==dg)return;
     if(typ==='ernte'){
       if(e.verteilung){
-        e.verteilung.forEach(v=>{if(v.standort_id===lagerId){gk1kl+=(v.gk_1kl||0);gkVer+=(v.gk_verarbeitung||0);}});
-      } else if(e.standort_id===lagerId){
+        e.verteilung.forEach(v=>{if(isLager(v.standort_id)){gk1kl+=(v.gk_1kl||0);gkVer+=(v.gk_verarbeitung||0);}});
+      } else if(isLager(e.standort_id)){
         gk1kl+=(e.gk_1kl||0);gkVer+=(e.gk_verarbeitung||0);
       }
       (e.buchungen||[]).forEach(b=>{
-        if(b.lager_id===lagerId){gk1kl+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gkVer+=(b.verarbeitung_gk||0);}
+        if(isLager(b.lager_id)){gk1kl+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0));gkVer+=(b.verarbeitung_gk||0);}
       });
     } else if(typ==='umbuchung'){
       // Zielort bekommt GK dazu
-      if(e.ziel_lagerort_id===lagerId){
+      if(isLager(e.ziel_lagerort_id)){
         (e.quellen||[]).forEach(q=>{gk1kl+=(q.gk_1kl||0);gkVer+=(q.gk_ver||0);});
       }
       // Quellort verliert GK
       (e.quellen||[]).forEach(q=>{
-        if(q.von_lagerort_id===lagerId){gk1kl-=(q.gk_1kl||0);gkVer-=(q.gk_ver||0);}
+        if(isLager(q.von_lagerort_id)){gk1kl-=(q.gk_1kl||0);gkVer-=(q.gk_ver||0);}
       });
     }
   });
@@ -6804,27 +6869,32 @@ function _lpSortierteKistenBySchlag(){
 function _lpGaimbergKistenBySchlag(){
   // Nettobestand pro Schlag bei Gaimberg — berücksichtigt Ernte-Einbuchungen UND Umbuchungen rein/raus
   const gId=(D.lagerorte.find(x=>/gaimberg/i.test(x.name))||{}).id;
-  if(!gId)return{};
+  if(!gId){console.warn('[Gaimberg] Kein Gaimberg-Lagerort gefunden in D.lagerorte:',D.lagerorte.map(l=>l.name));return{};}
+  // isGaimberg: auch alte 'gaimberg_1kl' Verwendungs-ID als Fallback
+  const isG=id=>id===gId||id==='gaimberg_1kl';
   // Alle Schläge die GK in Gaimberg haben können — via Ernte ODER via Umbuchung nach Gaimberg
   const schlagIds=new Set();
   _getAllErnteIst().forEach(e=>{
     const typ=getEntryTyp(e);
     if(typ==='ernte'&&e.schlag_id){
       let hasGaimberg=false;
-      if(e.verteilung&&e.verteilung.length) hasGaimberg=e.verteilung.some(v=>v.standort_id===gId);
-      else if(e.standort_id===gId) hasGaimberg=true;
-      (e.buchungen||[]).forEach(b=>{if(b.lager_id===gId)hasGaimberg=true;});
+      if(e.verteilung&&e.verteilung.length) hasGaimberg=e.verteilung.some(v=>isG(v.standort_id));
+      else if(isG(e.standort_id)) hasGaimberg=true;
+      (e.buchungen||[]).forEach(b=>{if(isG(b.lager_id))hasGaimberg=true;});
       if(hasGaimberg) schlagIds.add(e.schlag_id);
-    } else if(typ==='umbuchung'&&e.schlag_id&&e.ziel_lagerort_id===gId){
+    } else if(typ==='umbuchung'&&e.schlag_id&&isG(e.ziel_lagerort_id)){
       // Umbuchung die GK nach Gaimberg bringt — Schlag muss im Plan erscheinen
       schlagIds.add(e.schlag_id);
     }
   });
+  console.log('[Gaimberg] gId='+gId+', Schläge mit Gaimberg-Bezug:',Array.from(schlagIds));
   const map={};
   schlagIds.forEach(schlag_id=>{
     const b=calcStandortBestandBySchlag(gId,schlag_id,0); // dg=0 = alle DGs
+    console.log('[Gaimberg] Schlag',schlag_id,'Bestand:',b);
     if(b.total>0) map[schlag_id]=b.total;
   });
+  console.log('[Gaimberg] Ergebnis:',map);
   return map; // {schlag_id: nettoGkBestand bei Gaimberg}
 }
 
@@ -6833,6 +6903,7 @@ function _lpGaimbergDGsForSchlag(schlag_id){
   if(!schlag_id) return new Set();
   const gId=(D.lagerorte.find(x=>/gaimberg/i.test(x.name))||{}).id;
   if(!gId) return new Set();
+  const isG=id=>id===gId||id==='gaimberg_1kl';
   const dgs=new Set();
   _getAllErnteIst().forEach(e=>{
     if(e.schlag_id!==schlag_id) return;
@@ -6840,13 +6911,13 @@ function _lpGaimbergDGsForSchlag(schlag_id){
     if(typ==='ernte'){
       let gk=0;
       if(e.verteilung&&e.verteilung.length){
-        e.verteilung.forEach(v=>{ if(v.standort_id===gId) gk+=(v.gk_1kl||0)+(v.gk_verarbeitung||0); });
-      } else if(e.standort_id===gId){
+        e.verteilung.forEach(v=>{ if(isG(v.standort_id)) gk+=(v.gk_1kl||0)+(v.gk_verarbeitung||0); });
+      } else if(isG(e.standort_id)){
         gk=(e.gk_1kl||0)+(e.gk_verarbeitung||0);
       }
-      (e.buchungen||[]).forEach(b=>{ if(b.lager_id===gId) gk+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0))+(b.verarbeitung_gk||0); });
+      (e.buchungen||[]).forEach(b=>{ if(isG(b.lager_id)) gk+=(b.tafel_gk!==undefined?b.tafel_gk:(b.gk||0))+(b.verarbeitung_gk||0); });
       if(gk>0) dgs.add(e.dg||0);
-    } else if(typ==='umbuchung'&&e.ziel_lagerort_id===gId){
+    } else if(typ==='umbuchung'&&isG(e.ziel_lagerort_id)){
       dgs.add(e.dg||0);
     }
   });
@@ -6858,6 +6929,7 @@ function _lpGaimbergKistenByDG(schlag_id){
   if(!schlag_id)return{};
   const gId=(D.lagerorte.find(x=>/gaimberg/i.test(x.name))||{}).id;
   if(!gId)return{};
+  const isG=id=>id===gId||id==='gaimberg_1kl';
   // Alle DGs die für diesen Schlag GK in Gaimberg haben — via Ernte ODER via Umbuchung nach Gaimberg
   const dgs=new Set();
   _getAllErnteIst().forEach(e=>{
@@ -6865,11 +6937,11 @@ function _lpGaimbergKistenByDG(schlag_id){
     const typ=getEntryTyp(e);
     if(typ==='ernte'){
       let hasGaimberg=false;
-      if(e.verteilung&&e.verteilung.length) hasGaimberg=e.verteilung.some(v=>v.standort_id===gId);
-      else if(e.standort_id===gId) hasGaimberg=true;
-      (e.buchungen||[]).forEach(b=>{if(b.lager_id===gId)hasGaimberg=true;});
+      if(e.verteilung&&e.verteilung.length) hasGaimberg=e.verteilung.some(v=>isG(v.standort_id));
+      else if(isG(e.standort_id)) hasGaimberg=true;
+      (e.buchungen||[]).forEach(b=>{if(isG(b.lager_id))hasGaimberg=true;});
       if(hasGaimberg) dgs.add(e.dg||0);
-    } else if(typ==='umbuchung'&&e.ziel_lagerort_id===gId){
+    } else if(typ==='umbuchung'&&isG(e.ziel_lagerort_id)){
       // Umbuchung nach Gaimberg → diesen DG ebenfalls aufnehmen
       dgs.add(e.dg||0);
     }
@@ -7620,13 +7692,20 @@ function _lpCopyToStack(){
   const srcData=activePlan[_lpCellKey(zi,ri,si,hi)];
   if(!srcData)return;
   const srcEntry={..._lpEntryData(srcData)};
-  // Alle leeren Slots im Stapel befüllen (Kapazitäts-Check entfernt – Mismatch-Banner warnt bei Überplanung)
+  // Kapazitäts-Check: max. so viele Kisten im Stapel wie GK eingelagert
+  const _csSchlag=srcEntry.schlag_id;
+  const _csBooked=(_lpEd._gkBySchlag||{})[_csSchlag]||0;
+  const _csPlanned=(_lpEd._planBySchlag||{})[_csSchlag]||0; // excludes current cell
+  const _csSortiert=(_lpEd._sortiertBySchlag||{})[_csSchlag]||0;
+  // current cell counts as 1 → remaining slots = booked - sortiert - planned - 1
+  const maxFill=_csBooked>0?Math.max(0,_csBooked-_csSortiert-_csPlanned-1):999;
   const maxH=_lpMaxH(zi,ri,si);
   if(!D.gaimbergPlan)D.gaimbergPlan={};
   _lpPushHistory();
   let filled=0;
   for(let h=0;h<maxH;h++){
     if(h===hi)continue; // Quell-Kiste überspringen
+    if(filled>=maxFill)break;
     const k=_lpCellKey(zi,ri,si,h);
     if(!activePlan[k]){
       D.gaimbergPlan[k]={...srcEntry};
@@ -7651,8 +7730,9 @@ function _lpEdStep0(body,footer){
   if(!displaySorten.length){
     body.innerHTML=`<div style="padding:30px 0;text-align:center;color:var(--txl)">
       <div style="font-size:2rem;margin-bottom:10px">📦</div>
-      <div style="font-weight:700;margin-bottom:6px">Keine Buchung in Gaimberg</div>
-      <div style="font-size:.82rem">Zuerst eine Ernte-Buchung mit Lagerort Gaimberg erfassen.</div>
+      <div style="font-weight:700;margin-bottom:6px">Keine GK in Gaimberg eingelagert</div>
+      <div style="font-size:.82rem">Zuerst eine Ernte oder Umbuchung nach Gaimberg erfassen.</div>
+      <div style="font-size:.75rem;color:var(--txl);margin-top:6px">Tipp: Umbuchungen im Ernte-Wizard unter 🔄 Umbuchung anlegen.</div>
     </div>`;
     footer.innerHTML=`<span style="flex:1"></span><button onclick="closeMod('mod-lp-editor')" style="padding:10px 18px;border-radius:8px;border:1px solid var(--bdr);background:#fff;font-size:.88rem;cursor:pointer">Schließen</button>`;
     return;
@@ -7855,6 +7935,15 @@ function _lpEdSave2(){
     return;
   }
   const {zi,ri,si,hi,sorte,schlag_id,sf,dg,auslagernBis,qualitaet,groesse}=_lpEd;
+  // Plan-Mismatch verhindern: max. so viele Kisten planen wie eingelagert
+  const _gkB=(_lpEd._gkBySchlag||{})[schlag_id]||0;
+  const _gkP=(_lpEd._planBySchlag||{})[schlag_id]||0; // excludes current cell
+  const _gkS=(_lpEd._sortiertBySchlag||{})[schlag_id]||0;
+  if(_gkB>0 && _gkP+_gkS+1>_gkB){
+    const sc=_getAllSchlage().find(x=>x.id===schlag_id);
+    alert('⚠️ Nicht möglich: Für "'+( sc?.name||schlag_id)+'" sind nur '+_gkB+' GK eingelagert, davon '+(_gkP+_gkS)+' bereits verplant/sortiert. Bitte zuerst weitere GK einbuchen.');
+    return;
+  }
   if(!D.gaimbergPlan)D.gaimbergPlan={};
   _lpPushHistory();
   const obj={sorte,schlag_id,sf};
